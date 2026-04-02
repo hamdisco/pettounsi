@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>770446391455-kk9m0urme7kfasldd89ahvn9t2viu9r8.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.770446391455-kk9m0urme7kfasldd89ahvn9t2viu9r8</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>770446391455-jhrbpv6nisvrq4qf6m34ec7k8abkolth.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>AIzaSyDYqC2IMYJDyytSueFYzzhp8hGHA19boVE</string>
+	<key>GCM_SENDER_ID</key>
+	<string>770446391455</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.example.pettounsi</string>
+	<key>PROJECT_ID</key>
+	<string>pettounsi-d3d5e</string>
+	<key>STORAGE_BUCKET</key>
+	<string>pettounsi-d3d5e.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:770446391455:ios:369c8ca5431f5ed4eb4aaa</string>
+	<key>DATABASE_URL</key>
+	<string>https://pettounsi-d3d5e-default-rtdb.firebaseio.com</string>
+</dict>
+</plist>

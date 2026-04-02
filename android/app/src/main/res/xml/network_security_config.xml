@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Allow cleartext HTTP for Cloudinary delivery (some old URLs may be http://) -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">res.cloudinary.com</domain>
+    </domain-config>
+
+    <!-- OPTIONAL: If you still have legacy http images from other domains, add them here. -->
+</network-security-config>

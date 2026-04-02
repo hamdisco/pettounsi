@@ -1,0 +1,10 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # These are NOT worth fixing manually in a large app
+    unnecessary_underscores: false
+    curly_braces_in_flow_control_structures: false
+    unnecessary_brace_in_string_interps: false
+    use_null_aware_elements: false
+    depend_on_referenced_packages: true

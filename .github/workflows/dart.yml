@@ -1,0 +1,310 @@
+name: iOS IPA + Simulator Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-ios-device:
+    name: 🎉 iOS IPA Build (Device)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.43.0-0.3.pre'
+          channel: 'beta'
+          architecture: x64
+          cache: true
+
+      - name: Create env.json
+        run: |
+          if [ -z '${{ secrets.ENV_JSON }}' ]; then
+            echo '{}' > env.json
+          else
+            echo '${{ secrets.ENV_JSON }}' > env.json
+          fi
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Fix project.pbxproj
+        run: |
+          python3 << 'EOF'
+          import re
+
+          with open('ios/Runner.xcodeproj/project.pbxproj', 'r') as f:
+              content = f.read()
+
+          content = re.sub(
+              r'IPHONEOS_DEPLOYMENT_TARGET = [0-9.]+;',
+              'IPHONEOS_DEPLOYMENT_TARGET = 15.0;',
+              content
+          )
+          content = content.replace(
+              'ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = AppIcon;',
+              'ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;'
+          )
+          content = re.sub(r'\s*CODE_SIGN_ENTITLEMENTS = [^\n]+;\n', '\n', content)
+
+          if 'GoogleService-Info.plist' not in content:
+              content = content.replace(
+                  '/* Begin PBXBuildFile section */',
+                  '/* Begin PBXBuildFile section */\n\t\tAA4B5B8A2EC3CC0400C636F2 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = AA4B5B892EC3CC0400C636F2 /* GoogleService-Info.plist */; };'
+              )
+              content = content.replace(
+                  '/* Begin PBXFileReference section */',
+                  '/* Begin PBXFileReference section */\n\t\tAA4B5B892EC3CC0400C636F2 /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };'
+              )
+              content = content.replace(
+                  '97C147021CF9000F007C117D /* Info.plist */,',
+                  '97C147021CF9000F007C117D /* Info.plist */,\n\t\t\t\tAA4B5B892EC3CC0400C636F2 /* GoogleService-Info.plist */,'
+              )
+              content = content.replace(
+                  '97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,',
+                  '97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,\n\t\t\t\tAA4B5B8A2EC3CC0400C636F2 /* GoogleService-Info.plist in Resources */,'
+              )
+
+          with open('ios/Runner.xcodeproj/project.pbxproj', 'w') as f:
+              f.write(content)
+          print("project.pbxproj fixed successfully")
+          EOF
+
+      - name: Create Podfile
+        run: |
+          cat > ios/Podfile << 'EOF'
+          platform :ios, '15.0'
+
+          ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+          project 'Runner', {
+            'Debug' => :debug,
+            'Profile' => :release,
+            'Release' => :release,
+          }
+
+          def flutter_root
+            generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+            unless File.exist?(generated_xcode_build_settings_path)
+              raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
+            end
+
+            File.foreach(generated_xcode_build_settings_path) do |line|
+              matches = line.match(/FLUTTER_ROOT\=(.*)/)
+              return matches[1].strip if matches
+            end
+            raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
+          end
+
+          require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+          flutter_ios_podfile_setup
+
+          target 'Runner' do
+            use_frameworks!
+            use_modular_headers!
+
+            flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+            target 'RunnerTests' do
+              inherit! :search_paths
+            end
+          end
+
+          post_install do |installer|
+            installer.pods_project.targets.each do |target|
+              flutter_additional_ios_build_settings(target)
+              target.build_configurations.each do |config|
+                config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+              end
+            end
+          end
+          EOF
+
+      - name: Pod repo update
+        run: pod repo update
+        working-directory: ios
+
+      - name: Build iOS device (no codesign)
+        run: flutter build ios --release --no-codesign --dart-define-from-file=env.json
+
+      - name: Package into IPA
+        run: |
+          cd build/ios/iphoneos
+          mkdir Payload
+          mv Runner.app/ Payload
+          zip -qq -r -9 FlutterIpaExport.ipa Payload
+
+      - name: Upload IPA to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: build/ios/iphoneos/FlutterIpaExport.ipa
+          tag: v1.0
+          overwrite: true
+          body: "iOS IPA - install via Sideloadly"
+
+  build-ios-simulator:
+    name: 🖥 iOS Simulator Build (Appetize)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.43.0-0.3.pre'
+          channel: 'beta'
+          architecture: x64
+          cache: true
+
+      - name: Create env.json
+        run: |
+          if [ -z '${{ secrets.ENV_JSON }}' ]; then
+            echo '{}' > env.json
+          else
+            echo '${{ secrets.ENV_JSON }}' > env.json
+          fi
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Fix project.pbxproj
+        run: |
+          python3 << 'EOF'
+          import re
+
+          with open('ios/Runner.xcodeproj/project.pbxproj', 'r') as f:
+              content = f.read()
+
+          content = re.sub(
+              r'IPHONEOS_DEPLOYMENT_TARGET = [0-9.]+;',
+              'IPHONEOS_DEPLOYMENT_TARGET = 15.0;',
+              content
+          )
+          content = content.replace(
+              'ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = AppIcon;',
+              'ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;'
+          )
+          content = re.sub(r'\s*CODE_SIGN_ENTITLEMENTS = [^\n]+;\n', '\n', content)
+
+          if 'GoogleService-Info.plist' not in content:
+              content = content.replace(
+                  '/* Begin PBXBuildFile section */',
+                  '/* Begin PBXBuildFile section */\n\t\tAA4B5B8A2EC3CC0400C636F2 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = AA4B5B892EC3CC0400C636F2 /* GoogleService-Info.plist */; };'
+              )
+              content = content.replace(
+                  '/* Begin PBXFileReference section */',
+                  '/* Begin PBXFileReference section */\n\t\tAA4B5B892EC3CC0400C636F2 /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };'
+              )
+              content = content.replace(
+                  '97C147021CF9000F007C117D /* Info.plist */,',
+                  '97C147021CF9000F007C117D /* Info.plist */,\n\t\t\t\tAA4B5B892EC3CC0400C636F2 /* GoogleService-Info.plist */,'
+              )
+              content = content.replace(
+                  '97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,',
+                  '97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,\n\t\t\t\tAA4B5B8A2EC3CC0400C636F2 /* GoogleService-Info.plist in Resources */,'
+              )
+
+          with open('ios/Runner.xcodeproj/project.pbxproj', 'w') as f:
+              f.write(content)
+          print("project.pbxproj fixed successfully")
+          EOF
+
+      - name: Strip all entitlements for simulator
+        run: |
+          printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict/>\n</plist>' > ios/Runner/Runner.entitlements
+
+      - name: Fix Info.plist for simulator
+        run: |
+          python3 << 'EOF'
+          with open('ios/Runner/Info.plist', 'r') as f:
+              content = f.read()
+
+          start_marker = '\n\t<!-- Google Sign-In redirect scheme -->\n\t<key>CFBundleURLTypes</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>CFBundleTypeRole</key>\n\t\t\t<string>Editor</string>\n\t\t\t<key>CFBundleURLSchemes</key>\n\t\t\t<array>\n\t\t\t\t<string>com.googleusercontent.apps.770446391455-kk9m0urme7kfasldd89ahvn9t2viu9r8</string>\n\t\t\t</array>\n\t\t</dict>\n\t</array>'
+
+          if start_marker in content:
+              content = content.replace(start_marker, '')
+              print("Removed CFBundleURLTypes successfully")
+          else:
+              print("CFBundleURLTypes block not found - skipping")
+
+          with open('ios/Runner/Info.plist', 'w') as f:
+              f.write(content)
+          EOF
+
+      - name: Create Podfile
+        run: |
+          cat > ios/Podfile << 'EOF'
+          platform :ios, '15.0'
+
+          ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+          project 'Runner', {
+            'Debug' => :debug,
+            'Profile' => :release,
+            'Release' => :release,
+          }
+
+          def flutter_root
+            generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+            unless File.exist?(generated_xcode_build_settings_path)
+              raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
+            end
+
+            File.foreach(generated_xcode_build_settings_path) do |line|
+              matches = line.match(/FLUTTER_ROOT\=(.*)/)
+              return matches[1].strip if matches
+            end
+            raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
+          end
+
+          require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+          flutter_ios_podfile_setup
+
+          target 'Runner' do
+            use_frameworks!
+            use_modular_headers!
+
+            flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+            target 'RunnerTests' do
+              inherit! :search_paths
+            end
+          end
+
+          post_install do |installer|
+            installer.pods_project.targets.each do |target|
+              flutter_additional_ios_build_settings(target)
+              target.build_configurations.each do |config|
+                config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+              end
+            end
+          end
+          EOF
+
+      - name: Pod repo update
+        run: pod repo update
+        working-directory: ios
+
+      - name: Build iOS Simulator
+        run: |
+          flutter build ios --simulator \
+            --dart-define-from-file=env.json \
+            --dart-define=ENABLE_APP_CHECK=false
+
+      - name: Inject GoogleService-Info.plist into built app
+        run: |
+          cp ios/Runner/GoogleService-Info.plist build/ios/iphonesimulator/Runner.app/GoogleService-Info.plist
+          echo "GoogleService-Info.plist injected successfully"
+
+      - name: Zip Simulator App for Appetize
+        run: |
+          cd build/ios/iphonesimulator
+          zip -r Runner.app.zip Runner.app
+
+      - name: Upload Simulator build as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: iOS-Simulator-Appetize
+          path: build/ios/iphonesimulator/Runner.app.zip

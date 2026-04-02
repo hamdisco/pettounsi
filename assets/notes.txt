@@ -1,0 +1,1 @@
+flutter run --dart-define=CLOUDINARY_CLOUD_NAME=djjhtv7fx --dart-define=CLOUDINARY_UPLOAD_PRESET=cloudinary_pet
