@@ -229,7 +229,32 @@ jobs:
           with open('ios/Runner/Info.plist', 'w') as f:
               f.write(content)
           EOF
+      - name: Remove SceneDelegate from Info.plist for simulator
+        run: |
+          python3 << 'EOF'
+          with open('ios/Runner/Info.plist', 'r') as f:
+              content = f.read()
 
+          # Remove UIApplicationSceneManifest block
+          import re
+          content = re.sub(
+              r'\s*<key>UIApplicationSceneManifest</key>\s*<dict>.*?</dict>',
+              '',
+              content,
+              flags=re.DOTALL
+          )
+
+          # Also remove UIMainStoryboardFile since we use programmatic window
+          content = content.replace(
+              '\t<key>UIMainStoryboardFile</key>\n\t<string>Main</string>\n',
+              ''
+          )
+
+          with open('ios/Runner/Info.plist', 'w') as f:
+              f.write(content)
+
+          print("Removed SceneDelegate from Info.plist")
+          EOF
       - name: Create Podfile
         run: |
           cat > ios/Podfile << 'EOF'
