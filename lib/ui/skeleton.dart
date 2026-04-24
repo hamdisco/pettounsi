@@ -87,6 +87,39 @@ class SkeletonCircle extends StatelessWidget {
   }
 }
 
+
+class SkeletonPanel extends StatelessWidget {
+  const SkeletonPanel({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(14),
+    this.radius = 24,
+    this.margin,
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final double radius;
+  final EdgeInsetsGeometry? margin;
+
+  @override
+  Widget build(BuildContext context) {
+    return SkeletonPulse(
+      child: Container(
+        margin: margin,
+        padding: padding,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(radius),
+          border: Border.all(color: AppTheme.outline),
+          boxShadow: AppTheme.softShadows(0.10),
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
 /// A feed-style skeleton card that matches the post layout.
 /// Use it when the feed/profile posts are still loading.
 class SkeletonPostCard extends StatelessWidget {

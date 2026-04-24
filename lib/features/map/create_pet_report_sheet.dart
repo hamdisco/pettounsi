@@ -87,7 +87,11 @@ class _CreatePetReportSheetState extends State<CreatePetReportSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final media = MediaQuery.of(context);
+    final bottomInset = media.viewInsets.bottom;
+    final maxSheetHeight = media.size.height * 0.88;
+    final lat = widget.position.latitude.toStringAsFixed(4);
+    final lng = widget.position.longitude.toStringAsFixed(4);
 
     return SafeArea(
       top: false,
@@ -95,342 +99,340 @@ class _CreatePetReportSheetState extends State<CreatePetReportSheet> {
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOut,
         padding: EdgeInsets.only(bottom: bottomInset),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: AppTheme.outline),
-                boxShadow: AppTheme.softShadows(0.22),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Center(
-                        child: Container(
-                          width: 46,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            color: AppTheme.ink.withAlpha(18),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Row(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: maxSheetHeight),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: AppTheme.outline),
+                  boxShadow: AppTheme.softShadows(0.22),
+                ),
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 16),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 42,
-                            height: 42,
-                            decoration: BoxDecoration(
-                              color: AppTheme.blush,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: Colors.white),
-                            ),
-                            child: const Icon(
-                              Icons.add_location_alt_rounded,
-                              color: AppTheme.orangeDark,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Create pet report',
-                                  style: TextStyle(
-                                    fontSize: 16.4,
-                                    fontWeight: FontWeight.w900,
-                                    color: AppTheme.ink,
-                                    height: 1.08,
-                                  ),
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  'Publish a lost or found report for this map location.',
-                                  style: TextStyle(
-                                    color: AppTheme.muted,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 12.2,
-                                    height: 1.15,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: _saving
-                                ? null
-                                : () => Navigator.pop(context),
-                            icon: const Icon(Icons.close_rounded),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppTheme.sky,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: AppTheme.outline),
-                        ),
-                        child: Text(
-                          'Pin location: ${widget.position.latitude.toStringAsFixed(5)}, ${widget.position.longitude.toStringAsFixed(5)}',
-                          style: TextStyle(
-                            color: AppTheme.ink.withAlpha(185),
-                            fontWeight: FontWeight.w800,
-                            fontSize: 12.2,
-                            height: 1.18,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      _SectionCard(
-                        title: 'Report type',
-                        icon: Icons.pets_rounded,
-                        iconBg: AppTheme.lilac,
-                        iconFg: const Color(0xFF7C62D7),
-                        child: Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: [
-                            _typeChip(
-                              value: 'lost',
-                              label: 'Lost',
-                              icon: Icons.pets,
-                              color: const Color(0xFFE05555),
-                            ),
-                            _typeChip(
-                              value: 'found',
-                              label: 'Found',
-                              icon: Icons.pets_outlined,
-                              color: const Color(0xFF2F9A6A),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      _SectionCard(
-                        title: 'Main details',
-                        icon: Icons.edit_note_rounded,
-                        iconBg: AppTheme.blush,
-                        iconFg: AppTheme.orangeDark,
-                        child: Column(
-                          children: [
-                            _input(
-                              controller: _titleCtrl,
-                              label: 'Title (optional)',
-                              hint: _type == 'lost'
-                                  ? 'Lost cat near downtown'
-                                  : 'Found dog near the park',
-                              maxLength: 120,
-                            ),
-                            const SizedBox(height: 10),
-                            _input(
-                              controller: _animalCtrl,
-                              label: 'Animal (optional)',
-                              hint: 'Cat, Dog, Bird...',
-                              maxLength: 40,
-                            ),
-                            const SizedBox(height: 10),
-                            _input(
-                              controller: _descCtrl,
-                              label: 'Description',
-                              hint:
-                                  'Color, size, collar, behavior, when/where seen...',
-                              maxLines: 4,
-                              minLines: 3,
-                              maxLength: 1200,
-                              validator: (v) {
-                                final t = (v ?? '').trim();
-                                if (t.isEmpty) {
-                                  return 'Please add a description';
-                                }
-                                if (t.length < 4) {
-                                  return 'Description is too short';
-                                }
-                                return null;
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      _SectionCard(
-                        title: 'Location details',
-                        icon: Icons.place_rounded,
-                        iconBg: AppTheme.sky,
-                        iconFg: const Color(0xFF4C79C8),
-                        child: Column(
-                          children: [
-                            _input(
-                              controller: _addressCtrl,
-                              label: 'Address / Area (optional)',
-                              hint: 'Street, district, landmark...',
-                              maxLength: 220,
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _input(
-                                    controller: _cityCtrl,
-                                    label: 'City (optional)',
-                                    hint: 'Sousse',
-                                    maxLength: 80,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: _input(
-                                    controller: _govCtrl,
-                                    label: 'Governorate (optional)',
-                                    hint: 'Sousse',
-                                    maxLength: 80,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      _SectionCard(
-                        title: 'Contact & photo',
-                        icon: Icons.perm_contact_calendar_rounded,
-                        iconBg: AppTheme.mint,
-                        iconFg: const Color(0xFF2F9A6A),
-                        child: Column(
-                          children: [
-                            _input(
-                              controller: _phoneCtrl,
-                              label: 'Phone (optional)',
-                              hint: '+216 xx xxx xxx',
-                              keyboardType: TextInputType.phone,
-                              maxLength: 40,
-                            ),
-                            const SizedBox(height: 10),
-                            _input(
-                              controller: _photoUrlCtrl,
-                              label: 'Photo URL (optional)',
-                              hint: 'https://...',
-                              keyboardType: TextInputType.url,
-                              maxLength: 2000,
-                              validator: (v) {
-                                final t = (v ?? '').trim();
-                                if (t.isEmpty) return null;
-                                final uri = Uri.tryParse(t);
-                                if (uri == null ||
-                                    !(uri.isScheme('http') ||
-                                        uri.isScheme('https'))) {
-                                  return 'Enter a valid http/https URL';
-                                }
-                                return null;
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppTheme.lilac,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppTheme.outline),
-                        ),
-                        child: Text(
-                          'Tip: add a clear description and a phone number if you want people to contact you faster.',
-                          style: TextStyle(
-                            color: AppTheme.ink.withAlpha(185),
-                            fontWeight: FontWeight.w700,
-                            height: 1.22,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: _saving
-                                  ? null
-                                  : () => Navigator.pop(context),
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(color: AppTheme.outline),
-                                minimumSize: const Size.fromHeight(50),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                              ),
-                              child: const Text(
-                                'Cancel',
-                                style: TextStyle(fontWeight: FontWeight.w900),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            flex: 2,
-                            child: DecoratedBox(
+                          Center(
+                            child: Container(
+                              width: 46,
+                              height: 5,
                               decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFF7C62D7),
-                                    Color(0xFFC86B9A),
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(16),
+                                color: AppTheme.ink.withAlpha(18),
+                                borderRadius: BorderRadius.circular(999),
                               ),
-                              child: ElevatedButton.icon(
-                                onPressed: _saving ? null : _submit,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.transparent,
-                                  shadowColor: Colors.transparent,
-                                  foregroundColor: Colors.white,
-                                  minimumSize: const Size.fromHeight(50),
-                                  shape: RoundedRectangleBorder(
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.blush,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.white),
+                                ),
+                                child: const Icon(
+                                  Icons.add_location_alt_rounded,
+                                  color: AppTheme.orangeDark,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Create pet report',
+                                      style: TextStyle(
+                                        fontSize: 15.6,
+                                        fontWeight: FontWeight.w900,
+                                        color: AppTheme.ink,
+                                        height: 1.06,
+                                      ),
+                                    ),
+                                    SizedBox(height: 3),
+                                    Text(
+                                      'Publish a lost or found report for this location.',
+                                      style: TextStyle(
+                                        color: AppTheme.muted,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 11.7,
+                                        height: 1.12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: _saving ? null : () => Navigator.pop(context),
+                                icon: const Icon(Icons.close_rounded),
+                                visualDensity: VisualDensity.compact,
+                                splashRadius: 18,
+                                constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+                                padding: EdgeInsets.zero,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: AppTheme.sky,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppTheme.outline),
+                            ),
+                            child: Text(
+                              'Pinned location: $lat, $lng',
+                              style: TextStyle(
+                                color: AppTheme.ink.withAlpha(185),
+                                fontWeight: FontWeight.w800,
+                                fontSize: 11.8,
+                                height: 1.15,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _SectionCard(
+                            title: 'Report type',
+                            icon: Icons.pets_rounded,
+                            iconBg: AppTheme.lilac,
+                            iconFg: const Color(0xFF7C62D7),
+                            child: Wrap(
+                              spacing: 10,
+                              runSpacing: 10,
+                              children: [
+                                _typeChip(
+                                  value: 'lost',
+                                  label: 'Lost',
+                                  icon: Icons.pets,
+                                  color: const Color(0xFFE05555),
+                                ),
+                                _typeChip(
+                                  value: 'found',
+                                  label: 'Found',
+                                  icon: Icons.pets_outlined,
+                                  color: const Color(0xFF2F9A6A),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _SectionCard(
+                            title: 'Main details',
+                            icon: Icons.edit_note_rounded,
+                            iconBg: AppTheme.blush,
+                            iconFg: AppTheme.orangeDark,
+                            child: Column(
+                              children: [
+                                _input(
+                                  controller: _titleCtrl,
+                                  label: 'Title (optional)',
+                                  hint: _type == 'lost'
+                                      ? 'Lost cat near downtown'
+                                      : 'Found dog near the park',
+                                  maxLength: 120,
+                                ),
+                                const SizedBox(height: 10),
+                                _input(
+                                  controller: _animalCtrl,
+                                  label: 'Animal (optional)',
+                                  hint: 'Cat, Dog, Bird...',
+                                  maxLength: 40,
+                                ),
+                                const SizedBox(height: 10),
+                                _input(
+                                  controller: _descCtrl,
+                                  label: 'Description',
+                                  hint: _type == 'lost'
+                                      ? 'Color, collar, last seen details...'
+                                      : 'Condition, collar, where you found it...',
+                                  maxLines: 4,
+                                  minLines: 3,
+                                  maxLength: 600,
+                                  validator: (v) {
+                                    final t = (v ?? '').trim();
+                                    if (t.isEmpty) return 'Description is required';
+                                    if (t.length < 8) return 'Please add a bit more detail';
+                                    return null;
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _SectionCard(
+                            title: 'Location details',
+                            icon: Icons.place_rounded,
+                            iconBg: AppTheme.sky,
+                            iconFg: const Color(0xFF4C79C8),
+                            child: Column(
+                              children: [
+                                _input(
+                                  controller: _addressCtrl,
+                                  label: 'Address (optional)',
+                                  hint: 'Street, area, landmark...',
+                                  maxLength: 140,
+                                ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _input(
+                                        controller: _cityCtrl,
+                                        label: 'City (optional)',
+                                        hint: 'City',
+                                        maxLength: 60,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: _input(
+                                        controller: _govCtrl,
+                                        label: 'Region (optional)',
+                                        hint: 'Region',
+                                        maxLength: 60,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _SectionCard(
+                            title: 'Contact & photo',
+                            icon: Icons.perm_contact_calendar_rounded,
+                            iconBg: AppTheme.mint,
+                            iconFg: const Color(0xFF2F9A6A),
+                            child: Column(
+                              children: [
+                                _input(
+                                  controller: _phoneCtrl,
+                                  label: 'Phone (optional)',
+                                  hint: '+216 xx xxx xxx',
+                                  keyboardType: TextInputType.phone,
+                                  maxLength: 40,
+                                ),
+                                const SizedBox(height: 10),
+                                _input(
+                                  controller: _photoUrlCtrl,
+                                  label: 'Photo URL (optional)',
+                                  hint: 'https://...',
+                                  keyboardType: TextInputType.url,
+                                  maxLength: 2000,
+                                  validator: (v) {
+                                    final t = (v ?? '').trim();
+                                    if (t.isEmpty) return null;
+                                    final uri = Uri.tryParse(t);
+                                    if (uri == null || !(uri.isScheme('http') || uri.isScheme('https'))) {
+                                      return 'Enter a valid http/https URL';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppTheme.lilac,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppTheme.outline),
+                            ),
+                            child: Text(
+                              'Tip: add a clear description and a phone number if you want people to contact you faster.',
+                              style: TextStyle(
+                                color: AppTheme.ink.withAlpha(185),
+                                fontWeight: FontWeight.w700,
+                                height: 1.22,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: _saving ? null : () => Navigator.pop(context),
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(color: AppTheme.outline),
+                                    minimumSize: const Size.fromHeight(50),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Cancel',
+                                    style: TextStyle(fontWeight: FontWeight.w900),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                flex: 2,
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xFF7C62D7),
+                                        Color(0xFFC86B9A),
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
                                     borderRadius: BorderRadius.circular(16),
                                   ),
-                                ),
-                                icon: _saving
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2.2,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                    : const Icon(
-                                        Icons.check_circle_outline_rounded,
+                                  child: ElevatedButton.icon(
+                                    onPressed: _saving ? null : _submit,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.transparent,
+                                      shadowColor: Colors.transparent,
+                                      foregroundColor: Colors.white,
+                                      minimumSize: const Size.fromHeight(50),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
                                       ),
-                                label: Text(
-                                  _saving ? 'Saving...' : 'Publish report',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w900,
+                                    ),
+                                    icon: _saving
+                                        ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2.2,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : const Icon(Icons.check_circle_outline_rounded),
+                                    label: Text(
+                                      _saving ? 'Saving...' : 'Publish report',
+                                      style: const TextStyle(fontWeight: FontWeight.w900),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
+                            ],
                           ),
+                          const SizedBox(height: 4),
                         ],
                       ),
-                      const SizedBox(height: 4),
-                    ],
+                    ),
                   ),
                 ),
               ),

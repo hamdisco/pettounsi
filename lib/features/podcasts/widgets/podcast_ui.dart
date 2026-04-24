@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../ui/adaptive_cached_image.dart';
 import '../../../ui/premium_pills.dart';
 import '../../../ui/app_theme.dart';
 import '../models/podcast_episode.dart';
@@ -17,7 +18,7 @@ class PodcastHeroHeader extends StatelessWidget {
       icon: Icons.podcasts_rounded,
       iconColor: const Color(0xFF4C79C8),
       title: 'Podcasts',
-      subtitle: 'Short, helpful episodes — curated for pet lovers.',
+      subtitle: 'Short, helpful episodes and curated for pet lovers.',
       trailing: IconButton(
         tooltip: 'Info',
         onPressed: onTapInfo,
@@ -508,20 +509,20 @@ class PodcastCover extends StatelessWidget {
                       ),
               ),
               child: has
-                  ? Image.network(
-                      imageUrl!,
+                  ? AdaptiveCachedImage(
+                      imageUrl: imageUrl!,
                       fit: BoxFit.cover,
-                      loadingBuilder: (c, w, p) {
-                        if (p == null) return w;
-                        return const Center(
-                          child: SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2.2),
-                          ),
-                        );
-                      },
-                      errorBuilder: (_, __, ___) => _placeholder(),
+                      fallbackWidth: size,
+                      fallbackHeight: size,
+                      maxCacheDimension: 320,
+                      placeholder: const Center(
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2.2),
+                        ),
+                      ),
+                      errorWidget: _placeholder(),
                     )
                   : _placeholder(),
             ),

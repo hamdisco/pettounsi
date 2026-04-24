@@ -1,8 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../features/settings/legal_page.dart';
-import '../features/settings/support_page.dart';
-import '../shell/main_scaffold.dart';
+import 'auth_gate.dart';
 import '../ui/brand_widgets.dart';
 import '../ui/cat_mascot.dart';
 import '../ui/app_theme.dart';
@@ -29,7 +27,6 @@ class _SignUpPageState extends State<SignUpPage> {
 
   bool showPassword = false;
   bool loading = false;
-  bool acceptedPolicies = false;
 
   double look = 0;
   bool eyesClosed = false;
@@ -45,19 +42,38 @@ class _SignUpPageState extends State<SignUpPage> {
       f.addListener(_syncMascot);
     }
 
-    emailC.addListener(() {
-      final len = emailC.text.length.clamp(0, 30);
-      setState(() => look = (len / 30) * 2 - 1);
-    });
+    userC.addListener(_updateMascotLookFromActiveField);
+    emailC.addListener(_updateMascotLookFromActiveField);
 
     _syncMascot();
+  }
+
+  void _updateMascotLookFromActiveField() {
+    if (!mounted) return;
+
+    if (passF.hasFocus) {
+      setState(() => look = 0.0);
+      return;
+    }
+
+    if (userF.hasFocus) {
+      final len = userC.text.trim().length.clamp(0, 20);
+      setState(() => look = (len / 20) * 2 - 1);
+      return;
+    }
+
+    if (emailF.hasFocus) {
+      final len = emailC.text.length.clamp(0, 30);
+      setState(() => look = (len / 30) * 2 - 1);
+      return;
+    }
   }
 
   void _syncMascot() {
     setState(() {
       eyesClosed = passF.hasFocus && !showPassword;
-      if (passF.hasFocus || userF.hasFocus) look = 0.0;
     });
+    _updateMascotLookFromActiveField();
   }
 
   @override
@@ -75,31 +91,7 @@ class _SignUpPageState extends State<SignUpPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  bool _canContinueSignUp() {
-    if (!acceptedPolicies) {
-      _toast('Please accept the terms, privacy, and community rules first.');
-      return false;
-    }
-    return true;
-  }
-
-  void _openLegalPage() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const LegalPage()),
-    );
-  }
-
-  void _openSupportPage() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const SupportPage()),
-    );
-  }
-
   Future<void> _signupEmail() async {
-    if (!_canContinueSignUp()) return;
-
     setState(() => loading = true);
     try {
       if (userC.text.trim().isEmpty) {
@@ -112,11 +104,7 @@ class _SignUpPageState extends State<SignUpPage> {
         username: userC.text,
       );
       if (!mounted) return;
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        MainScaffold.route,
-        (r) => false,
-      );
+      Navigator.pushNamedAndRemoveUntil(context, AuthGate.route, (r) => false);
     } catch (e) {
       _toast(authErrorText(e));
     } finally {
@@ -125,17 +113,11 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Future<void> _signupGoogle() async {
-    if (!_canContinueSignUp()) return;
-
     setState(() => loading = true);
     try {
       await AuthService.instance.signInWithGoogle();
       if (!mounted) return;
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        MainScaffold.route,
-        (r) => false,
-      );
+      Navigator.pushNamedAndRemoveUntil(context, AuthGate.route, (r) => false);
     } catch (e) {
       _toast(authErrorText(e));
     } finally {
@@ -144,17 +126,11 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Future<void> _signupApple() async {
-    if (!_canContinueSignUp()) return;
-
     setState(() => loading = true);
     try {
       await AuthService.instance.signInWithApple();
       if (!mounted) return;
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        MainScaffold.route,
-        (r) => false,
-      );
+      Navigator.pushNamedAndRemoveUntil(context, AuthGate.route, (r) => false);
     } catch (e) {
       _toast(authErrorText(e));
     } finally {
@@ -258,60 +234,6 @@ class _SignUpPageState extends State<SignUpPage> {
                                 ),
                               ),
                             ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppTheme.bg,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: AppTheme.outline),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Checkbox(
-                                      value: acceptedPolicies,
-                                      onChanged: (v) => setState(
-                                        () => acceptedPolicies = v ?? false,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 2),
-                                    const Expanded(
-                                      child: Padding(
-                                        padding: EdgeInsets.only(top: 11),
-                                        child: Text(
-                                          'I agree to the terms of use, privacy policy, and community rules for posts, comments, chats, reports, and listings.',
-                                          style: TextStyle(
-                                            color: AppTheme.ink,
-                                            fontWeight: FontWeight.w800,
-                                            height: 1.2,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: [
-                                    TextButton.icon(
-                                      onPressed: _openLegalPage,
-                                      icon: const Icon(Icons.article_outlined, size: 18),
-                                      label: const Text('Read rules'),
-                                    ),
-                                    TextButton.icon(
-                                      onPressed: _openSupportPage,
-                                      icon: const Icon(Icons.support_agent_rounded, size: 18),
-                                      label: const Text('Privacy & support'),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
                           ),
 
                           const SizedBox(height: 12),

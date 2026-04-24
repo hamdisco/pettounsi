@@ -15,6 +15,10 @@ class GamesPage extends StatefulWidget {
 }
 
 class _GamesPageState extends State<GamesPage> {
+  late final String? _uid;
+  late final Stream<DocumentSnapshot<Map<String, dynamic>>> _userDocStream;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _allClaimsStream;
+
   static final List<_PointsMission> _missions = [
     _PointsMission(
       id: 'post_report',
@@ -47,6 +51,26 @@ class _GamesPageState extends State<GamesPage> {
   ];
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _uid = FirebaseAuth.instance.currentUser?.uid;
+
+    if (_uid == null || _uid.isEmpty) {
+      _userDocStream =
+          const Stream<DocumentSnapshot<Map<String, dynamic>>>.empty();
+      _allClaimsStream =
+          const Stream<QuerySnapshot<Map<String, dynamic>>>.empty();
+      return;
+    }
+
+    _userDocStream = _db.collection('users').doc(_uid).snapshots();
+    _allClaimsStream = _db
+        .collection('game_claims')
+        .where('uid', isEqualTo: _uid)
+        .snapshots();
+  }
 
   int _tabIndex = 0;
   String get _todayKey {
@@ -205,7 +229,7 @@ class _GamesPageState extends State<GamesPage> {
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _uid;
     final bool showAppBar = Navigator.of(context).canPop();
 
     if (uid == null || uid.isEmpty) {
@@ -252,12 +276,6 @@ class _GamesPageState extends State<GamesPage> {
       );
     }
 
-    final userDocStream = _db.collection('users').doc(uid).snapshots();
-    final allClaimsStream = _db
-        .collection('game_claims')
-        .where('uid', isEqualTo: uid)
-        .snapshots();
-
     return Scaffold(
       backgroundColor: AppTheme.bg,
       appBar: showAppBar
@@ -269,7 +287,7 @@ class _GamesPageState extends State<GamesPage> {
             )
           : null,
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: userDocStream,
+        stream: _userDocStream,
         builder: (context, userSnap) {
           final userData = userSnap.data?.data() ?? <String, dynamic>{};
           final syncedPoints = (userData['pointsBalance'] is num)
@@ -277,7 +295,7 @@ class _GamesPageState extends State<GamesPage> {
               : 0;
 
           return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: allClaimsStream,
+            stream: _allClaimsStream,
             builder: (context, claimsSnap) {
               final allClaimDocs =
                   claimsSnap.data?.docs ??

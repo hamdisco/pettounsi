@@ -3,9 +3,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../repositories/block_repository.dart';
+import '../../services/connectivity_status_controller.dart';
 import '../../ui/app_theme.dart';
 import '../../ui/premium_cards.dart';
 import '../../ui/premium_feedback.dart';
+import '../../ui/offline_feedback.dart';
 import '../../ui/user_avatar.dart';
 import 'chat_page.dart';
 import 'conversation_model.dart';
@@ -28,97 +30,105 @@ class MessagesPage extends StatelessWidget {
     final me = FirebaseAuth.instance.currentUser;
     final myUid = me?.uid ?? '';
 
-    return Container(
-      color: AppTheme.bg,
-      child: StreamBuilder<Set<String>>(
-        stream: BlockRepository.instance.streamBlockedUids(),
-        builder: (context, bSnap) {
-          final blocked = bSnap.data ?? <String>{};
+    return AnimatedBuilder(
+      animation: ConnectivityStatusController.instance,
+      builder: (context, _) {
+        return Container(
+          color: AppTheme.bg,
+          child: StreamBuilder<Set<String>>(
+            stream: BlockRepository.instance.streamBlockedUids(),
+            builder: (context, bSnap) {
+              final blocked = bSnap.data ?? <String>{};
 
-          return StreamBuilder<List<ConversationModel>>(
-            stream: MessagesRepository.instance.streamMyConversations(
-              limit: 60,
-            ),
-            builder: (context, snap) {
-              if (!snap.hasData) {
-                return const _MessagesLoadingState();
-              }
+              return StreamBuilder<List<ConversationModel>>(
+                stream: MessagesRepository.instance.streamMyConversations(
+                  limit: 60,
+                ),
+                builder: (context, snap) {
+                  final offline = ConnectivityStatusController.instance.isOffline;
+                  if (!snap.hasData) {
+                    return offline
+                        ? const _MessagesOfflineState()
+                        : const _MessagesLoadingState();
+                  }
 
-              final convosAll = snap.data ?? const <ConversationModel>[];
+                  final convosAll = snap.data ?? const <ConversationModel>[];
 
-              final convos = convosAll.where((c) {
-                if (myUid.isEmpty) return true;
-                final otherUid = c.participants.firstWhere(
-                  (u) => u != myUid,
-                  orElse: () => '',
-                );
-                if (otherUid.isEmpty) return true;
-                return !blocked.contains(otherUid);
-              }).toList();
+                  final convos = convosAll.where((c) {
+                    if (myUid.isEmpty) return true;
+                    final otherUid = c.participants.firstWhere(
+                      (u) => u != myUid,
+                      orElse: () => '',
+                    );
+                    if (otherUid.isEmpty) return true;
+                    return !blocked.contains(otherUid);
+                  }).toList();
 
-              return ListView(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 112),
-                children: [
-                  _InboxHeader(count: convos.length),
-                  const SizedBox(height: 12),
-                  if (convos.isEmpty)
-                    const _EmptyInbox()
-                  else
-                    ...convos.map((c) {
-                      final otherUid = c.participants.firstWhere(
-                        (u) => u != myUid,
-                        orElse: () => c.participants.isNotEmpty
-                            ? c.participants.first
-                            : '',
-                      );
+                  return ListView(
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 112),
+                    children: [
+                      _InboxHeader(count: convos.length),
+                      const SizedBox(height: 12),
+                      if (convos.isEmpty)
+                        const _EmptyInbox()
+                      else
+                        ...convos.map((c) {
+                          final otherUid = c.participants.firstWhere(
+                            (u) => u != myUid,
+                            orElse: () => c.participants.isNotEmpty
+                                ? c.participants.first
+                                : '',
+                          );
 
-                      final otherName = (c.participantNames[otherUid] ?? 'User')
-                          .toString();
-                      final otherPhoto = (c.participantPhotos[otherUid] ?? '')
-                          .toString();
+                          final otherName = (c.participantNames[otherUid] ?? 'User')
+                              .toString();
+                          final otherPhoto = (c.participantPhotos[otherUid] ?? '')
+                              .toString();
 
-                      final readTs = c.lastReadAt[myUid];
-                      DateTime? readAt;
-                      if (readTs is Timestamp) readAt = readTs.toDate();
+                          final readTs = c.lastReadAt[myUid];
+                          DateTime? readAt;
+                          if (readTs is Timestamp) readAt = readTs.toDate();
 
-                      final lastAt = c.lastMessageAt;
-                      final unread =
-                          c.lastMessage.isNotEmpty &&
-                          (readAt == null ||
-                              (lastAt != null && lastAt.isAfter(readAt)));
+                          final lastAt = c.lastMessageAt;
+                          final unread =
+                              c.lastMessage.isNotEmpty &&
+                              (readAt == null ||
+                                  (lastAt != null && lastAt.isAfter(readAt)));
 
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _ConversationTile(
-                          uid: otherUid,
-                          name: otherName,
-                          photoUrl: otherPhoto,
-                          lastMessage: c.lastMessage,
-                          timeLabel: _timeLabel(c.lastMessageAt),
-                          unread: unread,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ChatPage(
-                                  otherUid: otherUid,
-                                  otherName: otherName,
-                                  otherPhoto: otherPhoto.isEmpty
-                                      ? null
-                                      : otherPhoto,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      );
-                    }),
-                ],
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _ConversationTile(
+                              uid: otherUid,
+                              name: otherName,
+                              photoUrl: otherPhoto,
+                              lastMessage: c.lastMessage,
+                              timeLabel: _timeLabel(c.lastMessageAt),
+                              unread: unread,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ChatPage(
+                                      otherUid: otherUid,
+                                      otherName: otherName,
+                                      otherPhoto: otherPhoto.isEmpty
+                                          ? null
+                                          : otherPhoto,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        }),
+                    ],
+                  );
+                },
               );
             },
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -372,6 +382,28 @@ class _ConversationTile extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+class _MessagesOfflineState extends StatelessWidget {
+  const _MessagesOfflineState();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 112),
+      children: const [
+        _InboxHeader(count: 0),
+        SizedBox(height: 12),
+        OfflinePageState(
+          compact: true,
+          title: 'Messages are unavailable offline',
+          subtitle:
+              'Reconnect to load your inbox, or wait for saved conversations to appear.',
+        ),
+      ],
     );
   }
 }

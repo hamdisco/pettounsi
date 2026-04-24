@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'first_steps_guide_service.dart';
+
 class UserProfileService {
   UserProfileService._();
   static final instance = UserProfileService._();
@@ -32,6 +34,7 @@ class UserProfileService {
         'lastSeenAt': FieldValue.serverTimestamp(),
         'isOnline': true,
       }, SetOptions(merge: true));
+      await FirstStepsGuideService.instance.markPendingForUser(user.uid);
       return;
     }
 

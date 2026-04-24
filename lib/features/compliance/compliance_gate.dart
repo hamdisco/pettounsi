@@ -4,8 +4,15 @@ import 'package:flutter/material.dart';
 
 import '../../core/store_compliance.dart';
 import '../../ui/app_theme.dart';
+import '../../services/first_steps_guide_service.dart';
+import '../onboarding/first_steps_guide.dart';
 import '../settings/legal_page.dart';
 import '../settings/support_page.dart';
+
+class _ComplianceGateSession {
+  static final Set<String> runningForUser = <String>{};
+  static final Set<String> acceptedThisSession = <String>{};
+}
 
 class ComplianceGate extends StatefulWidget {
   const ComplianceGate({super.key, required this.child});
@@ -34,7 +41,8 @@ class _ComplianceGateState extends State<ComplianceGate> {
 
   bool _needsAcceptance(Map<String, dynamic> data) {
     final version = (data['communityPolicyVersion'] ?? '').toString().trim();
-    final communityAccepted = _readDate(data['communityPolicyAcceptedAt']) != null;
+    final communityAccepted =
+        _readDate(data['communityPolicyAcceptedAt']) != null;
     final privacyAccepted = _readDate(data['privacyPolicyAcceptedAt']) != null;
     final termsAccepted = _readDate(data['termsAcceptedAt']) != null;
 
@@ -48,31 +56,67 @@ class _ComplianceGateState extends State<ComplianceGate> {
     if (!mounted || _checking || _sheetOpen) return;
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+    if (_ComplianceGateSession.runningForUser.contains(user.uid)) return;
 
+    _ComplianceGateSession.runningForUser.add(user.uid);
     _checking = true;
     try {
-      final snap = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      final data = snap.data() ?? <String, dynamic>{};
-      if (!_needsAcceptance(data) || !mounted) return;
+      final skipComplianceForSession = _ComplianceGateSession
+          .acceptedThisSession
+          .contains(user.uid);
 
-      _sheetOpen = true;
-      await showModalBottomSheet<void>(
-        context: context,
-        isDismissible: false,
-        enableDrag: false,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) => const FractionallySizedBox(
-          heightFactor: 0.94,
-          child: _ComplianceSheet(),
-        ),
-      );
-      _sheetOpen = false;
+      if (!skipComplianceForSession) {
+        final snap = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        final data = snap.data() ?? <String, dynamic>{};
+        if (_needsAcceptance(data) && mounted) {
+          _sheetOpen = true;
+          await showModalBottomSheet<void>(
+            context: context,
+            isDismissible: false,
+            enableDrag: false,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (_) => const FractionallySizedBox(
+              heightFactor: 0.94,
+              child: _ComplianceSheet(),
+            ),
+          );
+          _sheetOpen = false;
+        }
+      }
+
+      await _maybeShowFirstStepsGuide();
     } finally {
       _checking = false;
+      _ComplianceGateSession.runningForUser.remove(user.uid);
+    }
+  }
+
+  Future<void> _maybeShowFirstStepsGuide() async {
+    if (!mounted || _sheetOpen) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final shouldShow = await FirstStepsGuideService.instance.shouldShowForUser(
+      user.uid,
+    );
+    if (!shouldShow || !mounted) return;
+
+    _sheetOpen = true;
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          fullscreenDialog: true,
+          builder: (_) => const FirstStepsGuidePage(),
+        ),
+      );
+      await FirstStepsGuideService.instance.markShownForUser(user.uid);
+    } finally {
+      _sheetOpen = false;
     }
   }
 
@@ -114,13 +158,16 @@ class _ComplianceSheetState extends State<_ComplianceSheet> {
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
+      _ComplianceGateSession.acceptedThisSession.add(user.uid);
       if (!mounted) return;
       Navigator.of(context).pop();
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Could not save your acknowledgment. Please try again.'),
+          content: Text(
+            'Could not save your acknowledgment. Please try again.',
+          ),
         ),
       );
     } finally {
@@ -129,15 +176,15 @@ class _ComplianceSheetState extends State<_ComplianceSheet> {
   }
 
   void _openLegalPage() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const LegalPage()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const LegalPage()));
   }
 
   void _openSupportPage() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const SupportPage()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const SupportPage()));
   }
 
   void _onCommunityChanged(bool value) {
@@ -191,14 +238,16 @@ class _ComplianceSheetState extends State<_ComplianceSheet> {
                     _OpenCard(
                       icon: Icons.menu_book_rounded,
                       title: 'Terms & community rules',
-                      subtitle: 'Review what is allowed across posts, comments, chats, reports, and listings.',
+                      subtitle:
+                          'Review what is allowed across posts, comments, chats, reports, and listings.',
                       onTap: _busy ? null : _openLegalPage,
                     ),
                     const SizedBox(height: 10),
                     _OpenCard(
                       icon: Icons.privacy_tip_outlined,
                       title: 'Privacy, support & account deletion',
-                      subtitle: 'See how data is handled, where support is available, and how deletion works.',
+                      subtitle:
+                          'See how data is handled, where support is available, and how account deletion requests are processed.',
                       onTap: _busy ? null : _openSupportPage,
                     ),
                     const SizedBox(height: 16),
@@ -224,21 +273,22 @@ class _ComplianceSheetState extends State<_ComplianceSheet> {
                       value: _acceptPrivacy,
                       hasError: _showValidation && !_acceptPrivacy,
                       enabled: !_busy,
-                      title: 'I reviewed the privacy, support, and account deletion information.',
+                      title:
+                          'I reviewed the privacy, support, and account deletion information.',
                       onChanged: _onPrivacyChanged,
                     ),
-                    if (_showValidation && (!_acceptCommunity || !_acceptPrivacy)) ...[
+                    if (_showValidation &&
+                        (!_acceptCommunity || !_acceptPrivacy)) ...[
                       const SizedBox(height: 10),
-                      const _InlineError('Check both confirmations to continue.'),
+                      const _InlineError(
+                        'Check both confirmations to continue.',
+                      ),
                     ],
                   ],
                 ),
               ),
             ),
-            _BottomActionBar(
-              busy: _busy,
-              onPressed: _accept,
-            ),
+            _BottomActionBar(busy: _busy, onPressed: _accept),
           ],
         ),
       ),
@@ -279,9 +329,9 @@ class _HeaderBlock extends StatelessWidget {
                   Text(
                     'Community rules & privacy',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontSize: 22,
-                          height: 1.08,
-                        ),
+                      fontSize: 22,
+                      height: 1.08,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   const Text(
@@ -299,10 +349,7 @@ class _HeaderBlock extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 14),
-        Container(
-          height: 1,
-          color: AppTheme.outline.withAlpha(150),
-        ),
+        Container(height: 1, color: AppTheme.outline.withAlpha(150)),
       ],
     );
   }
@@ -439,7 +486,10 @@ class _ChipCard extends StatelessWidget {
               (item) => ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 260),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFF2F2),
                     borderRadius: BorderRadius.circular(16),
@@ -500,7 +550,9 @@ class _InfoCard extends StatelessWidget {
             .entries
             .map(
               (entry) => Padding(
-                padding: EdgeInsets.only(bottom: entry.key == items.length - 1 ? 0 : 12),
+                padding: EdgeInsets.only(
+                  bottom: entry.key == items.length - 1 ? 0 : 12,
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -559,8 +611,8 @@ class _CheckRow extends StatelessWidget {
     final borderColor = hasError
         ? const Color(0xFFE05555)
         : value
-            ? AppTheme.orchidDark
-            : AppTheme.outline;
+        ? AppTheme.orchidDark
+        : AppTheme.outline;
 
     return Material(
       color: Colors.white,
@@ -573,7 +625,10 @@ class _CheckRow extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: borderColor, width: value || hasError ? 1.4 : 1),
+            border: Border.all(
+              color: borderColor,
+              width: value || hasError ? 1.4 : 1,
+            ),
             boxShadow: value ? AppTheme.softShadows(0.03) : null,
           ),
           child: Row(
@@ -589,13 +644,17 @@ class _CheckRow extends StatelessWidget {
                     color: hasError
                         ? const Color(0xFFE05555)
                         : value
-                            ? AppTheme.orchidDark
-                            : AppTheme.muted.withAlpha(105),
+                        ? AppTheme.orchidDark
+                        : AppTheme.muted.withAlpha(105),
                     width: 1.6,
                   ),
                 ),
                 child: value
-                    ? const Icon(Icons.check_rounded, color: Colors.white, size: 18)
+                    ? const Icon(
+                        Icons.check_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      )
                     : null,
               ),
               const SizedBox(width: 12),
@@ -635,7 +694,11 @@ class _InlineError extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline_rounded, color: Color(0xFFE05555), size: 18),
+          const Icon(
+            Icons.info_outline_rounded,
+            color: Color(0xFFE05555),
+            size: 18,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

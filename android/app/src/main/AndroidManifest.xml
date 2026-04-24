@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Network (required for Firebase + Cloudinary + images) -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -8,16 +9,22 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
-    <!-- Camera + Media (required for ImagePicker in release) -->
+    <!-- Camera -->
     <uses-permission android:name="android.permission.CAMERA" />
 
-    <!-- Android 13+ media permissions (shows "Photos & videos" in app settings) -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-
-    <!-- Legacy (Android 12 and below) -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <!-- Explicitly remove broad media/storage permissions if any plugin adds them -->
+    <uses-permission
+        android:name="android.permission.READ_MEDIA_IMAGES"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.READ_MEDIA_VIDEO"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        tools:node="remove" />
 
     <application
         android:label="Pettounsi"
@@ -47,10 +54,9 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-
     </application>
 
-    <!-- Android 11+ package visibility queries (camera/gallery intents) -->
+    <!-- Android 11+ package visibility queries -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />

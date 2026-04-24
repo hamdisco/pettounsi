@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/points_runtime.dart';
+import '../../ui/adaptive_cached_image.dart';
 import '../../ui/app_theme.dart';
 import '../../ui/premium_cards.dart';
 import '../../ui/premium_feedback.dart';
@@ -815,23 +816,21 @@ class _AccessoryCard extends StatelessWidget {
               children: [
                 if (item.imageUrl.isNotEmpty)
                   Positioned.fill(
-                    child: Image.network(
-                      item.imageUrl,
+                    child: AdaptiveCachedImage(
+                      imageUrl: item.imageUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) =>
-                          _ItemIconPlaceholder(item: item),
-                      loadingBuilder: (context, child, progress) {
-                        if (progress == null) return child;
-                        return Container(
-                          color: item.fallbackColor,
-                          alignment: Alignment.center,
-                          child: const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2.2),
-                          ),
-                        );
-                      },
+                      fallbackHeight: 110,
+                      maxCacheDimension: 512,
+                      errorWidget: _ItemIconPlaceholder(item: item),
+                      placeholder: Container(
+                        color: item.fallbackColor,
+                        alignment: Alignment.center,
+                        child: const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2.2),
+                        ),
+                      ),
                     ),
                   )
                 else

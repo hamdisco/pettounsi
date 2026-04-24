@@ -12,7 +12,7 @@ import '../features/pet_babysitting/pet_babysitting_page.dart';
 import '../features/vets/vets_page.dart';
 import '../features/petshops/petshops_page.dart';
 import '../features/events/events_page.dart';
-import '../features/games/games_page.dart';
+import '../features/adopt_rescue/adopt_rescue_page.dart';
 import '../features/podcasts/podcasts_page.dart';
 import '../features/accessories/accessories_page.dart';
 
@@ -28,7 +28,7 @@ class AppDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final uid = user?.uid;
-    final name = (user?.displayName ?? "Pettounsi").trim();
+    final name = (user?.displayName ?? 'Pettounsi').trim();
     final photo = (user?.photoURL ?? '').trim();
 
     return Drawer(
@@ -48,7 +48,7 @@ class AppDrawer extends StatelessWidget {
               child: Column(
                 children: [
                   _DrawerHeroHeader(
-                    name: name.isEmpty ? "Pettounsi" : name,
+                    name: name.isEmpty ? 'Pettounsi' : name,
                     photoUrl: photo,
                     onProfileTap: uid == null
                         ? null
@@ -57,12 +57,11 @@ class AppDrawer extends StatelessWidget {
                       Navigator.pop(context);
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const SettingsPage()),
+                        MaterialPageRoute(
+                            builder: (_) => const SettingsPage()),
                       );
                     },
                   ),
-
-                  // ✅ No scroll: scale down content to fit any height.
                   Expanded(
                     child: LayoutBuilder(
                       builder: (context, c) {
@@ -73,17 +72,14 @@ class AppDrawer extends StatelessWidget {
                             width: c.maxWidth,
                             child: Padding(
                               padding: const EdgeInsets.fromLTRB(
-                                12,
-                                10,
-                                12,
-                                12,
-                              ),
+                                  12, 10, 12, 12),
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
                                 children: [
                                   const _SectionTitle(
-                                    title: "Quick services",
-                                    subtitle: "Fast access",
+                                    title: 'Quick services',
+                                    subtitle: 'Fast access',
                                     icon: Icons.grid_view_rounded,
                                     iconBg: AppTheme.lilac,
                                     iconFg: Color(0xFF7C62D7),
@@ -91,15 +87,15 @@ class AppDrawer extends StatelessWidget {
                                   const SizedBox(height: 8),
                                   _QuickServicesStack(
                                     onBabysitting: () => _push(
-                                      context,
-                                      const PetBabysittingPage(),
-                                    ),
+                                        context,
+                                        const PetBabysittingPage()),
                                     onVets: () =>
                                         _push(context, const VetsPage()),
-                                    onAccessories: () =>
-                                        _push(context, const AccessoriesPage()),
-                                    onEvents: () =>
-                                        _push(context, const EventsPage()),
+                                    onAccessories: () => _push(
+                                        context,
+                                        const AccessoriesPage()),
+                                    onEvents: () => _push(
+                                        context, const EventsPage()),
                                   ),
                                   const SizedBox(height: 10),
                                   Divider(
@@ -108,36 +104,38 @@ class AppDrawer extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 10),
                                   const _SectionTitle(
-                                    title: "Browse",
-                                    subtitle: "More places & content",
+                                    title: 'Browse',
+                                    subtitle: 'More places & content',
                                     icon: Icons.explore_rounded,
                                     iconBg: AppTheme.sky,
                                     iconFg: Color(0xFF4C79C8),
                                   ),
                                   const SizedBox(height: 8),
                                   _DrawerTile(
-                                    title: "Petshops",
+                                    title: 'Petshops',
                                     icon: Icons.storefront_rounded,
                                     iconBg: AppTheme.butter,
                                     iconFg: const Color(0xFFC6921A),
-                                    onTap: () =>
-                                        _push(context, const PetshopsPage()),
+                                    onTap: () => _push(
+                                        context, const PetshopsPage()),
+                                  ),
+                                  // ✅ Games replaced with Adopt & Rescue
+                                  _DrawerTile(
+                                    title: 'Adopt & Rescue',
+                                    icon: Icons.favorite_rounded,
+                                    iconBg: const Color(0xFFFFE8EC),
+                                    iconFg: const Color(0xFFD94F70),
+                                    onTap: () => _push(
+                                        context,
+                                        const AdoptRescuePage()),
                                   ),
                                   _DrawerTile(
-                                    title: "Games & points",
-                                    icon: Icons.emoji_events_rounded,
-                                    iconBg: const Color(0xFFFFF2DB),
-                                    iconFg: const Color(0xFFDA8A1F),
-                                    onTap: () =>
-                                        _push(context, const GamesPage()),
-                                  ),
-                                  _DrawerTile(
-                                    title: "Podcasts",
+                                    title: 'Podcasts',
                                     icon: Icons.podcasts_rounded,
                                     iconBg: AppTheme.blush,
                                     iconFg: const Color(0xFFD35A8E),
-                                    onTap: () =>
-                                        _push(context, const PodcastsPage()),
+                                    onTap: () => _push(
+                                        context, const PodcastsPage()),
                                   ),
                                   const SizedBox(height: 10),
                                   Divider(
@@ -146,13 +144,14 @@ class AppDrawer extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 10),
                                   _DrawerTile(
-                                    title: "Logout",
+                                    title: 'Logout',
                                     icon: Icons.logout_rounded,
                                     iconBg: const Color(0xFFFFEBEB),
                                     iconFg: const Color(0xFFE05555),
                                     danger: true,
                                     onTap: () async {
-                                      await AuthService.instance.signOut();
+                                      await AuthService.instance
+                                          .signOut();
                                       if (!context.mounted) return;
                                       Navigator.pushNamedAndRemoveUntil(
                                         context,
@@ -179,6 +178,9 @@ class AppDrawer extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Hero header
+// ---------------------------------------------------------------------------
 class _DrawerHeroHeader extends StatelessWidget {
   const _DrawerHeroHeader({
     required this.name,
@@ -198,7 +200,11 @@ class _DrawerHeroHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFFFF1EA), Color(0xFFF6EFFF), Color(0xFFEEF7FF)],
+          colors: [
+            Color(0xFFFFF1EA),
+            Color(0xFFF6EFFF),
+            Color(0xFFEEF7FF),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -239,10 +245,8 @@ class _DrawerHeroHeader extends StatelessWidget {
                         ? NetworkImage(photoUrl)
                         : null,
                     child: photoUrl.isEmpty
-                        ? const Icon(
-                            Icons.pets_rounded,
-                            color: AppTheme.orangeDark,
-                          )
+                        ? const Icon(Icons.pets_rounded,
+                            color: AppTheme.orangeDark)
                         : null,
                   ),
                 ),
@@ -268,16 +272,16 @@ class _DrawerHeroHeader extends StatelessWidget {
                       const SizedBox(height: 5),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
+                            horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
                           color: Colors.white.withAlpha(220),
                           borderRadius: BorderRadius.circular(999),
                           border: Border.all(color: Colors.white),
                         ),
                         child: Text(
-                          onProfileTap == null ? "Welcome" : "View profile",
+                          onProfileTap == null
+                              ? 'Welcome'
+                              : 'View profile',
                           style: TextStyle(
                             color: AppTheme.ink.withAlpha(185),
                             fontWeight: FontWeight.w800,
@@ -300,11 +304,8 @@ class _DrawerHeroHeader extends StatelessWidget {
                   child: const SizedBox(
                     width: 42,
                     height: 42,
-                    child: Icon(
-                      Icons.settings_rounded,
-                      color: AppTheme.ink,
-                      size: 20,
-                    ),
+                    child: Icon(Icons.settings_rounded,
+                        color: AppTheme.ink, size: 20),
                   ),
                 ),
               ),
@@ -316,6 +317,9 @@ class _DrawerHeroHeader extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Section title
+// ---------------------------------------------------------------------------
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle({
     required this.title,
@@ -377,6 +381,9 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Quick services stack (unchanged)
+// ---------------------------------------------------------------------------
 class _QuickServicesStack extends StatelessWidget {
   const _QuickServicesStack({
     required this.onBabysitting,
@@ -399,58 +406,56 @@ class _QuickServicesStack extends StatelessWidget {
       children: [
         _ServicePhotoCard(
           height: h,
-          title: "Pet Babysitting",
-          subtitle: "Trusted sitters",
+          title: 'Pet Sitting',
+          subtitle: 'Trusted sitters',
           icon: Icons.volunteer_activism_rounded,
           grad: const [Color(0xFFE2D7FF), Color(0xFFF4F0FF)],
           accent: const Color(0xFF7B5BE8),
-          badge: "Care",
+          badge: 'Care',
           photoUrl:
-              "https://images.unsplash.com/photo-1770786442845-a48353e5cdb3?auto=format&fit=crop&fm=jpg&q=60&w=1000",
+              'https://images.unsplash.com/photo-1770786442845-a48353e5cdb3?auto=format&fit=crop&fm=jpg&q=60&w=1000',
           photoAlign: const Alignment(0.0, 0.2),
           onTap: onBabysitting,
         ),
-
         const SizedBox(height: gap),
         _ServicePhotoCard(
           height: h,
-          title: "Vets",
-          subtitle: "Clinics • emergency",
+          title: 'Vets',
+          subtitle: 'Clinics • emergency',
           icon: Icons.local_hospital_rounded,
           grad: const [Color(0xFFCFF4E2), Color(0xFFEFFAF4)],
           accent: const Color(0xFF26A06F),
-          badge: "Help",
+          badge: 'Help',
           photoUrl:
-              "https://images.unsplash.com/photo-1770836037289-e00e5f351d11?auto=format&fit=crop&fm=jpg&q=60&w=1000",
+              'https://images.unsplash.com/photo-1770836037289-e00e5f351d11?auto=format&fit=crop&fm=jpg&q=60&w=1000',
           photoAlign: const Alignment(0.25, 0.0),
           onTap: onVets,
         ),
         const SizedBox(height: gap),
         _ServicePhotoCard(
           height: h,
-          title: "Events",
-          subtitle: "Meetups • local",
+          title: 'Events',
+          subtitle: 'Meetups • local',
           icon: Icons.event_rounded,
           grad: const [Color(0xFFFFD7C8), Color(0xFFFFEEE6)],
           accent: AppTheme.orangeDark,
-          badge: "Social",
+          badge: 'Social',
           photoUrl:
-              "https://images.unsplash.com/photo-1667230228326-c881966e2a29?auto=format&fit=crop&fm=jpg&q=60&w=1000",
+              'https://images.unsplash.com/photo-1667230228326-c881966e2a29?auto=format&fit=crop&fm=jpg&q=60&w=1000',
           photoAlign: const Alignment(0.0, 0.25),
           onTap: onEvents,
         ),
-
         const SizedBox(height: gap),
         _ServicePhotoCard(
           height: h,
-          title: "Accessories",
-          subtitle: "Rewards • points",
+          title: 'Accessories',
+          subtitle: 'Rewards • points',
           icon: Icons.shopping_bag_rounded,
           grad: const [Color(0xFFD8E5FF), Color(0xFFEEF4FF)],
           accent: const Color(0xFF4679F0),
-          badge: "Rewards",
+          badge: 'Rewards',
           photoUrl:
-              "https://images.unsplash.com/photo-1747443148294-a91791c0a62a?auto=format&fit=crop&fm=jpg&q=60&w=1000",
+              'https://images.unsplash.com/photo-1747443148294-a91791c0a62a?auto=format&fit=crop&fm=jpg&q=60&w=1000',
           photoAlign: const Alignment(-0.2, 0.0),
           onTap: onAccessories,
         ),
@@ -531,9 +536,7 @@ class _ServicePhotoCard extends StatelessWidget {
                 top: 10,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 5,
-                  ),
+                      horizontal: 9, vertical: 5),
                   decoration: BoxDecoration(
                     color: Colors.white.withAlpha(220),
                     borderRadius: BorderRadius.circular(999),
@@ -551,7 +554,8 @@ class _ServicePhotoCard extends StatelessWidget {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                padding:
+                    const EdgeInsets.fromLTRB(12, 10, 12, 10),
                 child: Row(
                   children: [
                     Container(
@@ -568,7 +572,8 @@ class _ServicePhotoCard extends StatelessWidget {
                     Expanded(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
                         children: [
                           Text(
                             title,
@@ -646,7 +651,8 @@ class _NetworkBackdrop extends StatelessWidget {
           final w = c.maxWidth.isFinite
               ? c.maxWidth
               : MediaQuery.of(context).size.width;
-          final h = c.maxHeight.isFinite ? c.maxHeight : 120.0;
+          final h =
+              c.maxHeight.isFinite ? c.maxHeight : 120.0;
 
           int clampInt(int v, int min, int max) {
             if (v < min) return min;
@@ -654,8 +660,10 @@ class _NetworkBackdrop extends StatelessWidget {
             return v;
           }
 
-          final cacheW = clampInt((w * dpr).round(), 240, 1400);
-          final cacheH = clampInt((h * dpr).round(), 240, 1400);
+          final cacheW =
+              clampInt((w * dpr).round(), 240, 1400);
+          final cacheH =
+              clampInt((h * dpr).round(), 240, 1400);
 
           final provider = ResizeImage(
             CachedNetworkImageProvider(clean),
@@ -671,7 +679,8 @@ class _NetworkBackdrop extends StatelessWidget {
             gaplessPlayback: true,
             loadingBuilder: (context, child, progress) {
               if (progress == null) return child;
-              return ColoredBox(color: Colors.white.withAlpha(18));
+              return ColoredBox(
+                  color: Colors.white.withAlpha(18));
             },
             errorBuilder: (_, __, ___) {
               return Container(
@@ -691,6 +700,9 @@ class _NetworkBackdrop extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Drawer tile
+// ---------------------------------------------------------------------------
 class _DrawerTile extends StatelessWidget {
   const _DrawerTile({
     required this.title,
@@ -725,7 +737,8 @@ class _DrawerTile extends StatelessWidget {
             boxShadow: AppTheme.softShadows(0.10),
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
             child: Row(
               children: [
                 Container(
@@ -742,13 +755,12 @@ class _DrawerTile extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: TextStyle(fontWeight: FontWeight.w900, color: fg),
+                    style: TextStyle(
+                        fontWeight: FontWeight.w900, color: fg),
                   ),
                 ),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: AppTheme.ink.withAlpha(120),
-                ),
+                Icon(Icons.chevron_right_rounded,
+                    color: AppTheme.ink.withAlpha(120)),
               ],
             ),
           ),

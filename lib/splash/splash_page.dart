@@ -62,9 +62,19 @@ class _SplashPageState extends State<SplashPage>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const AppLogo(size: 128),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 10),
+                  Text(
+                    'powered by M.E.R.I.T',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
                   const Text(
-                    "Pet Social",
+                    "Pettounsi",
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,

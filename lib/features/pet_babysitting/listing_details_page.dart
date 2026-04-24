@@ -54,13 +54,52 @@ class ListingDetailsPage extends StatelessWidget {
     final text = listing.availabilityText.trim();
     if (text.isEmpty) return 'Available now';
     final lower = text.toLowerCase();
-    if (lower.contains('immed') || lower.contains('today') || lower.contains('now')) {
+    if (lower.contains('immed') ||
+        lower.contains('today') ||
+        lower.contains('now')) {
       return 'Available now';
     }
     if (lower.contains('weekend')) return 'Weekends';
     if (lower.contains('weekday')) return 'Weekdays';
     if (lower.contains('flex')) return 'Flexible schedule';
     return text;
+  }
+
+  String get _updatedLabel {
+    final date = listing.updatedAt ?? listing.createdAt;
+    if (date == null) return 'Recently updated';
+    final now = DateTime.now();
+    final diff = now
+        .difference(DateTime(date.year, date.month, date.day))
+        .inDays;
+    if (diff <= 0) return 'Updated today';
+    if (diff == 1) return 'Updated yesterday';
+    if (diff < 7) return 'Updated ${diff}d ago';
+    return 'Updated on ${date.day}/${date.month}/${date.year}';
+  }
+
+  String get _statusText {
+    if (!listing.isActive) return 'Paused';
+    final blocked =
+        listing.unavailableDateKeys.length + listing.bookedDateKeys.length;
+    if (blocked >= 8) return 'Limited dates';
+    return 'Live listing';
+  }
+
+  Color get _statusBg {
+    if (!listing.isActive) return AppTheme.blush;
+    final blocked =
+        listing.unavailableDateKeys.length + listing.bookedDateKeys.length;
+    if (blocked >= 8) return AppTheme.butter;
+    return AppTheme.mint;
+  }
+
+  Color get _statusFg {
+    if (!listing.isActive) return AppTheme.roseDark;
+    final blocked =
+        listing.unavailableDateKeys.length + listing.bookedDateKeys.length;
+    if (blocked >= 8) return const Color(0xFF8A5A00);
+    return const Color(0xFF2F9A6A);
   }
 
   Future<void> _openChat(BuildContext context) async {
@@ -70,8 +109,9 @@ class ListingDetailsPage extends StatelessWidget {
         builder: (_) => ChatPage(
           otherUid: listing.authorId,
           otherName: listing.authorName,
-          otherPhoto:
-              listing.authorPhotoUrl.trim().isEmpty ? null : listing.authorPhotoUrl,
+          otherPhoto: listing.authorPhotoUrl.trim().isEmpty
+              ? null
+              : listing.authorPhotoUrl,
         ),
       ),
     );
@@ -100,88 +140,25 @@ class ListingDetailsPage extends StatelessWidget {
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(14, 24, 14, 112),
+        padding: const EdgeInsets.fromLTRB(14, 20, 14, 118),
         children: [
-          Text(
-            listing.title,
-            style: const TextStyle(
-              color: AppTheme.ink,
-              fontWeight: FontWeight.w900,
-              fontSize: 25,
-              letterSpacing: -0.4,
-              height: 1.04,
-            ),
-          ),
-          if (_location.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Icon(
-                  Icons.place_rounded,
-                  size: 18,
-                  color: AppTheme.muted.withAlpha(188),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    _location,
-                    style: TextStyle(
-                      color: AppTheme.muted.withAlpha(220),
-                      fontWeight: FontWeight.w800,
-                      fontSize: 13.8,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 14),
           _DetailsHero(
             listing: listing,
+            location: _location,
             pets: _pets,
             availability: _availability,
+            updatedLabel: _updatedLabel,
+            statusText: _statusText,
+            statusBg: _statusBg,
+            statusFg: _statusFg,
           ),
           const SizedBox(height: 12),
           _SectionCard(
-            title: 'Offer overview',
+            title: 'Overview',
             child: Column(
               children: [
                 Row(
                   children: [
-                    Expanded(
-                      child: _FactCard(
-                        icon: Icons.pets_rounded,
-                        label: 'Pets',
-                        value: _pets,
-                        iconBg: AppTheme.lilac,
-                        iconFg: AppTheme.orchidDark,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _FactCard(
-                        icon: Icons.schedule_rounded,
-                        label: 'Available',
-                        value: _availability,
-                        iconBg: AppTheme.mint,
-                        iconFg: const Color(0xFF2F9A6A),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _FactCard(
-                        icon: Icons.location_on_rounded,
-                        label: 'Location',
-                        value: _location.isEmpty ? 'Tunisia' : _location,
-                        iconBg: AppTheme.sky,
-                        iconFg: const Color(0xFF4C79C8),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
                     Expanded(
                       child: _FactCard(
                         icon: Icons.payments_rounded,
@@ -191,6 +168,40 @@ class ListingDetailsPage extends StatelessWidget {
                             : listing.priceText,
                         iconBg: AppTheme.mist,
                         iconFg: AppTheme.orchidDark,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _FactCard(
+                        icon: Icons.pets_rounded,
+                        label: 'Pets',
+                        value: _pets,
+                        iconBg: AppTheme.lilac,
+                        iconFg: AppTheme.orchidDark,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _FactCard(
+                        icon: Icons.schedule_rounded,
+                        label: 'Availability',
+                        value: _availability,
+                        iconBg: AppTheme.mint,
+                        iconFg: const Color(0xFF2F9A6A),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _FactCard(
+                        icon: Icons.location_on_rounded,
+                        label: 'Location',
+                        value: _location.isEmpty ? 'Tunisia' : _location,
+                        iconBg: AppTheme.sky,
+                        iconFg: const Color(0xFF4C79C8),
                       ),
                     ),
                   ],
@@ -213,10 +224,42 @@ class ListingDetailsPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          AvailabilityCalendar(
-            unavailableDateKeys: listing.unavailableDateKeys,
-            bookedDateKeys: listing.bookedDateKeys,
-            days: 28,
+          _SectionCard(
+            title: 'Availability',
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _InlineInfoCard(
+                        title: 'Open for requests',
+                        value: listing.isActive ? 'Yes' : 'Paused',
+                        icon: Icons.schedule_rounded,
+                        bg: AppTheme.mint,
+                        fg: const Color(0xFF2F9A6A),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _InlineInfoCard(
+                        title: 'Blocked dates',
+                        value:
+                            '${listing.unavailableDateKeys.length + listing.bookedDateKeys.length}',
+                        icon: Icons.event_busy_rounded,
+                        bg: AppTheme.butter,
+                        fg: const Color(0xFF8A5A00),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                AvailabilityCalendar(
+                  unavailableDateKeys: listing.unavailableDateKeys,
+                  bookedDateKeys: listing.bookedDateKeys,
+                  days: 28,
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           _SectionCard(
@@ -244,13 +287,26 @@ class ListingDetailsPage extends StatelessWidget {
                   );
                 }
 
+                final average =
+                    items
+                    // ignore: avoid_types_as_parameter_names
+                    .fold<num>(0, (sum, item) => sum + item.rating) /
+                    items.length;
+
                 return Column(
-                  children: items.take(8).map((r) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _ReviewTile(r: r),
-                    );
-                  }).toList(),
+                  children: [
+                    _ReviewSummaryBanner(
+                      count: items.length,
+                      average: average.toDouble(),
+                    ),
+                    const SizedBox(height: 12),
+                    ...items.take(8).map((r) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _ReviewTile(r: r),
+                      );
+                    }),
+                  ],
                 );
               },
             ),
@@ -266,44 +322,62 @@ class ListingDetailsPage extends StatelessWidget {
           top: false,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-            child: Row(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _openChat(context),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppTheme.ink,
-                      side: const BorderSide(color: AppTheme.outline),
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                    ),
-                    icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
-                    label: const Text(
-                      'Chat',
-                      style: TextStyle(fontWeight: FontWeight.w900),
-                    ),
+                Text(
+                  'Start with a chat or send your stay request directly.',
+                  style: TextStyle(
+                    color: AppTheme.muted.withAlpha(220),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12.1,
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _openRequest(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.orchidDark,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _openChat(context),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.ink,
+                          side: const BorderSide(color: AppTheme.outline),
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                        icon: const Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          size: 18,
+                        ),
+                        label: const Text(
+                          'Chat first',
+                          style: TextStyle(fontWeight: FontWeight.w900),
+                        ),
                       ),
                     ),
-                    icon: const Icon(Icons.send_rounded, size: 18),
-                    label: const Text(
-                      'Request',
-                      style: TextStyle(fontWeight: FontWeight.w900),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _openRequest(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.orchidDark,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                        icon: const Icon(Icons.send_rounded, size: 18),
+                        label: const Text(
+                          'Request stay',
+                          style: TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ],
             ),
@@ -317,13 +391,23 @@ class ListingDetailsPage extends StatelessWidget {
 class _DetailsHero extends StatelessWidget {
   const _DetailsHero({
     required this.listing,
+    required this.location,
     required this.pets,
     required this.availability,
+    required this.updatedLabel,
+    required this.statusText,
+    required this.statusBg,
+    required this.statusFg,
   });
 
   final BabysittingListing listing;
+  final String location;
   final String pets;
   final String availability;
+  final String updatedLabel;
+  final String statusText;
+  final Color statusBg;
+  final Color statusFg;
 
   @override
   Widget build(BuildContext context) {
@@ -345,49 +429,116 @@ class _DetailsHero extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(2),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 11,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withAlpha(234),
+                  color: statusBg,
+                  borderRadius: BorderRadius.circular(999),
                   border: Border.all(color: Colors.white),
                 ),
-                child: UserAvatar(
+                child: Text(
+                  statusText,
+                  style: TextStyle(
+                    color: statusFg,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 11.6,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              _HeroRatingBadge(listingId: listing.id),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            listing.title,
+            style: const TextStyle(
+              color: AppTheme.ink,
+              fontWeight: FontWeight.w900,
+              fontSize: 24,
+              letterSpacing: -0.4,
+              height: 1.04,
+            ),
+          ),
+          if (location.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  Icons.place_rounded,
+                  size: 18,
+                  color: AppTheme.muted.withAlpha(188),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    location,
+                    style: TextStyle(
+                      color: AppTheme.muted.withAlpha(220),
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13.8,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 6),
+          Text(
+            updatedLabel,
+            style: TextStyle(
+              color: AppTheme.muted.withAlpha(210),
+              fontWeight: FontWeight.w700,
+              fontSize: 11.8,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withAlpha(210),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white),
+            ),
+            child: Row(
+              children: [
+                UserAvatar(
                   uid: listing.authorId,
-                  radius: 23,
+                  radius: 22,
                   fallbackName: listing.authorName,
                   fallbackPhotoUrl: listing.authorPhotoUrl,
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      listing.authorName,
-                      style: const TextStyle(
-                        color: AppTheme.ink,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 16.4,
-                        height: 1.04,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        listing.authorName,
+                        style: const TextStyle(
+                          color: AppTheme.ink,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15.2,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Sitter profile',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: AppTheme.muted.withAlpha(218),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12.4,
+                      const SizedBox(height: 4),
+                      Text(
+                        'Sitter profile',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: AppTheme.muted.withAlpha(218),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12.4,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              _HeroRatingBadge(listingId: listing.id),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 14),
           Wrap(
@@ -404,7 +555,7 @@ class _DetailsHero extends StatelessWidget {
               _HeroChip(
                 icon: Icons.schedule_rounded,
                 text: availability,
-                bg: const Color(0xFFEAF8F1),
+                bg: AppTheme.mint,
                 fg: const Color(0xFF2F9A6A),
               ),
               _HeroChip(
@@ -464,7 +615,11 @@ class _HeroRatingBadge extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.star_rounded, size: 16, color: Color(0xFFFFB703)),
+              const Icon(
+                Icons.star_rounded,
+                size: 16,
+                color: Color(0xFFFFB703),
+              ),
               const SizedBox(width: 4),
               Text(
                 s.average.toStringAsFixed(1),
@@ -567,6 +722,72 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
+class _InlineInfoCard extends StatelessWidget {
+  const _InlineInfoCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.bg,
+    required this.fg,
+  });
+
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color bg;
+  final Color fg;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      decoration: BoxDecoration(
+        color: AppTheme.bg,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.outline),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: fg, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: AppTheme.muted.withAlpha(220),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11.6,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: AppTheme.ink,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _FactCard extends StatelessWidget {
   const _FactCard({
     required this.icon,
@@ -631,6 +852,67 @@ class _FactCard extends StatelessWidget {
                     fontWeight: FontWeight.w900,
                     fontSize: 14,
                     height: 1.16,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReviewSummaryBanner extends StatelessWidget {
+  const _ReviewSummaryBanner({required this.count, required this.average});
+
+  final int count;
+  final double average;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      decoration: BoxDecoration(
+        color: AppTheme.bg,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.outline),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppTheme.butter,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              Icons.star_rounded,
+              color: Color(0xFFFFB703),
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${average.toStringAsFixed(1)} average rating',
+                  style: const TextStyle(
+                    color: AppTheme.ink,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14.6,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$count review${count == 1 ? '' : 's'} from completed stays',
+                  style: TextStyle(
+                    color: AppTheme.muted.withAlpha(220),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
                   ),
                 ),
               ],

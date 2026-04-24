@@ -1,9 +1,9 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/date_formatters.dart';
 import '../../repositories/block_repository.dart';
+import '../../ui/adaptive_cached_image.dart';
 import '../../ui/app_theme.dart';
 import '../../ui/premium_cards.dart';
 import '../../ui/user_avatar.dart';
@@ -177,7 +177,55 @@ class _Header extends StatelessWidget {
               ),
             ),
           ),
+          if ((post.postType ?? '').isNotEmpty) ...[
+            const SizedBox(width: 6),
+            _PostTypeBadge(postType: post.postType!),
+          ],
           _MenuButton(post: post, isMine: isMine),
+        ],
+      ),
+    );
+  }
+}
+
+/// Small pill badge shown in the post header for adopt / rescue posts.
+class _PostTypeBadge extends StatelessWidget {
+  const _PostTypeBadge({required this.postType});
+  final String postType;
+
+  bool get _isRescue => postType == 'rescue';
+
+  Color get _bg =>
+      _isRescue ? const Color(0xFFFFECE7) : const Color(0xFFFFE8EC);
+  Color get _fg =>
+      _isRescue ? const Color(0xFFE86C4F) : const Color(0xFFD94F70);
+  IconData get _icon =>
+      _isRescue ? Icons.campaign_rounded : Icons.favorite_rounded;
+  String get _label => _isRescue ? 'Rescue' : 'Adopt';
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: _bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: _fg.withAlpha(55)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(_icon, size: 12, color: _fg),
+          const SizedBox(width: 4),
+          Text(
+            _label,
+            style: TextStyle(
+              color: _fg,
+              fontWeight: FontWeight.w900,
+              fontSize: 10.8,
+              height: 1,
+            ),
+          ),
         ],
       ),
     );
@@ -793,13 +841,14 @@ class _MediaTile extends StatelessWidget {
         color: AppTheme.outline.withAlpha(60),
         child: InkWell(
           onTap: onTap,
-          child: CachedNetworkImage(
+          child: AdaptiveCachedImage(
             imageUrl: url,
             fit: BoxFit.cover,
-            placeholder: (_, __) => Container(
+            maxCacheDimension: 1200,
+            placeholder: Container(
               decoration: BoxDecoration(color: AppTheme.outline.withAlpha(70)),
             ),
-            errorWidget: (_, __, ___) => Container(
+            errorWidget: Container(
               color: AppTheme.outline.withAlpha(80),
               child: const Center(
                 child: Icon(Icons.broken_image_rounded, color: AppTheme.muted),

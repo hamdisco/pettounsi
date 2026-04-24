@@ -19,6 +19,7 @@ import '../vets/vets_page.dart';
 
 import 'create_post_composer.dart';
 import 'post_card.dart';
+import 'for_you_feed_service.dart';
 import 'post_model.dart';
 import 'posts_repository.dart';
 
@@ -1706,7 +1707,7 @@ class _ServiceShowcaseGrid extends StatelessWidget {
 
     final items = <_ServiceItem>[
       _ServiceItem(
-        title: 'Pet Babysitting',
+        title: 'Pet Sitting',
         subtitle: 'Trusted sitters',
         icon: Icons.volunteer_activism_rounded,
         accent: const Color(0xFF7B5BE8),
@@ -2258,6 +2259,8 @@ class _ForYouPagedFeedState extends State<_ForYouPagedFeed>
   static const int _pageSize = 20;
 
   final _scroll = ScrollController();
+  late final Stream<Set<String>> _blockedUsersStream;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _latestPostsStream;
 
   DocumentSnapshot<Map<String, dynamic>>? _cursor;
   bool _loadingMore = false;
@@ -2271,6 +2274,10 @@ class _ForYouPagedFeedState extends State<_ForYouPagedFeed>
   @override
   void initState() {
     super.initState();
+    _blockedUsersStream = BlockRepository.instance.streamBlockedUids();
+    _latestPostsStream = PostsRepository.instance.streamLatestSnap(
+      limit: _pageSize,
+    );
     _scroll.addListener(_onScroll);
   }
 
@@ -2340,12 +2347,12 @@ class _ForYouPagedFeedState extends State<_ForYouPagedFeed>
     super.build(context);
 
     return StreamBuilder<Set<String>>(
-      stream: BlockRepository.instance.streamBlockedUids(),
+      stream: _blockedUsersStream,
       builder: (context, bSnap) {
         final blocked = bSnap.data ?? {};
 
         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: PostsRepository.instance.streamLatestSnap(limit: _pageSize),
+          stream: _latestPostsStream,
           builder: (context, snap) {
             if (snap.hasError) {
               return const _HomeFeedFallback(
@@ -2383,6 +2390,39 @@ class _ForYouPagedFeedState extends State<_ForYouPagedFeed>
               if (p != null && !blocked.contains(p.authorId)) combined.add(p);
             }
 
+            // ── For You scoring ──────────────────────────────────────────
+            // Score each post and sort descending. All arithmetic is local
+            // (no extra Firestore reads) so this is instant.
+            final now = DateTime.now();
+            double score0(PostModel p) {
+              double score = 0;
+
+              // 1. Recency — posts decay with age (half-life ≈ 12 h)
+              final age = p.createdAt != null
+                  ? now.difference(p.createdAt!)
+                  : const Duration(days: 30);
+              final ageHours = age.inMinutes / 60.0;
+              score += 100.0 / (1.0 + ageHours / 12.0);
+
+              // 2. Engagement — likes + comments weighted
+              score += p.likeCount * 4.0;
+              score += p.commentCount * 6.0;
+
+              // 3. Rich content bonus
+              if (p.imageUrls.isNotEmpty) score += 12.0;
+
+              // 4. Rescue posts float to top — time-sensitive content
+              if (p.postType == 'rescue') score += 40.0;
+              if (p.postType == 'adopt') score += 20.0;
+
+              // 5. Seen penalty — de-prioritize already-seen posts
+              score -= ForYouFeedService.instance.seenPenalty(p.id, now: now);
+
+              return score;
+            }
+
+            combined.sort((a, b) => score0(b).compareTo(score0(a)));
+
             return RefreshIndicator(
               onRefresh: _refresh,
               color: AppTheme.orangeDark,
@@ -2406,7 +2446,10 @@ class _ForYouPagedFeedState extends State<_ForYouPagedFeed>
 
                   final postIndex = i - 1;
                   if (postIndex < combined.length) {
-                    return PostCard(post: combined[postIndex]);
+                    final post = combined[postIndex];
+                    // Mark seen lazily — no await, no setState
+                    ForYouFeedService.instance.markSeen(post.id);
+                    return PostCard(post: post);
                   }
 
                   if (_loadingMore) {
@@ -2428,18 +2471,34 @@ class _ForYouPagedFeedState extends State<_ForYouPagedFeed>
   }
 }
 
-class _FollowingHybridWrapper extends StatelessWidget {
+class _FollowingHybridWrapper extends StatefulWidget {
   const _FollowingHybridWrapper();
+
+  @override
+  State<_FollowingHybridWrapper> createState() =>
+      _FollowingHybridWrapperState();
+}
+
+class _FollowingHybridWrapperState extends State<_FollowingHybridWrapper> {
+  late final Stream<Set<String>> _blockedUsersStream;
+  late final Stream<Set<String>> _followingUsersStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _blockedUsersStream = BlockRepository.instance.streamBlockedUids();
+    _followingUsersStream = FollowRepository.instance.streamMyFollowingUids();
+  }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<Set<String>>(
-      stream: BlockRepository.instance.streamBlockedUids(),
+      stream: _blockedUsersStream,
       builder: (context, bSnap) {
         final blocked = bSnap.data ?? {};
 
         return StreamBuilder<Set<String>>(
-          stream: FollowRepository.instance.streamMyFollowingUids(),
+          stream: _followingUsersStream,
           builder: (context, fSnap) {
             if (fSnap.hasError) {
               return const _HomeFeedFallback(
@@ -2496,18 +2555,47 @@ class _FollowingHybridFeed extends StatefulWidget {
 
 class _FollowingHybridFeedState extends State<_FollowingHybridFeed>
     with AutomaticKeepAliveClientMixin {
+  late Stream<List<PostModel>> _followingPostsStream;
+
   @override
   bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _followingPostsStream = _buildFollowingPostsStream();
+  }
+
+  @override
+  void didUpdateWidget(covariant _FollowingHybridFeed oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_sameStringList(oldWidget.following, widget.following)) {
+      _followingPostsStream = _buildFollowingPostsStream();
+    }
+  }
+
+  Stream<List<PostModel>> _buildFollowingPostsStream() {
+    return PostsRepository.instance.streamByAuthorsLive(
+      widget.following,
+      limitPerChunk: 12,
+    );
+  }
+
+  bool _sameStringList(List<String> a, List<String> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
 
     return StreamBuilder<List<PostModel>>(
-      stream: PostsRepository.instance.streamByAuthorsLive(
-        widget.following,
-        limitPerChunk: 12,
-      ),
+      stream: _followingPostsStream,
       builder: (context, snap) {
         if (snap.hasError) {
           return const _HomeFeedFallback(

@@ -40,10 +40,62 @@
               "client_type": 3
             },
             {
-              "client_id": "770446391455-kk9m0urme7kfasldd89ahvn9t2viu9r8.apps.googleusercontent.com",
+              "client_id": "770446391455-50t9h2qfbt7ug4j7oofqbqbtat4f5qum.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.pettounsi"
+                "bundle_id": "com.pettounsi.app"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:770446391455:android:0eba7438e9c8c096eb4aaa",
+        "android_client_info": {
+          "package_name": "com.pettounsi.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "770446391455-cehcr3h49613d0ibqf7ljfkhrq9nemd0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.pettounsi.app",
+            "certificate_hash": "e07b901c568e95a6fcf941bb2d9fddec250a14d9"
+          }
+        },
+        {
+          "client_id": "770446391455-ohvm18rd37o9cvu3td15tlaod8lr3svi.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.pettounsi.app",
+            "certificate_hash": "75d80198b9b76ce0869b8bf2784914e56bbb6a2c"
+          }
+        },
+        {
+          "client_id": "770446391455-1qdsgbbs1m81b57r71sqtqt47dq7ncka.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCjHrBGR57MgRmXau69DdKYjv2gzp0P2Dc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "770446391455-1qdsgbbs1m81b57r71sqtqt47dq7ncka.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "770446391455-50t9h2qfbt7ug4j7oofqbqbtat4f5qum.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.pettounsi.app"
               }
             }
           ]

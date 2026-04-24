@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../ui/adaptive_cached_image.dart';
 import '../../../ui/app_theme.dart';
 import '../../../ui/premium_cards.dart';
 import '../../../ui/premium_feedback.dart';
@@ -476,8 +477,18 @@ class DirectoryItemCard extends StatelessWidget {
                 ],
               ),
             ),
+            if (item.hasPhoto)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+                child: _DirectoryPhoto(
+                  photoUrl: item.photoUrl!,
+                  accent: accent,
+                  icon: leadingIcon,
+                  height: 164,
+                ),
+              ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+              padding: EdgeInsets.fromLTRB(14, item.hasPhoto ? 10 : 12, 14, 14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -591,6 +602,77 @@ class DirectoryItemCard extends StatelessWidget {
     if (km < 1) return '${(km * 1000).round()} m';
     if (km < 10) return '${km.toStringAsFixed(1)} km';
     return '${km.round()} km';
+  }
+}
+
+
+class _DirectoryPhoto extends StatelessWidget {
+  const _DirectoryPhoto({
+    required this.photoUrl,
+    required this.accent,
+    required this.icon,
+    required this.height,
+  });
+
+  final String photoUrl;
+  final Color accent;
+  final IconData icon;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.outline),
+        color: Color.lerp(accent, Colors.white, 0.9),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: AdaptiveCachedImage(
+        imageUrl: photoUrl,
+        fit: BoxFit.cover,
+        fallbackHeight: height,
+        placeholder: _DirectoryPhotoFallback(accent: accent, icon: icon),
+        errorWidget: _DirectoryPhotoFallback(accent: accent, icon: icon),
+      ),
+    );
+  }
+}
+
+class _DirectoryPhotoFallback extends StatelessWidget {
+  const _DirectoryPhotoFallback({required this.accent, required this.icon});
+
+  final Color accent;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Color.lerp(accent, Colors.white, 0.74)!,
+            Color.lerp(accent, Colors.white, 0.9)!,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Center(
+        child: Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.white.withAlpha(220),
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: Colors.white),
+          ),
+          child: Icon(icon, color: accent, size: 22),
+        ),
+      ),
+    );
   }
 }
 
@@ -736,6 +818,15 @@ class DirectoryDetailsSheet extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (item.hasPhoto) ...[
+            _DirectoryPhoto(
+              photoUrl: item.photoUrl!,
+              accent: accent,
+              icon: leadingIcon,
+              height: 188,
+            ),
+            const SizedBox(height: 12),
+          ],
           if (item.isEvent && item.dateLabel.trim().isNotEmpty) ...[
             _EventPill(dateLabel: item.dateLabel, accent: accent),
             const SizedBox(height: 10),

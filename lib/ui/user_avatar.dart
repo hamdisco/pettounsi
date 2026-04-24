@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/url_utils.dart';
+import 'adaptive_cached_image.dart';
 import '../services/user_mini_cache.dart';
 import 'app_theme.dart';
 
@@ -68,29 +69,26 @@ class _UserAvatarState extends State<UserAvatar> {
     if (u.isEmpty) return _placeholder(name);
 
     return ClipOval(
-      child: Image.network(
-        u,
-        width: widget.radius * 2,
-        height: widget.radius * 2,
+      child: AdaptiveCachedImage(
+        imageUrl: u,
         fit: BoxFit.cover,
-        // Some OEM stacks/hosts are picky; a UA header improves reliability.
-        headers: const {'User-Agent': 'Mozilla/5.0'},
-        gaplessPlayback: true,
-        errorBuilder: (context, error, stack) {
-          // Retry a couple times in case of transient failures
-          if (_retryCount < 2) {
-            _retryCount += 1;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              setState(() => _bust += 1);
-            });
-          }
-          return _placeholder(name);
-        },
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) return child;
-          return _placeholder(name);
-        },
+        fallbackWidth: widget.radius * 2,
+        fallbackHeight: widget.radius * 2,
+        maxCacheDimension: 256,
+        httpHeaders: const {'User-Agent': 'Mozilla/5.0'},
+        placeholder: _placeholder(name),
+        errorWidget: Builder(
+          builder: (context) {
+            if (_retryCount < 2) {
+              _retryCount += 1;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                setState(() => _bust += 1);
+              });
+            }
+            return _placeholder(name);
+          },
+        ),
       ),
     );
   }

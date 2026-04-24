@@ -33,6 +33,10 @@ class _CommentsSheetState extends State<CommentsSheet> {
   String? _editingCommentId;
   String _editingInitialText = '';
 
+  String? _replyingToCommentId;
+  String? _replyingToUid;
+  String? _replyingToName;
+
   final List<DocumentSnapshot<Map<String, dynamic>>> _older = [];
 
   String get _myUid => FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -98,16 +102,61 @@ class _CommentsSheetState extends State<CommentsSheet> {
     if (t.isEmpty) return;
 
     FocusScope.of(context).unfocus();
+    final replyCommentId = _replyingToCommentId;
+    final replyUid = _replyingToUid;
+    final replyName = _replyingToName;
+
     _text.clear();
+    _clearReply();
 
     try {
-      await PostsRepository.instance.addComment(widget.postId, t);
+      await PostsRepository.instance.addComment(
+        widget.postId,
+        t,
+        parentCommentId: replyCommentId,
+        replyToUid: replyUid,
+        replyToName: replyName,
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Could not send comment: $e')));
     }
+  }
+
+  void _startReply({
+    required String commentId,
+    required String authorId,
+    required String authorName,
+  }) {
+    final handle = _mentionHandle(authorName);
+    final mentionText = handle.isEmpty ? '' : '@$handle ';
+    final current = _text.text.trimLeft();
+
+    setState(() {
+      _replyingToCommentId = commentId;
+      _replyingToUid = authorId.isEmpty ? null : authorId;
+      _replyingToName = authorName.trim().isEmpty ? 'User' : authorName.trim();
+    });
+
+    if (mentionText.isNotEmpty && !current.startsWith(mentionText)) {
+      final next = current.isEmpty ? mentionText : '$mentionText$current';
+      _text
+        ..text = next
+        ..selection = TextSelection.fromPosition(
+          TextPosition(offset: next.length),
+        );
+    }
+  }
+
+  void _clearReply() {
+    if (!mounted) return;
+    setState(() {
+      _replyingToCommentId = null;
+      _replyingToUid = null;
+      _replyingToName = null;
+    });
   }
 
   void _startInlineEdit({required String commentId, required String text}) {
@@ -211,6 +260,11 @@ class _CommentsSheetState extends State<CommentsSheet> {
           _editingInitialText = '';
           _inlineEditController.clear();
         }
+        if (_replyingToCommentId == commentId) {
+          _replyingToCommentId = null;
+          _replyingToUid = null;
+          _replyingToName = null;
+        }
       });
     } catch (e) {
       if (!mounted) return;
@@ -223,206 +277,269 @@ class _CommentsSheetState extends State<CommentsSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final bottomInset = media.viewInsets.bottom;
+    final maxSheetHeight = media.size.height * 0.84;
+    final maxListHeight = media.size.height * 0.52;
+
     return SafeArea(
       top: false,
-      child: Container(
-        decoration: const BoxDecoration(color: Colors.transparent),
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        padding: EdgeInsets.only(bottom: bottomInset),
         child: Padding(
-          padding: EdgeInsets.only(
-            left: 12,
-            right: 12,
-            top: 10,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 12,
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: AppTheme.outline),
-              boxShadow: AppTheme.softShadows(0.22),
-            ),
-            child: Column(
-              children: [
-                const SizedBox(height: 10),
-                Container(
-                  width: 46,
-                  height: 5,
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: maxSheetHeight),
+              child: Material(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(30),
+                child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: AppTheme.ink.withAlpha(18),
-                    borderRadius: BorderRadius.circular(999),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(color: AppTheme.outline),
+                    boxShadow: AppTheme.softShadows(0.22),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 0, 8, 0),
-                  child: Row(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
+                      const SizedBox(height: 10),
                       Container(
-                        width: 42,
-                        height: 42,
+                        width: 46,
+                        height: 5,
                         decoration: BoxDecoration(
-                          color: AppTheme.lilac,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: Colors.white),
-                        ),
-                        child: const Icon(
-                          Icons.chat_bubble_rounded,
-                          color: Color(0xFF7C62D7),
-                          size: 20,
+                          color: AppTheme.ink.withAlpha(18),
+                          borderRadius: BorderRadius.circular(999),
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      const Expanded(
-                        child: Text(
-                          'Comments',
-                          style: TextStyle(
-                            color: AppTheme.ink,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 16.4,
-                            height: 1.0,
+                      const SizedBox(height: 10),
+                      _CommentsSheetHeader(
+                        onClose: () => Navigator.pop(context),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            '',
+                            style: TextStyle(
+                              color: AppTheme.muted.withAlpha(220),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12.3,
+                              height: 1.2,
+                            ),
                           ),
                         ),
                       ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close_rounded),
+                      const Divider(height: 1, indent: 14, endIndent: 14),
+                      Flexible(
+                        fit: FlexFit.loose,
+                        child: _buildCommentsArea(maxListHeight),
+                      ),
+                      _CommentInputBar(
+                        uid: _myUid,
+                        controller: _text,
+                        onSend: _send,
+                        replyToName: _replyingToName,
+                        onCancelReply: _replyingToName == null
+                            ? null
+                            : _clearReply,
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 4),
-                Expanded(
-                  child: StreamBuilder<Set<String>>(
-                    stream: BlockRepository.instance.streamBlockedUids(),
-                    builder: (context, blockedSnap) {
-                      final blocked = blockedSnap.data ?? {};
-
-                      return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                        stream: FirebaseFirestore.instance
-                            .collection('posts')
-                            .doc(widget.postId)
-                            .collection('comments')
-                            .orderBy('createdAt', descending: true)
-                            .limit(_pageSize)
-                            .snapshots(),
-                        builder: (context, snap) {
-                          if (snap.hasError) {
-                            return const _CommentsStateCard(
-                              icon: Icons.cloud_off_rounded,
-                              title: 'Could not load comments',
-                              subtitle: 'Please try again.',
-                            );
-                          }
-
-                          if (!snap.hasData) {
-                            return const _CommentsLoading();
-                          }
-
-                          final firstDocs = snap.data!.docs;
-                          if (_cursor == null && firstDocs.isNotEmpty) {
-                            _cursor = firstDocs.last;
-                          }
-
-                          final combined =
-                              <QueryDocumentSnapshot<Map<String, dynamic>>>[
-                                ...firstDocs,
-                                ..._older
-                                    .whereType<
-                                      QueryDocumentSnapshot<
-                                        Map<String, dynamic>
-                                      >
-                                    >(),
-                              ];
-
-                          final filtered = combined
-                              .where((d) {
-                                final a =
-                                    (d.data()['authorId'] ?? '') as String;
-                                return a.isEmpty || !blocked.contains(a);
-                              })
-                              .toList()
-                              .reversed
-                              .toList();
-
-                          if (filtered.isEmpty) {
-                            return const _CommentsStateCard(
-                              icon: Icons.chat_bubble_outline_rounded,
-                              title: 'No comments yet',
-                              subtitle: 'Start the conversation on this post.',
-                            );
-                          }
-
-                          return ListView.builder(
-                            controller: _scroll,
-                            padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
-                            itemCount: filtered.length + 1,
-                            itemBuilder: (context, i) {
-                              if (i == filtered.length) {
-                                if (_loadingMore) {
-                                  return const Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 14),
-                                    child: Center(
-                                      child: SizedBox(
-                                        width: 22,
-                                        height: 22,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2.2,
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                }
-                                return const SizedBox(height: 8);
-                              }
-
-                              final doc = filtered[i];
-                              final d = doc.data();
-                              final commentId = doc.id;
-                              final authorId = (d['authorId'] ?? '') as String;
-                              final authorName =
-                                  (d['authorName'] ?? 'User') as String;
-                              final authorPhoto =
-                                  (d['authorPhotoUrl'] ?? '') as String;
-                              final text = (d['text'] ?? '') as String;
-
-                              DateTime? createdAt;
-                              final ts = d['createdAt'];
-                              if (ts is Timestamp) createdAt = ts.toDate();
-
-                              return _CommentTile(
-                                key: ValueKey(commentId),
-                                commentId: commentId,
-                                authorId: authorId,
-                                authorName: authorName,
-                                authorPhoto: authorPhoto,
-                                text: text,
-                                createdAt: createdAt,
-                                isMine:
-                                    authorId.isNotEmpty && authorId == _myUid,
-                                isWorking: _workingCommentId == commentId,
-                                isEditing: _editingCommentId == commentId,
-                                editController: _inlineEditController,
-                                editFocusNode: _inlineEditFocus,
-                                onStartEdit: () => _startInlineEdit(
-                                  commentId: commentId,
-                                  text: text,
-                                ),
-                                onCancelEdit: _cancelInlineEdit,
-                                onSaveEdit: () => _saveInlineEdit(commentId),
-                                onDelete: () => _deleteComment(commentId),
-                              );
-                            },
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-                _CommentInputBar(uid: _myUid, controller: _text, onSend: _send),
-              ],
+              ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildCommentsArea(double maxListHeight) {
+    return StreamBuilder<Set<String>>(
+      stream: BlockRepository.instance.streamBlockedUids(),
+      builder: (context, blockedSnap) {
+        final blocked = blockedSnap.data ?? <String>{};
+
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('posts')
+              .doc(widget.postId)
+              .collection('comments')
+              .orderBy('createdAt', descending: true)
+              .limit(_pageSize)
+              .snapshots(),
+          builder: (context, snap) {
+            if (snap.hasError) {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+                child: SizedBox(
+                  height: 220,
+                  child: const _CommentsStateCard(
+                    icon: Icons.cloud_off_rounded,
+                    title: 'Could not load comments',
+                    subtitle: 'Please try again.',
+                  ),
+                ),
+              );
+            }
+
+            if (!snap.hasData) {
+              return const SizedBox(height: 300, child: _CommentsLoading());
+            }
+
+            final firstDocs = snap.data!.docs;
+            if (_cursor == null && firstDocs.isNotEmpty) {
+              _cursor = firstDocs.last;
+            }
+
+            final combined = <QueryDocumentSnapshot<Map<String, dynamic>>>[
+              ...firstDocs,
+              ..._older
+                  .whereType<QueryDocumentSnapshot<Map<String, dynamic>>>(),
+            ];
+
+            final filtered = combined
+                .where((d) {
+                  final a = (d.data()['authorId'] ?? '') as String;
+                  return a.isEmpty || !blocked.contains(a);
+                })
+                .toList()
+                .reversed
+                .toList();
+
+            if (filtered.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+                child: SizedBox(
+                  height: 220,
+                  child: const _CommentsStateCard(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    title: 'No comments yet',
+                    subtitle: 'Start the conversation on this post.',
+                  ),
+                ),
+              );
+            }
+
+            return ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: maxListHeight),
+              child: ListView.separated(
+                controller: _scroll,
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                physics: const BouncingScrollPhysics(),
+                itemCount: filtered.length + 1,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (context, i) {
+                  if (i == filtered.length) {
+                    if (_loadingMore) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 10),
+                        child: Center(
+                          child: SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2.2),
+                          ),
+                        ),
+                      );
+                    }
+                    return const SizedBox(height: 2);
+                  }
+
+                  final doc = filtered[i];
+                  final d = doc.data();
+                  final commentId = doc.id;
+                  final authorId = (d['authorId'] ?? '') as String;
+                  final authorName = (d['authorName'] ?? 'User') as String;
+                  final authorPhoto = (d['authorPhotoUrl'] ?? '') as String;
+                  final text = (d['text'] ?? '') as String;
+                  final replyToName = (d['replyToName'] ?? '') as String;
+
+                  DateTime? createdAt;
+                  final ts = d['createdAt'];
+                  if (ts is Timestamp) createdAt = ts.toDate();
+
+                  return _CommentTile(
+                    key: ValueKey(commentId),
+                    commentId: commentId,
+                    authorId: authorId,
+                    authorName: authorName,
+                    authorPhoto: authorPhoto,
+                    text: text,
+                    replyToName: replyToName,
+                    createdAt: createdAt,
+                    isMine: authorId.isNotEmpty && authorId == _myUid,
+                    isWorking: _workingCommentId == commentId,
+                    isEditing: _editingCommentId == commentId,
+                    editController: _inlineEditController,
+                    editFocusNode: _inlineEditFocus,
+                    onReply: () => _startReply(
+                      commentId: commentId,
+                      authorId: authorId,
+                      authorName: authorName,
+                    ),
+                    onStartEdit: () =>
+                        _startInlineEdit(commentId: commentId, text: text),
+                    onCancelEdit: _cancelInlineEdit,
+                    onSaveEdit: () => _saveInlineEdit(commentId),
+                    onDelete: () => _deleteComment(commentId),
+                  );
+                },
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _CommentsSheetHeader extends StatelessWidget {
+  const _CommentsSheetHeader({required this.onClose});
+
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 2, 8, 0),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppTheme.lilac,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white),
+            ),
+            child: const Icon(
+              Icons.chat_bubble_rounded,
+              color: Color(0xFF7C62D7),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'Comments',
+              style: TextStyle(
+                color: AppTheme.ink,
+                fontWeight: FontWeight.w900,
+                fontSize: 15.8,
+                height: 1.0,
+              ),
+            ),
+          ),
+          IconButton(onPressed: onClose, icon: const Icon(Icons.close_rounded)),
+        ],
       ),
     );
   }
@@ -433,11 +550,15 @@ class _CommentInputBar extends StatelessWidget {
     required this.uid,
     required this.controller,
     required this.onSend,
+    this.replyToName,
+    this.onCancelReply,
   });
 
   final String uid;
   final TextEditingController controller;
   final VoidCallback onSend;
+  final String? replyToName;
+  final VoidCallback? onCancelReply;
 
   @override
   Widget build(BuildContext context) {
@@ -452,60 +573,109 @@ class _CommentInputBar extends StatelessWidget {
         ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              UserAvatar(uid: uid, radius: 17, fallbackName: 'You'),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Container(
+              if (replyToName != null && replyToName!.trim().isNotEmpty) ...[
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
                   decoration: BoxDecoration(
-                    color: AppTheme.mist,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: AppTheme.outline),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 2,
-                  ),
-                  child: TextField(
-                    controller: controller,
-                    minLines: 1,
-                    maxLines: 4,
-                    style: const TextStyle(
-                      color: AppTheme.ink,
-                      fontWeight: FontWeight.w700,
-                      height: 1.25,
+                    color: AppTheme.lilac.withAlpha(110),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFF7C62D7).withAlpha(70),
                     ),
-                    decoration: InputDecoration(
-                      hintText: 'Write a comment',
-                      hintStyle: TextStyle(
-                        color: AppTheme.muted.withAlpha(190),
-                        fontWeight: FontWeight.w700,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.reply_rounded,
+                        size: 18,
+                        color: Color(0xFF7C62D7),
                       ),
-                      border: InputBorder.none,
-                      isDense: true,
-                    ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Replying to $replyToName',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppTheme.ink,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12.8,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: onCancelReply,
+                        icon: const Icon(Icons.close_rounded, size: 18),
+                        visualDensity: VisualDensity.compact,
+                        splashRadius: 18,
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Material(
-                color: const Color(0xFF7C62D7),
-                borderRadius: BorderRadius.circular(18),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(18),
-                  onTap: onSend,
-                  child: const SizedBox(
-                    width: 48,
-                    height: 48,
-                    child: Icon(
-                      Icons.send_rounded,
-                      color: Colors.white,
-                      size: 20,
+              ],
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  UserAvatar(uid: uid, radius: 17, fallbackName: 'You'),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppTheme.mist,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: AppTheme.outline),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 2,
+                      ),
+                      child: TextField(
+                        controller: controller,
+                        minLines: 1,
+                        maxLines: 4,
+                        style: const TextStyle(
+                          color: AppTheme.ink,
+                          fontWeight: FontWeight.w700,
+                          height: 1.25,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: replyToName == null
+                              ? 'Write a comment'
+                              : 'Write a reply',
+                          hintStyle: TextStyle(
+                            color: AppTheme.muted.withAlpha(190),
+                            fontWeight: FontWeight.w700,
+                          ),
+                          border: InputBorder.none,
+                          isDense: true,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  Material(
+                    color: const Color(0xFF7C62D7),
+                    borderRadius: BorderRadius.circular(18),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(18),
+                      onTap: onSend,
+                      child: const SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: Icon(
+                          Icons.send_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -523,12 +693,14 @@ class _CommentTile extends StatelessWidget {
     required this.authorName,
     required this.authorPhoto,
     required this.text,
+    required this.replyToName,
     required this.createdAt,
     required this.isMine,
     required this.isWorking,
     required this.isEditing,
     required this.editController,
     required this.editFocusNode,
+    required this.onReply,
     required this.onStartEdit,
     required this.onCancelEdit,
     required this.onSaveEdit,
@@ -540,12 +712,14 @@ class _CommentTile extends StatelessWidget {
   final String authorName;
   final String authorPhoto;
   final String text;
+  final String replyToName;
   final DateTime? createdAt;
   final bool isMine;
   final bool isWorking;
   final bool isEditing;
   final TextEditingController editController;
   final FocusNode editFocusNode;
+  final VoidCallback onReply;
   final VoidCallback onStartEdit;
   final VoidCallback onCancelEdit;
   final VoidCallback onSaveEdit;
@@ -686,10 +860,12 @@ class _CommentTile extends StatelessWidget {
                                     ),
                                   ],
                                   onSelected: (value) {
-                                    if (value == _CommentAction.edit)
+                                    if (value == _CommentAction.edit) {
                                       onStartEdit();
-                                    if (value == _CommentAction.delete)
+                                    }
+                                    if (value == _CommentAction.delete) {
                                       onDelete();
+                                    }
                                   },
                                 ),
                       ],
@@ -768,22 +944,108 @@ class _CommentTile extends StatelessWidget {
                           ),
                         ],
                       )
-                    else
-                      Text(
-                        text,
-                        style: const TextStyle(
-                          color: AppTheme.ink,
-                          fontWeight: FontWeight.w700,
-                          height: 1.34,
-                          fontSize: 13.4,
+                    else ...[
+                      if (replyToName.trim().isNotEmpty) ...[
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.lilac.withAlpha(95),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'Replying to $replyToName',
+                            style: const TextStyle(
+                              color: Color(0xFF7C62D7),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 11.8,
+                            ),
+                          ),
+                        ),
+                      ],
+                      _TaggedCommentText(text: text),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: onReply,
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF7C62D7),
+                            minimumSize: const Size(0, 0),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 4,
+                            ),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          icon: const Icon(Icons.reply_rounded, size: 16),
+                          label: const Text(
+                            'Reply',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
                         ),
                       ),
+                    ],
                   ],
                 ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TaggedCommentText extends StatelessWidget {
+  const _TaggedCommentText({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final spans = <InlineSpan>[];
+    final reg = RegExp(r'(@[^\s]+)|(\s+)|([^@\s]+)', unicode: true);
+
+    for (final match in reg.allMatches(text)) {
+      final part = match.group(0) ?? '';
+      if (part.isEmpty) continue;
+
+      if (part.startsWith('@')) {
+        spans.add(
+          TextSpan(
+            text: part,
+            style: const TextStyle(
+              color: Color(0xFF7C62D7),
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        );
+      } else {
+        spans.add(
+          TextSpan(
+            text: part,
+            style: const TextStyle(
+              color: AppTheme.ink,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        );
+      }
+    }
+
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(
+          color: AppTheme.ink,
+          fontWeight: FontWeight.w700,
+          height: 1.34,
+          fontSize: 13.4,
+        ),
+        children: spans,
       ),
     );
   }
@@ -865,4 +1127,13 @@ class _CommentsStateCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _mentionHandle(String input) {
+  final normalized = input.trim().replaceAll(RegExp(r'\s+'), '_');
+  final cleaned = normalized.replaceAll(
+    RegExp(r'[^\p{L}\p{N}_.]', unicode: true),
+    '',
+  );
+  return cleaned;
 }

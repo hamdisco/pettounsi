@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../repositories/block_repository.dart';
+import '../../ui/adaptive_cached_image.dart';
 import '../../repositories/follow_repository.dart';
 import '../../ui/app_theme.dart';
 import '../../ui/premium_cards.dart';
@@ -580,31 +581,28 @@ class _ImageBubble extends StatelessWidget {
               children: [
                 AspectRatio(
                   aspectRatio: 1.1,
-                  child: Image.network(
-                    safeUrl,
+                  child: AdaptiveCachedImage(
+                    imageUrl: safeUrl,
                     fit: BoxFit.cover,
-                    headers: const {'User-Agent': 'Mozilla/5.0'},
-                    loadingBuilder: (context, child, progress) {
-                      if (progress == null) return child;
-                      return Container(
-                        color: AppTheme.lilac,
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          Icons.image_outlined,
-                          color: Color(0xFF7C62D7),
-                        ),
-                      );
-                    },
-                    errorBuilder: (context, error, stack) {
-                      return Container(
-                        color: AppTheme.lilac,
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          Icons.broken_image_rounded,
-                          color: AppTheme.muted,
-                        ),
-                      );
-                    },
+                    fallbackHeight: 254,
+                    maxCacheDimension: 720,
+                    httpHeaders: const {'User-Agent': 'Mozilla/5.0'},
+                    placeholder: Container(
+                      color: AppTheme.lilac,
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.image_outlined,
+                        color: Color(0xFF7C62D7),
+                      ),
+                    ),
+                    errorWidget: Container(
+                      color: AppTheme.lilac,
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.broken_image_rounded,
+                        color: AppTheme.muted,
+                      ),
+                    ),
                   ),
                 ),
                 if (timeLabel.isNotEmpty)

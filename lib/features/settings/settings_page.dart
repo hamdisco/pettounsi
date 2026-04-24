@@ -27,7 +27,13 @@ class SettingsPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppTheme.bg,
-      appBar: AppBar(title: const Text("Settings")),
+      appBar: AppBar(
+        title: const Text("Settings"),
+        backgroundColor: AppTheme.bg,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
         children: [

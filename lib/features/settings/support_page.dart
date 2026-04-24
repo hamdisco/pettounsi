@@ -100,7 +100,7 @@ class SupportPage extends StatelessWidget {
             ),
             title: 'We’re here to help',
             subtitle:
-                'Find support options, review privacy information, or manage your account requests.',
+                'Find support options, review privacy information, or manage account deletion and safety requests.',
           ),
           const SizedBox(height: 12),
 
@@ -219,7 +219,8 @@ class SupportPage extends StatelessWidget {
               if (LegalLinks.hasAccountDeletionUrl)
                 _ActionTile(
                   title: 'Public account deletion page',
-                  subtitle: 'Open the web page used for store deletion compliance',
+                  subtitle:
+                      'Open the web page used for store deletion compliance',
                   icon: Icons.language_rounded,
                   tint: const Color(0xFFE05555),
                   bg: const Color(0xFFFFEBEB),
@@ -253,7 +254,7 @@ class SupportPage extends StatelessWidget {
                   border: Border.all(color: AppTheme.outline),
                 ),
                 child: Text(
-                  'For account deletion, privacy requests, or abusive content reports, include your account email, device type, and a short description so we can help you faster.',
+                  'For account deletion, privacy requests, or abusive content reports, include your account email, device type, and a short description. Deletion requests are usually processed within 7 days.',
                   style: TextStyle(
                     color: AppTheme.muted.withAlpha(220),
                     fontWeight: FontWeight.w700,

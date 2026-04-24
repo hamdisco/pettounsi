@@ -46,36 +46,42 @@ class DefaultFirebaseOptions {
     messagingSenderId: '770446391455',
     projectId: 'pettounsi-d3d5e',
     authDomain: 'pettounsi-d3d5e.firebaseapp.com',
+    databaseURL: 'https://pettounsi-d3d5e-default-rtdb.firebaseio.com',
     storageBucket: 'pettounsi-d3d5e.firebasestorage.app',
     measurementId: 'G-D2QXEYKZNJ',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCjHrBGR57MgRmXau69DdKYjv2gzp0P2Dc',
-    appId: '1:770446391455:android:4ce8fdc5ebb1d09eeb4aaa',
+    appId: '1:770446391455:android:0eba7438e9c8c096eb4aaa',
     messagingSenderId: '770446391455',
     projectId: 'pettounsi-d3d5e',
+    databaseURL: 'https://pettounsi-d3d5e-default-rtdb.firebaseio.com',
     storageBucket: 'pettounsi-d3d5e.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyDYqC2IMYJDyytSueFYzzhp8hGHA19boVE',
-    appId: '1:770446391455:ios:369c8ca5431f5ed4eb4aaa',
+    appId: '1:770446391455:ios:788d80edf69efa4feb4aaa',
     messagingSenderId: '770446391455',
     projectId: 'pettounsi-d3d5e',
+    databaseURL: 'https://pettounsi-d3d5e-default-rtdb.firebaseio.com',
     storageBucket: 'pettounsi-d3d5e.firebasestorage.app',
-    iosClientId: '770446391455-kk9m0urme7kfasldd89ahvn9t2viu9r8.apps.googleusercontent.com',
-    iosBundleId: 'com.example.pettounsi',
+    androidClientId: '770446391455-jhrbpv6nisvrq4qf6m34ec7k8abkolth.apps.googleusercontent.com',
+    iosClientId: '770446391455-50t9h2qfbt7ug4j7oofqbqbtat4f5qum.apps.googleusercontent.com',
+    iosBundleId: 'com.pettounsi.app',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyDYqC2IMYJDyytSueFYzzhp8hGHA19boVE',
-    appId: '1:770446391455:ios:369c8ca5431f5ed4eb4aaa',
+    appId: '1:770446391455:ios:788d80edf69efa4feb4aaa',
     messagingSenderId: '770446391455',
     projectId: 'pettounsi-d3d5e',
+    databaseURL: 'https://pettounsi-d3d5e-default-rtdb.firebaseio.com',
     storageBucket: 'pettounsi-d3d5e.firebasestorage.app',
-    iosClientId: '770446391455-kk9m0urme7kfasldd89ahvn9t2viu9r8.apps.googleusercontent.com',
-    iosBundleId: 'com.example.pettounsi',
+    androidClientId: '770446391455-jhrbpv6nisvrq4qf6m34ec7k8abkolth.apps.googleusercontent.com',
+    iosClientId: '770446391455-50t9h2qfbt7ug4j7oofqbqbtat4f5qum.apps.googleusercontent.com',
+    iosBundleId: 'com.pettounsi.app',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
@@ -84,7 +90,9 @@ class DefaultFirebaseOptions {
     messagingSenderId: '770446391455',
     projectId: 'pettounsi-d3d5e',
     authDomain: 'pettounsi-d3d5e.firebaseapp.com',
+    databaseURL: 'https://pettounsi-d3d5e-default-rtdb.firebaseio.com',
     storageBucket: 'pettounsi-d3d5e.firebasestorage.app',
     measurementId: 'G-QGZF4R6DV5',
   );
+
 }

@@ -71,7 +71,7 @@ class _PetBabysittingPageState extends State<PetBabysittingPage>
             collapsedHeight: 66,
             titleSpacing: 16,
             title: const Text(
-              'Pet Babysitting',
+              'Pet Sitting',
               style: TextStyle(
                 fontWeight: FontWeight.w900,
                 fontSize: 22,
@@ -1203,169 +1203,302 @@ class _ListingCard extends StatelessWidget {
     );
   }
 
+  String _location() {
+    return [
+      listing.city.trim(),
+      listing.governorate.trim(),
+    ].where((e) => e.isNotEmpty).join(', ');
+  }
+
+  String _availabilityCompact() {
+    final text = listing.availabilityText.trim();
+    if (text.isEmpty) return 'Available now';
+    final lower = text.toLowerCase();
+    if (lower.contains('immed') ||
+        lower.contains('today') ||
+        lower.contains('now')) {
+      return 'Available now';
+    }
+    if (lower.contains('weekend')) return 'Weekends';
+    if (lower.contains('weekday')) return 'Weekdays';
+    if (lower.contains('flex')) return 'Flexible';
+    return text.length <= 24 ? text : '${text.substring(0, 23).trimRight()}…';
+  }
+
+  String _petsCompact() {
+    final p = listing.petTypes.where((e) => e.trim().isNotEmpty).toList();
+    if (p.isEmpty) return 'Any pets';
+    if (p.length == 1) return p.first;
+    if (p.length == 2) return '${p[0]} & ${p[1]}';
+    return '${p.first} +${p.length - 1}';
+  }
+
+  String _statusText() {
+    if (!listing.isActive) return 'Paused';
+    final blocked =
+        listing.unavailableDateKeys.length + listing.bookedDateKeys.length;
+    if (blocked >= 8) return 'Limited dates';
+    return 'Live listing';
+  }
+
+  Color _statusBg() {
+    if (!listing.isActive) return AppTheme.blush;
+    final blocked =
+        listing.unavailableDateKeys.length + listing.bookedDateKeys.length;
+    if (blocked >= 8) return AppTheme.butter;
+    return AppTheme.mint;
+  }
+
+  Color _statusFg() {
+    if (!listing.isActive) return AppTheme.roseDark;
+    final blocked =
+        listing.unavailableDateKeys.length + listing.bookedDateKeys.length;
+    if (blocked >= 8) return const Color(0xFF8A5A00);
+    return const Color(0xFF2F9A6A);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final place =
-        '${listing.city}${listing.governorate.trim().isEmpty ? '' : ', ${listing.governorate}'}';
+    final place = _location();
 
     return PremiumCardSurface(
       radius: BorderRadius.circular(24),
       padding: EdgeInsets.zero,
       shadowOpacity: 0.11,
       onTap: () => _openDetails(context),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          PremiumSoftPanel(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-            radius: const BorderRadius.only(
-              topLeft: Radius.circular(24),
-              topRight: Radius.circular(24),
-            ),
-            gradient: const LinearGradient(
-              colors: [AppTheme.blush, AppTheme.lilac, AppTheme.sky],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderColor: Colors.transparent,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withAlpha(230),
-                    border: Border.all(color: Colors.white),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 11,
+                    vertical: 8,
                   ),
-                  child: UserAvatar(
+                  decoration: BoxDecoration(
+                    color: _statusBg(),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: AppTheme.outline),
+                  ),
+                  child: Text(
+                    _statusText(),
+                    style: TextStyle(
+                      color: _statusFg(),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 11.6,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                _RatingBadge(listingId: listing.id),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              listing.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppTheme.ink,
+                fontWeight: FontWeight.w900,
+                fontSize: 17,
+                height: 1.06,
+                letterSpacing: -0.2,
+              ),
+            ),
+            if (place.isNotEmpty) ...[
+              const SizedBox(height: 7),
+              Row(
+                children: [
+                  Icon(
+                    Icons.place_rounded,
+                    size: 17,
+                    color: AppTheme.muted.withAlpha(190),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      place,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppTheme.muted.withAlpha(215),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12.1,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+              decoration: BoxDecoration(
+                color: AppTheme.bg,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppTheme.outline),
+              ),
+              child: Row(
+                children: [
+                  UserAvatar(
                     uid: listing.authorId,
                     radius: 19,
                     fallbackName: listing.authorName,
                     fallbackPhotoUrl: listing.authorPhotoUrl,
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        listing.authorName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppTheme.ink,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 15.0,
-                          letterSpacing: -0.2,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      PremiumMetaRow(
-                        icon: Icons.place_rounded,
-                        text: place,
-                        iconColor: AppTheme.muted.withAlpha(190),
-                        textColor: AppTheme.muted.withAlpha(206),
-                        fontSize: 11.6,
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          const PremiumCardBadge(
-                            label: 'Sitter',
-                            icon: Icons.verified_user_outlined,
-                            bg: AppTheme.mist,
-                            fg: AppTheme.orchidDark,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          listing.authorName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppTheme.ink,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 14.2,
                           ),
-                          if (listing.priceText.trim().isNotEmpty)
-                            _PricePill(text: listing.priceText),
-                        ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          'Sitter profile',
+                          style: TextStyle(
+                            color: AppTheme.muted.withAlpha(210),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11.6,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (listing.priceText.trim().isNotEmpty)
+                    _PricePill(text: listing.priceText),
+                ],
+              ),
+            ),
+            if (listing.description.trim().isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                listing.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: AppTheme.ink.withAlpha(176),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12.8,
+                  height: 1.32,
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _MiniMetaPill(
+                  icon: Icons.pets_rounded,
+                  text: _petsCompact(),
+                  bg: AppTheme.surface,
+                  fg: AppTheme.ink,
+                ),
+                _MiniMetaPill(
+                  icon: Icons.schedule_rounded,
+                  text: _availabilityCompact(),
+                  bg: AppTheme.mint,
+                  fg: const Color(0xFF2F9A6A),
+                ),
+                if (listing.bookedDateKeys.isNotEmpty)
+                  _MiniMetaPill(
+                    icon: Icons.event_busy_rounded,
+                    text: '${listing.bookedDateKeys.length} booked',
+                    bg: AppTheme.sky,
+                    fg: const Color(0xFF4C79C8),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _openDetails(context),
+                    icon: const Icon(Icons.remove_red_eye_outlined, size: 18),
+                    label: const Text('View details'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 42),
+                      foregroundColor: AppTheme.ink,
+                      side: const BorderSide(color: AppTheme.outline),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
                       ),
-                    ],
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
-                _RatingBadge(listingId: listing.id),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _openRequest(context),
+                    icon: const Icon(Icons.send_rounded, size: 18),
+                    label: const Text('Request stay'),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(0, 42),
+                      backgroundColor: AppTheme.orchidDark,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  listing.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.ink,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 16.6,
-                    height: 1.04,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                if (listing.description.trim().isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    listing.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: AppTheme.ink.withAlpha(176),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12.6,
-                      height: 1.28,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 10),
-                _ListingInfoWrap(listing: listing),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _openDetails(context),
-                        icon: const Icon(
-                          Icons.remove_red_eye_outlined,
-                          size: 18,
-                        ),
-                        label: const Text('Details'),
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(0, 42),
-                          foregroundColor: AppTheme.ink,
-                          side: const BorderSide(color: AppTheme.outline),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _openRequest(context),
-                        icon: const Icon(Icons.send_rounded, size: 18),
-                        label: const Text('Request'),
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(0, 42),
-                          backgroundColor: AppTheme.orchidDark,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniMetaPill extends StatelessWidget {
+  const _MiniMetaPill({
+    required this.icon,
+    required this.text,
+    required this.bg,
+    required this.fg,
+  });
+
+  final IconData icon;
+  final String text;
+  final Color bg;
+  final Color fg;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppTheme.outline),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: fg),
+          const SizedBox(width: 7),
+          Text(
+            text,
+            style: TextStyle(
+              color: fg,
+              fontWeight: FontWeight.w900,
+              fontSize: 11.7,
             ),
           ),
         ],
@@ -1392,6 +1525,7 @@ class _PricePill extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _ListingInfoWrap extends StatelessWidget {
   const _ListingInfoWrap({required this.listing});
   final BabysittingListing listing;
@@ -1408,7 +1542,9 @@ class _ListingInfoWrap extends StatelessWidget {
     final text = raw.trim();
     if (text.isEmpty) return 'Available now';
     final lower = text.toLowerCase();
-    if (lower.contains('immed') || lower.contains('today') || lower.contains('now')) {
+    if (lower.contains('immed') ||
+        lower.contains('today') ||
+        lower.contains('now')) {
       return 'Available now';
     }
     if (lower.contains('weekend')) return 'Weekends';
@@ -1573,7 +1709,10 @@ class _CompactListingMetaCard extends StatelessWidget {
                     if (badgeText != null) ...[
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: badgeBg,
                           borderRadius: BorderRadius.circular(999),

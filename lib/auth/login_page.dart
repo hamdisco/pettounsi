@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../shell/main_scaffold.dart';
+import 'auth_gate.dart';
 import '../ui/brand_widgets.dart';
 import '../ui/cat_mascot.dart';
 import '../ui/app_theme.dart';
@@ -78,7 +78,7 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(
         context,
-        MainScaffold.route,
+        AuthGate.route,
         (r) => false,
       );
     } catch (e) {
@@ -95,7 +95,7 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(
         context,
-        MainScaffold.route,
+        AuthGate.route,
         (r) => false,
       );
     } catch (e) {
@@ -112,7 +112,7 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(
         context,
-        MainScaffold.route,
+        AuthGate.route,
         (r) => false,
       );
     } catch (e) {

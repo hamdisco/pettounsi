@@ -7,6 +7,21 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/cloudinary_service.dart';
 import 'post_model.dart';
 
+
+class FeedViewerArea {
+  const FeedViewerArea({
+    required this.city,
+    required this.region,
+    required this.country,
+  });
+
+  final String city;
+  final String region;
+  final String country;
+
+  bool get isEmpty => city.isEmpty && region.isEmpty && country.isEmpty;
+}
+
 class PostsRepository {
   PostsRepository._();
   static final PostsRepository instance = PostsRepository._();
@@ -78,6 +93,37 @@ class PostsRepository {
       if (x.length >= 2 && x.length <= 24) keywords.add(x);
     }
     return keywords.take(25).toList();
+  }
+
+
+  Future<FeedViewerArea?> fetchMyFeedArea() async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+
+    try {
+      final snap = await _db.collection('users').doc(user.uid).get();
+      final data = snap.data() ?? <String, dynamic>{};
+
+      String firstString(List<String> keys) {
+        for (final key in keys) {
+          final value = data[key];
+          if (value is String && value.trim().isNotEmpty) {
+            return value.trim();
+          }
+        }
+        return '';
+      }
+
+      final area = FeedViewerArea(
+        city: firstString(const ['city']),
+        region: firstString(const ['governorate', 'region', 'state']),
+        country: firstString(const ['country']),
+      );
+
+      return area.isEmpty ? null : area;
+    } catch (_) {
+      return null;
+    }
   }
 
   // -----------------------------
@@ -284,6 +330,7 @@ class PostsRepository {
     List<File> imageFiles = const [],
     required String postId,
     required DateTime clientCreatedAt,
+    String? postType,
   }) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Not signed in');
@@ -318,6 +365,8 @@ class PostsRepository {
       'likeCount': 0,
       'commentCount': 0,
       'lastCommentId': '',
+      if (postType != null && postType.trim().isNotEmpty)
+        'postType': postType.trim(),
     });
   }
 
@@ -456,7 +505,13 @@ class PostsRepository {
     return q.get();
   }
 
-  Future<void> addComment(String postId, String text) async {
+  Future<void> addComment(
+    String postId,
+    String text, {
+    String? parentCommentId,
+    String? replyToUid,
+    String? replyToName,
+  }) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Not signed in');
 
@@ -478,13 +533,33 @@ class PostsRepository {
       if (cleaned.isEmpty) throw Exception("Empty comment");
       ContentSafety.validatePublicText([cleaned], context: 'comment');
 
-      tx.set(commentRef, {
+      final data = <String, dynamic>{
         'authorId': user.uid,
         'authorName': actor.name,
         'authorPhotoUrl': actor.photoUrl,
         'text': cleaned,
         'createdAt': FieldValue.serverTimestamp(),
-      });
+      };
+
+      final normalizedParentId = (parentCommentId ?? '').trim();
+      final normalizedReplyUid = (replyToUid ?? '').trim();
+      final normalizedReplyName = (replyToName ?? '').trim();
+      final mentionedUsernames = _extractMentionUsernames(cleaned);
+
+      if (normalizedParentId.isNotEmpty) {
+        data['parentCommentId'] = normalizedParentId;
+      }
+      if (normalizedReplyUid.isNotEmpty) {
+        data['replyToUid'] = normalizedReplyUid;
+      }
+      if (normalizedReplyName.isNotEmpty) {
+        data['replyToName'] = normalizedReplyName;
+      }
+      if (mentionedUsernames.isNotEmpty) {
+        data['mentionedUsernames'] = mentionedUsernames;
+      }
+
+      tx.set(commentRef, data);
 
       tx.update(postRef, {
         'commentCount': commentCount + 1,
@@ -581,6 +656,18 @@ class PostsRepository {
 
     await _posts.doc(post.id).delete();
   }
+}
+
+
+List<String> _extractMentionUsernames(String text) {
+  final reg = RegExp(r'@([\p{L}\p{N}_.]+)', unicode: true);
+  final seen = <String>{};
+  for (final match in reg.allMatches(text)) {
+    final raw = (match.group(1) ?? '').trim();
+    if (raw.isEmpty) continue;
+    seen.add(raw.toLowerCase());
+  }
+  return seen.take(10).toList()..sort();
 }
 
 class _Actor {

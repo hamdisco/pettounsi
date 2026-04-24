@@ -2,9 +2,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../repositories/notifications_repository.dart';
+import '../../services/connectivity_status_controller.dart';
 import '../../ui/app_theme.dart';
 import '../../ui/premium_cards.dart';
 import '../../ui/premium_feedback.dart';
+import '../../ui/offline_feedback.dart';
 import '../directory/models/directory_item.dart';
 import '../events/events_page.dart';
 import '../pet_babysitting/pet_babysitting_page.dart';
@@ -237,6 +239,7 @@ class NotificationsPage extends StatelessWidget {
         'eventId': e.id,
         'eventTitle': e.name,
         'eventDateLabel': e.dateLabel,
+        'actorPhotoUrl': e.photoUrl ?? '',
         'read': true,
         'createdAt': e.startsAt,
       };
@@ -269,127 +272,151 @@ class NotificationsPage extends StatelessWidget {
             ),
           ],
         ),
-        body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: NotificationsRepository.instance.streamMyNotifications(limit: 80),
-          builder: (context, notifSnap) {
-            if (!notifSnap.hasData) {
-              return const _NotificationsLoading();
-            }
-
-            final notifDocs = notifSnap.data!.docs;
-            final unreadCount = notifDocs
-                .where((d) => (d.data()['read'] ?? false) == false)
-                .length;
-
+        body: AnimatedBuilder(
+          animation: ConnectivityStatusController.instance,
+          builder: (context, _) {
             return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance.collection('events').limit(16).snapshots(),
-              builder: (context, eventSnap) {
-                final eventCards = eventSnap.hasData
-                    ? _buildEventCards(eventSnap.data!.docs)
-                    : const <Map<String, dynamic>>[];
+              stream: NotificationsRepository.instance.streamMyNotifications(limit: 80),
+              builder: (context, notifSnap) {
+                final offline = ConnectivityStatusController.instance.isOffline;
 
-                if (notifDocs.isEmpty && eventCards.isEmpty) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(14),
-                      child: PremiumEmptyStateCard(
-                        icon: Icons.notifications_none_rounded,
-                        iconColor: Color(0xFF4C79C8),
-                        iconBg: AppTheme.sky,
-                        title: 'No notifications yet',
-                        subtitle:
-                            'Likes, comments, follows, babysitting activity, and event updates will appear here.',
-                      ),
-                    ),
-                  );
+                if (!notifSnap.hasData) {
+                  return offline
+                      ? const _NotificationsOffline()
+                      : const _NotificationsLoading();
                 }
 
-                return ListView(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-                  children: [
-                    _InboxSummary(
-                      unreadCount: unreadCount,
-                      totalCount: notifDocs.length,
-                      eventCount: eventCards.length,
-                    ),
-                    const SizedBox(height: 12),
-                    if (eventCards.isNotEmpty) ...[
-                      const _SectionLabel(
-                        title: 'Events',
-                        subtitle: 'Upcoming activities and meetups',
-                      ),
-                      const SizedBox(height: 8),
-                      ...eventCards.map(
-                        (d) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _NotificationTile(
-                            title: _titleFor(d),
-                            subtitle: _subtitleFor(d),
-                            time: _timeLabel(d['createdAt']),
-                            read: true,
-                            accent: _accentFor(d),
-                            bg: _bgFor(d),
-                            leadingIcon: _iconFor(d),
-                            actorPhotoUrl: '',
-                            section: _sectionLabel((d['type'] ?? '') as String),
-                            onTap: () => _openTarget(context, d),
+                final notifDocs = notifSnap.data!.docs;
+                final unreadCount = notifDocs
+                    .where((d) => (d.data()['read'] ?? false) == false)
+                    .length;
+
+                return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance.collection('events').limit(16).snapshots(),
+                  builder: (context, eventSnap) {
+                    final eventCards = eventSnap.hasData
+                        ? _buildEventCards(eventSnap.data!.docs)
+                        : const <Map<String, dynamic>>[];
+                    final noCachedEvents = offline && !eventSnap.hasData;
+
+                    if (notifDocs.isEmpty && eventCards.isEmpty) {
+                      if (noCachedEvents) {
+                        return const _NotificationsOffline();
+                      }
+
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(14),
+                          child: PremiumEmptyStateCard(
+                            icon: Icons.notifications_none_rounded,
+                            iconColor: Color(0xFF4C79C8),
+                            iconBg: AppTheme.sky,
+                            title: 'No notifications yet',
+                            subtitle:
+                                'Likes, comments, follows, babysitting activity, and event updates will appear here.',
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                    ],
-                    if (notifDocs.isNotEmpty) ...[
-                      const _SectionLabel(
-                        title: 'Activity',
-                        subtitle: 'Likes, comments, follows, and requests',
-                      ),
-                      const SizedBox(height: 8),
-                      ...notifDocs.map((doc) {
-                        final d = doc.data();
-                        final read = (d['read'] ?? false) as bool;
-                        final photo = (d['actorPhotoUrl'] ?? '') as String;
+                      );
+                    }
 
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: Dismissible(
-                            key: ValueKey(doc.id),
-                            direction: DismissDirection.endToStart,
-                            background: Container(
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 16),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFE6E6),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: const Icon(
-                                Icons.delete_outline_rounded,
-                                color: Color(0xFFD64545),
+                    return ListView(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                      children: [
+                        _InboxSummary(
+                          unreadCount: unreadCount,
+                          totalCount: notifDocs.length,
+                          eventCount: eventCards.length,
+                        ),
+                        const SizedBox(height: 12),
+                        if (eventCards.isNotEmpty || noCachedEvents) ...[
+                          const _SectionLabel(
+                            title: 'Events',
+                            subtitle: 'Upcoming activities and meetups',
+                          ),
+                          const SizedBox(height: 8),
+                          if (noCachedEvents)
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 10),
+                              child: OfflinePageState(
+                                compact: true,
+                                title: 'Event updates are unavailable offline',
+                                subtitle:
+                                    'Reconnect to load upcoming meetups or wait for saved events to appear.',
                               ),
                             ),
-                            onDismissed: (_) => NotificationsRepository.instance.deleteNotification(doc.id),
-                            child: _NotificationTile(
-                              title: _titleFor(d),
-                              subtitle: _subtitleFor(d),
-                              time: _timeLabel(d['createdAt']),
-                              read: read,
-                              accent: _accentFor(d),
-                              bg: _bgFor(d),
-                              leadingIcon: _iconFor(d),
-                              actorPhotoUrl: photo,
-                              section: _sectionLabel((d['type'] ?? '') as String),
-                              onTap: () async {
-                                try {
-                                  await NotificationsRepository.instance.markAsRead(doc.id);
-                                } catch (_) {}
-                                if (!context.mounted) return;
-                                await _openTarget(context, d);
-                              },
+                          ...eventCards.map(
+                            (d) => Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: _NotificationTile(
+                                title: _titleFor(d),
+                                subtitle: _subtitleFor(d),
+                                time: _timeLabel(d['createdAt']),
+                                read: true,
+                                accent: _accentFor(d),
+                                bg: _bgFor(d),
+                                leadingIcon: _iconFor(d),
+                                actorPhotoUrl: (d['actorPhotoUrl'] ?? '').toString(),
+                                section: _sectionLabel((d['type'] ?? '') as String),
+                                onTap: () => _openTarget(context, d),
+                              ),
                             ),
                           ),
-                        );
-                      }),
-                    ],
-                  ],
+                          const SizedBox(height: 6),
+                        ],
+                        if (notifDocs.isNotEmpty) ...[
+                          const _SectionLabel(
+                            title: 'Activity',
+                            subtitle: 'Likes, comments, follows, and requests',
+                          ),
+                          const SizedBox(height: 8),
+                          ...notifDocs.map((doc) {
+                            final d = doc.data();
+                            final read = (d['read'] ?? false) as bool;
+                            final photo = (d['actorPhotoUrl'] ?? '') as String;
+
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: Dismissible(
+                                key: ValueKey(doc.id),
+                                direction: DismissDirection.endToStart,
+                                background: Container(
+                                  alignment: Alignment.centerRight,
+                                  padding: const EdgeInsets.only(right: 16),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFE6E6),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: const Icon(
+                                    Icons.delete_outline_rounded,
+                                    color: Color(0xFFD64545),
+                                  ),
+                                ),
+                                onDismissed: (_) => NotificationsRepository.instance.deleteNotification(doc.id),
+                                child: _NotificationTile(
+                                  title: _titleFor(d),
+                                  subtitle: _subtitleFor(d),
+                                  time: _timeLabel(d['createdAt']),
+                                  read: read,
+                                  accent: _accentFor(d),
+                                  bg: _bgFor(d),
+                                  leadingIcon: _iconFor(d),
+                                  actorPhotoUrl: photo,
+                                  section: _sectionLabel((d['type'] ?? '') as String),
+                                  onTap: () async {
+                                    try {
+                                      await NotificationsRepository.instance.markAsRead(doc.id);
+                                    } catch (_) {}
+                                    if (!context.mounted) return;
+                                    await _openTarget(context, d);
+                                  },
+                                ),
+                              ),
+                            );
+                          }),
+                        ],
+                      ],
+                    );
+                  },
                 );
               },
             );
@@ -710,6 +737,27 @@ class _NotificationsLoading extends StatelessWidget {
             padding: EdgeInsets.only(bottom: 10),
             child: PremiumSkeletonCard(height: 92, radius: 22),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+
+class _NotificationsOffline extends StatelessWidget {
+  const _NotificationsOffline();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+      children: const [
+        PremiumSkeletonCard(height: 82, radius: 24),
+        SizedBox(height: 12),
+        OfflinePageState(
+          title: 'Notifications are unavailable offline',
+          subtitle:
+              'Reconnect to load new activity, or wait for saved notifications to appear on this device.',
         ),
       ],
     );

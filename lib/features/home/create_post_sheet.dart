@@ -29,6 +29,9 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
 
   bool _loading = false;
 
+  // null = general post, 'adopt' = adoption, 'rescue' = rescue alert
+  String? _postType;
+
   String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
 
   @override
@@ -51,7 +54,6 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
 
   Future<void> _pickFromGallery() async {
     if (_loading || _images.length >= _maxImages) return;
-
     final picker = ImagePicker();
     try {
       final x = await picker.pickImage(
@@ -61,19 +63,16 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
         maxHeight: 1600,
       );
       if (x == null || !mounted) return;
-
       setState(() => _images.add(File(x.path)));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not open gallery: $e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Could not open gallery: $e')));
     }
   }
 
   Future<void> _cameraAdd() async {
     if (_loading || _images.length >= _maxImages) return;
-
     final picker = ImagePicker();
     try {
       final x = await picker.pickImage(
@@ -83,13 +82,11 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
         maxHeight: 1600,
       );
       if (x == null || !mounted) return;
-
       setState(() => _images.add(File(x.path)));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not open camera: $e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Could not open camera: $e')));
     }
   }
 
@@ -108,15 +105,15 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
         imageFiles: _images,
         postId: postId,
         clientCreatedAt: clientCreatedAt,
+        postType: _postType,
       );
 
       if (!mounted) return;
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not publish: $e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Could not publish: $e')));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -125,8 +122,7 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
   @override
   Widget build(BuildContext context) {
     final remaining = _maxText - _txt.text.characters.length;
-    final canPost =
-        !_loading &&
+    final canPost = !_loading &&
         remaining >= 0 &&
         (_txt.text.trim().isNotEmpty || _images.isNotEmpty);
 
@@ -150,6 +146,14 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
             onPickCamera: _cameraAdd,
           ),
           const SizedBox(height: 12),
+
+          // --- Post type selector ---
+          _PostTypeSelector(
+            selected: _postType,
+            onChanged: (v) => setState(() => _postType = v),
+          ),
+          const SizedBox(height: 12),
+
           const PremiumSheetInfoCard(
             icon: Icons.public_rounded,
             iconBg: AppTheme.sky,
@@ -175,7 +179,8 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
                       height: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2.2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
                   : const Icon(Icons.send_rounded, size: 18),
@@ -191,6 +196,100 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Post type selector — three pills: General, Adopt, Rescue
+// ---------------------------------------------------------------------------
+class _PostTypeSelector extends StatelessWidget {
+  const _PostTypeSelector({
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final String? selected;
+  final ValueChanged<String?> onChanged;
+
+  static const _types = [
+    (null, 'General', Icons.edit_note_rounded,
+        AppTheme.lilac, Color(0xFF7C62D7)),
+    ('adopt', 'Adopt', Icons.favorite_rounded,
+        Color(0xFFFFE8EC), Color(0xFFD94F70)),
+    ('rescue', 'Rescue', Icons.campaign_rounded,
+        Color(0xFFFFECE7), Color(0xFFE86C4F)),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.label_outline_rounded,
+                size: 15, color: AppTheme.muted),
+            const SizedBox(width: 6),
+            Text(
+              'Post type',
+              style: TextStyle(
+                color: AppTheme.muted.withAlpha(220),
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _types.map((t) {
+            final isSelected = selected == t.$1;
+            return GestureDetector(
+              onTap: () => onChanged(t.$1),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                curve: Curves.easeOut,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 9),
+                decoration: BoxDecoration(
+                  color: isSelected ? t.$4 : AppTheme.mist,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: isSelected
+                        ? t.$5.withAlpha(100)
+                        : AppTheme.outline,
+                    width: isSelected ? 1.5 : 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(t.$3,
+                        size: 14,
+                        color: isSelected ? t.$5 : AppTheme.muted),
+                    const SizedBox(width: 6),
+                    Text(
+                      t.$2,
+                      style: TextStyle(
+                        color: isSelected ? t.$5 : AppTheme.ink,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12.2,
+                        height: 1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Composer card
+// ---------------------------------------------------------------------------
 class _ComposerCard extends StatelessWidget {
   const _ComposerCard({
     required this.uid,
@@ -242,13 +341,16 @@ class _ComposerCard extends StatelessWidget {
               PremiumCardBadge(
                 label: remaining < 0 ? '0 left' : '$remaining left',
                 icon: Icons.text_fields_rounded,
-                bg: remaining < 0 ? const Color(0xFFFFECEC) : AppTheme.blush,
+                bg: remaining < 0
+                    ? const Color(0xFFFFECEC)
+                    : AppTheme.blush,
                 fg: remaining < 0
                     ? const Color(0xFFD64545)
                     : AppTheme.orangeDark,
                 borderColor: AppTheme.outline,
                 fontSize: 11.1,
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 9, vertical: 6),
               ),
             ],
           ),
@@ -275,7 +377,8 @@ class _ComposerCard extends StatelessWidget {
               decoration: InputDecoration(
                 counterText: '',
                 border: InputBorder.none,
-                hintText: 'Share something helpful, warm, or important…',
+                hintText:
+                    'Share something helpful, warm, or important…',
                 hintStyle: TextStyle(
                   color: AppTheme.muted.withAlpha(200),
                   fontWeight: FontWeight.w700,
@@ -305,20 +408,17 @@ class _ComposerCard extends StatelessWidget {
                 selected: false,
                 fontSize: 12,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
+                    horizontal: 12, vertical: 10),
               ),
               PremiumPill(
-                label: maxReached ? 'Limit reached' : 'Camera',
+                label:
+                    maxReached ? 'Limit reached' : 'Camera',
                 icon: Icons.photo_camera_rounded,
                 onTap: loading || maxReached ? null : onPickCamera,
                 selected: false,
                 fontSize: 12,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
+                    horizontal: 12, vertical: 10),
               ),
               PremiumToneChip(
                 label:
@@ -329,9 +429,7 @@ class _ComposerCard extends StatelessWidget {
                 borderColor: AppTheme.outline,
                 fontSize: 11.6,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 7,
-                ),
+                    horizontal: 10, vertical: 7),
               ),
             ],
           ),
@@ -362,7 +460,6 @@ class _ImageGrid extends StatelessWidget {
       ),
       itemBuilder: (context, i) {
         final file = images[i];
-
         return ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: Stack(
@@ -381,7 +478,8 @@ class _ImageGrid extends StatelessWidget {
                     child: const SizedBox(
                       width: 34,
                       height: 34,
-                      child: Icon(Icons.close_rounded, color: AppTheme.ink),
+                      child: Icon(Icons.close_rounded,
+                          color: AppTheme.ink),
                     ),
                   ),
                 ),

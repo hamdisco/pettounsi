@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -5,6 +8,7 @@ import '../repositories/notifications_repository.dart';
 import '../ui/app_theme.dart';
 import '../ui/brand_widgets.dart';
 import '../features/messages/messages_repository.dart';
+import '../features/messages/conversation_model.dart';
 import '../features/home/home_page.dart';
 import '../features/map/map_page.dart';
 import '../features/messages/messages_page.dart';
@@ -13,6 +17,7 @@ import '../features/games/games_page.dart';
 import '../features/profile/profile_page.dart';
 import '../features/notifications/notifications_page.dart';
 import '../features/search/search_page.dart';
+import '../services/in_app_sound_service.dart';
 
 import 'app_drawer.dart';
 
@@ -27,13 +32,14 @@ class MainScaffold extends StatefulWidget {
 class _MainScaffoldState extends State<MainScaffold> {
   int index = 0;
 
-  final _pages = const [
-    HomePage(),
-    MapPage(),
-    MessagesPage(),
-    GamesPage(),
-    _MyProfileTab(),
-  ];
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _notificationsSoundSub;
+  StreamSubscription<List<ConversationModel>>? _messagesSoundSub;
+  final Set<String> _seenNotificationIds = <String>{};
+  final Map<String, int> _lastMessageAtByConversation = <String, int>{};
+  bool _notificationsSoundArmed = false;
+  bool _messagesSoundArmed = false;
+
+  final Set<int> _visitedTabs = <int>{0};
 
   static const _topLabels = <String>[
     'Home',
@@ -42,6 +48,92 @@ class _MainScaffoldState extends State<MainScaffold> {
     'Games',
     'Profile',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _wireInAppSounds();
+  }
+
+  @override
+  void dispose() {
+    _notificationsSoundSub?.cancel();
+    _messagesSoundSub?.cancel();
+    super.dispose();
+  }
+
+  void _wireInAppSounds() {
+    _notificationsSoundSub?.cancel();
+    _messagesSoundSub?.cancel();
+
+    _notificationsSoundSub = NotificationsRepository.instance
+        .streamMyNotifications(limit: 60)
+        .listen((snap) {
+          final ids = snap.docs.map((d) => d.id).toSet();
+
+          if (!_notificationsSoundArmed) {
+            _seenNotificationIds
+              ..clear()
+              ..addAll(ids);
+            _notificationsSoundArmed = true;
+            return;
+          }
+
+          final hasNewNotification = ids.any((id) => !_seenNotificationIds.contains(id));
+          _seenNotificationIds
+            ..clear()
+            ..addAll(ids);
+
+          if (hasNewNotification) {
+            InAppSoundService.instance.playNotificationSound();
+          }
+        });
+
+    _messagesSoundSub = MessagesRepository.instance
+        .streamMyConversations(limit: 60)
+        .listen((conversations) {
+          final me = FirebaseAuth.instance.currentUser;
+          if (me == null) return;
+
+          if (!_messagesSoundArmed) {
+            _lastMessageAtByConversation
+              ..clear()
+              ..addEntries(conversations.map((c) => MapEntry(
+                    c.id,
+                    c.lastMessageAt?.millisecondsSinceEpoch ?? 0,
+                  )));
+            _messagesSoundArmed = true;
+            return;
+          }
+
+          var hasIncomingMessage = false;
+          final nextSeen = <String, int>{};
+
+          for (final convo in conversations) {
+            final lastAtMs = convo.lastMessageAt?.millisecondsSinceEpoch ?? 0;
+            nextSeen[convo.id] = lastAtMs;
+
+            final previousMs = _lastMessageAtByConversation[convo.id] ?? 0;
+            if (lastAtMs <= previousMs) continue;
+
+            final readTs = convo.lastReadAt[me.uid];
+            final readAtMs = readTs is Timestamp ? readTs.toDate().millisecondsSinceEpoch : 0;
+            final isUnreadForMe = convo.lastMessage.isNotEmpty && lastAtMs > readAtMs;
+
+            if (isUnreadForMe) {
+              hasIncomingMessage = true;
+            }
+          }
+
+          _lastMessageAtByConversation
+            ..clear()
+            ..addAll(nextSeen);
+
+          if (hasIncomingMessage) {
+            InAppSoundService.instance.playMessageSound();
+          }
+        });
+  }
 
   void _openSearch() {
     Navigator.push(
@@ -72,7 +164,32 @@ class _MainScaffoldState extends State<MainScaffold> {
     );
   }
 
-  void _goProfile() => setState(() => index = 4);
+  void _goProfile() => _onTabChanged(4);
+
+  void _onTabChanged(int newIndex) {
+    if (newIndex == index && _visitedTabs.contains(newIndex)) return;
+    setState(() {
+      index = newIndex;
+      _visitedTabs.add(newIndex);
+    });
+  }
+
+  Widget _buildTabPage(int tabIndex) {
+    switch (tabIndex) {
+      case 0:
+        return const HomePage();
+      case 1:
+        return const MapPage();
+      case 2:
+        return const MessagesPage();
+      case 3:
+        return const GamesPage();
+      case 4:
+        return const _MyProfileTab();
+      default:
+        return const SizedBox.shrink();
+    }
+  }
 
   Widget _notifIconWithBadge() {
     return StreamBuilder<int>(
@@ -160,7 +277,7 @@ class _MainScaffoldState extends State<MainScaffold> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.bg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       drawer: const AppDrawer(),
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(68),
@@ -213,7 +330,18 @@ class _MainScaffoldState extends State<MainScaffold> {
           ),
         ),
       ),
-      body: IndexedStack(index: index, children: _pages),
+      body: IndexedStack(
+        index: index,
+        children: List<Widget>.generate(_topLabels.length, (tabIndex) {
+          if (!_visitedTabs.contains(tabIndex)) {
+            return const SizedBox.shrink();
+          }
+          return KeyedSubtree(
+            key: PageStorageKey<String>('main-tab-$tabIndex'),
+            child: _buildTabPage(tabIndex),
+          );
+        }),
+      ),
       floatingActionButton: (index == 2)
           ? _GradientFab(onTap: _openNewChat)
           : null,
@@ -227,7 +355,7 @@ class _MainScaffoldState extends State<MainScaffold> {
           return _BottomNavBar(
             index: index,
             unreadMessages: unreadMessages,
-            onChanged: (i) => setState(() => index = i),
+            onChanged: _onTabChanged,
           );
         },
       ),
@@ -359,9 +487,9 @@ class _TopBarWidget extends StatelessWidget {
           width: 38,
           height: 38,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(13),
-            border: Border.all(color: AppTheme.outline),
+            border: Border.all(color: Theme.of(context).colorScheme.outline),
           ),
           child: Center(child: child),
         ),
@@ -454,7 +582,8 @@ class _NavButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fg = selected ? AppTheme.ink : AppTheme.muted;
-    final bg = selected ? AppTheme.lilac.withAlpha(180) : Colors.transparent;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = selected ? (isDark ? const Color(0xFF2A2040).withAlpha(220) : AppTheme.lilac.withAlpha(180)) : Colors.transparent;
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),

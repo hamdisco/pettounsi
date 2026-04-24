@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>770446391455-kk9m0urme7kfasldd89ahvn9t2viu9r8.apps.googleusercontent.com</string>
+	<string>770446391455-50t9h2qfbt7ug4j7oofqbqbtat4f5qum.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.770446391455-kk9m0urme7kfasldd89ahvn9t2viu9r8</string>
+	<string>com.googleusercontent.apps.770446391455-50t9h2qfbt7ug4j7oofqbqbtat4f5qum</string>
 	<key>ANDROID_CLIENT_ID</key>
 	<string>770446391455-jhrbpv6nisvrq4qf6m34ec7k8abkolth.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
@@ -15,7 +15,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.example.pettounsi</string>
+	<string>com.pettounsi.app</string>
 	<key>PROJECT_ID</key>
 	<string>pettounsi-d3d5e</string>
 	<key>STORAGE_BUCKET</key>
@@ -31,7 +31,7 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:770446391455:ios:369c8ca5431f5ed4eb4aaa</string>
+	<string>1:770446391455:ios:788d80edf69efa4feb4aaa</string>
 	<key>DATABASE_URL</key>
 	<string>https://pettounsi-d3d5e-default-rtdb.firebaseio.com</string>
 </dict>

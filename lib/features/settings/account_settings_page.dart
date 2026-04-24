@@ -91,7 +91,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     if (_hasPendingDeletionRequest) {
       return 'A deletion request is already pending for this account.';
     }
-    return 'Ask us to permanently delete your account and app data.';
+    return 'Request permanent deletion of your account and associated data.';
   }
 
   Future<void> _load() async {
@@ -646,7 +646,11 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
         setState(() {});
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Account deletion request submitted.')),
+          const SnackBar(
+            content: Text(
+              'Deletion request submitted. We usually process requests within 7 days.',
+            ),
+          ),
         );
       } catch (_) {
         if (!mounted) return;
@@ -724,7 +728,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      'This sends a permanent account deletion request for review. Your profile, posts, comments, chats, and other account data may be removed during processing.',
+                      'This sends a permanent deletion request for your Pettounsi account. Once processed, your profile and account-related data will be deleted or anonymized, except for information we are legally required to keep or must retain for safety, fraud-prevention, or security reasons.\n\nDeletion requests are usually processed within 7 days.',
                       style: TextStyle(
                         color: AppTheme.muted.withAlpha(220),
                         fontWeight: FontWeight.w700,
@@ -772,7 +776,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                       decoration: const InputDecoration(
                         labelText: 'Reason or note (optional)',
                         hintText:
-                            'Example: Please remove my profile, posts, and messages.',
+                            'Optional note: tell us anything important about your request. Example: Please also remove my listings and profile photos.',
                         prefixIcon: Icon(Icons.note_alt_outlined),
                         alignLabelWithHint: true,
                       ),
@@ -800,7 +804,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                             child: Padding(
                               padding: const EdgeInsets.only(top: 12),
                               child: Text(
-                                'I understand this is a deletion request for my Pettounsi account and that it may permanently remove my account data once processed.',
+                                'I understand that this request may permanently delete my Pettounsi account and associated data once it is processed.',
                                 style: TextStyle(
                                   color: AppTheme.ink.withAlpha(220),
                                   fontWeight: FontWeight.w700,
@@ -1049,7 +1053,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Use this if you want Pettounsi support to process permanent account removal.',
+                  'Use this to request permanent deletion of your Pettounsi account and associated data.',
                   style: TextStyle(
                     color: AppTheme.muted.withAlpha(215),
                     fontWeight: FontWeight.w700,

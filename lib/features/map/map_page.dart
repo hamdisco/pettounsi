@@ -36,6 +36,7 @@ class MapPage extends StatefulWidget {
 
 class _MapPageState extends State<MapPage> {
   final MapController _map = MapController();
+  late final Stream<List<MapPin>> _pinsStream;
 
   LatLng _center = const LatLng(35.8, 10.2);
   double _zoom = 6.0;
@@ -47,6 +48,7 @@ class _MapPageState extends State<MapPage> {
   @override
   void initState() {
     super.initState();
+    _pinsStream = MapPinsRepository.instance.streamAllPins();
     _filter = widget.initialFilter;
     if (widget.initialCenter != null) _center = widget.initialCenter!;
     if (widget.initialZoom != null) _zoom = widget.initialZoom!;
@@ -355,7 +357,7 @@ class _MapPageState extends State<MapPage> {
 
   Widget _buildContent(BuildContext context) {
     return StreamBuilder<List<MapPin>>(
-      stream: MapPinsRepository.instance.streamAllPins(),
+      stream: _pinsStream,
       builder: (context, snap) {
         final allPins = snap.data ?? const <MapPin>[];
         final pins = _applyFilter(allPins);

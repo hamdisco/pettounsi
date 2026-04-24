@@ -9,13 +9,21 @@ import 'auth/login_page.dart';
 import 'auth/signup_page.dart';
 import 'core/app_config.dart';
 import 'firebase_options.dart';
+import 'services/app_theme_controller.dart';
+import 'services/connectivity_status_controller.dart';
 import 'services/post_outbox_service.dart';
 import 'shell/main_scaffold.dart';
+import 'splash/splash_page.dart';
 import 'ui/app_theme.dart';
+import 'ui/offline_banner_overlay.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Load saved theme preference before showing UI
+  await AppThemeController.instance.load();
+  await ConnectivityStatusController.instance.start();
 
   try {
     debugPrint(
@@ -85,17 +93,40 @@ Future<void> main() async {
   runApp(const PetTounsiApp());
 }
 
-class PetTounsiApp extends StatelessWidget {
+class PetTounsiApp extends StatefulWidget {
   const PetTounsiApp({super.key});
+
+  @override
+  State<PetTounsiApp> createState() => _PetTounsiAppState();
+}
+
+class _PetTounsiAppState extends State<PetTounsiApp> {
+  @override
+  void initState() {
+    super.initState();
+    AppThemeController.instance.addListener(_onThemeChanged);
+  }
+
+  @override
+  void dispose() {
+    AppThemeController.instance.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  void _onThemeChanged() => setState(() {});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: "Pettounsi",
+      title: 'Pettounsi',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
-      initialRoute: AuthGate.route,
+      themeMode: AppThemeController.instance.themeMode,
+      builder: (context, child) =>
+          OfflineBannerOverlay(child: child ?? const SizedBox.shrink()),
+      initialRoute: SplashPage.route,
       routes: {
+        SplashPage.route: (_) => const SplashPage(),
         AuthGate.route: (_) => const AuthGate(),
         LoginPage.route: (_) => const LoginPage(),
         SignUpPage.route: (_) => const SignUpPage(),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../ui/adaptive_cached_image.dart';
 import '../../../ui/app_theme.dart';
 import '../../../ui/brand_widgets.dart';
 import '../models/podcast_episode.dart';
@@ -153,10 +154,13 @@ class PodcastCover extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: hasImage
-          ? Image.network(
-              imageUrl!,
+          ? AdaptiveCachedImage(
+              imageUrl: imageUrl!,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _placeholder(),
+              fallbackWidth: size,
+              fallbackHeight: size,
+              maxCacheDimension: 320,
+              errorWidget: _placeholder(),
             )
           : _placeholder(),
     );

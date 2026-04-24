@@ -13,6 +13,7 @@ class DirectoryItem {
   final String? phone;
   final String? sourceUrl;
   final String? notes;
+  final String? photoUrl;
   final double? lat;
   final double? lng;
   final bool isActive;
@@ -34,6 +35,7 @@ class DirectoryItem {
     required this.phone,
     required this.sourceUrl,
     required this.notes,
+    required this.photoUrl,
     required this.lat,
     required this.lng,
     required this.isActive,
@@ -44,6 +46,7 @@ class DirectoryItem {
 
   bool get hasCoords => lat != null && lng != null;
   bool get hasPhone => (phone ?? '').trim().isNotEmpty;
+  bool get hasPhoto => (photoUrl ?? '').trim().isNotEmpty;
   bool get hasSource => (sourceUrl ?? '').trim().isNotEmpty;
   bool get isEvent => dateLabel.trim().isNotEmpty || startsAt != null;
 
@@ -58,6 +61,7 @@ class DirectoryItem {
       phone: phone,
       sourceUrl: sourceUrl,
       notes: notes,
+      photoUrl: photoUrl,
       lat: lat,
       lng: lng,
       isActive: isActive,
@@ -93,6 +97,10 @@ class DirectoryItem {
           ? ['description', 'details', 'notes']
           : ['notes', 'description'],
     );
+    final photoUrl = _firstString(
+      m,
+      ['photoUrl', 'imageUrl', 'coverPhotoUrl', 'coverImageUrl'],
+    );
 
     final isActive = (m['isActive'] is bool) ? (m['isActive'] as bool) : true;
 
@@ -109,6 +117,7 @@ class DirectoryItem {
       phone: phone.isEmpty ? null : phone,
       sourceUrl: sourceUrl.isEmpty ? null : sourceUrl,
       notes: notes.isEmpty ? null : notes,
+      photoUrl: photoUrl.isEmpty ? null : photoUrl,
       lat: lat,
       lng: lng,
       isActive: isActive,

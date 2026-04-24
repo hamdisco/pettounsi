@@ -1,13 +1,12 @@
 import 'dart:io';
 import '../../ui/premium_cards.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/media_presets.dart';
+import '../../ui/adaptive_cached_image.dart';
 
 import '../../repositories/block_repository.dart';
 import '../../repositories/follow_repository.dart';
@@ -562,30 +561,15 @@ class _Cover extends StatelessWidget {
       ),
     );
 
-    if (kReleaseMode) {
-      return Image.network(
-        url,
-        fit: BoxFit.cover,
-        alignment: const Alignment(0.0, -0.2),
-        headers: const {'User-Agent': 'Mozilla/5.0'},
-        errorBuilder: (context, error, stack) {
-          debugPrint('[IMG_FAIL][cover] $url -> $error');
-          return placeholder;
-        },
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return placeholder;
-        },
-      );
-    }
-
-    return CachedNetworkImage(
+    return AdaptiveCachedImage(
       imageUrl: url,
       fit: BoxFit.cover,
       alignment: const Alignment(0.0, -0.2),
-      fadeInDuration: const Duration(milliseconds: 180),
-      placeholder: (_, __) => placeholder,
-      errorWidget: (_, __, ___) => placeholder,
+      fallbackHeight: 220,
+      maxCacheDimension: 1400,
+      httpHeaders: const {'User-Agent': 'Mozilla/5.0'},
+      placeholder: placeholder,
+      errorWidget: placeholder,
     );
   }
 }
@@ -631,53 +615,34 @@ class _Avatar extends StatelessWidget {
                     ),
                   ),
                 )
-              : (kReleaseMode
-                    ? Image.network(
-                        photoUrl,
-                        fit: BoxFit.cover,
-                        headers: const {'User-Agent': 'Mozilla/5.0'},
-                        errorBuilder: (context, error, stack) {
-                          debugPrint('[IMG_FAIL][avatar] $photoUrl -> $error');
-                          return Center(
-                            child: Text(
-                              letter,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 26,
-                                color: AppTheme.ink,
-                              ),
-                            ),
-                          );
-                        },
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
-                            child: Text(
-                              letter,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 26,
-                                color: AppTheme.ink,
-                              ),
-                            ),
-                          );
-                        },
-                      )
-                    : CachedNetworkImage(
-                        imageUrl: photoUrl,
-                        fit: BoxFit.cover,
-                        fadeInDuration: const Duration(milliseconds: 180),
-                        errorWidget: (_, __, ___) => Center(
-                          child: Text(
-                            letter,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 26,
-                              color: AppTheme.ink,
-                            ),
-                          ),
-                        ),
-                      )),
+              : AdaptiveCachedImage(
+                  imageUrl: photoUrl,
+                  fit: BoxFit.cover,
+                  fallbackWidth: size,
+                  fallbackHeight: size,
+                  maxCacheDimension: 320,
+                  httpHeaders: const {'User-Agent': 'Mozilla/5.0'},
+                  errorWidget: Center(
+                    child: Text(
+                      letter,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 26,
+                        color: AppTheme.ink,
+                      ),
+                    ),
+                  ),
+                  placeholder: Center(
+                    child: Text(
+                      letter,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 26,
+                        color: AppTheme.ink,
+                      ),
+                    ),
+                  ),
+                ),
         ),
       ),
     );

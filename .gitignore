@@ -1,0 +1,9 @@
+android/key.properties
+upload-keystore.jks
+*.p8
+*.p12
+*.mobileprovision
+*.cer
+*.csr
+*.pem
+*.key

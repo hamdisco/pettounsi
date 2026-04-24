@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../ui/app_theme.dart';
+import '../../ui/user_avatar.dart';
 import 'babysitting_repository.dart';
 
 class CreateBabysittingListingSheet extends StatefulWidget {
@@ -45,6 +46,14 @@ class _CreateBabysittingListingSheetState
       _petTypes.addAll(e.petTypes);
       _unavailable.addAll(e.unavailableDateKeys);
     }
+
+    for (final c in [_title, _desc, _city, _gov, _price, _availability]) {
+      c.addListener(_refreshPreview);
+    }
+  }
+
+  void _refreshPreview() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -84,10 +93,9 @@ class _CreateBabysittingListingSheetState
   }
 
   String _heroSubtitle() {
-    if (_editing) {
-      return 'Update your offer, and keep your listing competitive.';
-    }
-    return 'Build a trustworthy sitter profile.';
+    return _editing
+        ? 'Tighten the details people check before requesting.'
+        : 'Set up a clear sitter profile people can trust.';
   }
 
   String _dateSummary() {
@@ -97,13 +105,46 @@ class _CreateBabysittingListingSheetState
   }
 
   String _selectedPetsSummary() {
-    if (_petTypes.isEmpty) return 'No pet type selected yet.';
+    if (_petTypes.isEmpty) return 'Choose at least one pet type.';
     final items = _petTypes.toList()..sort();
-    return 'Selected: ${items.join(' • ')}';
+    return items.join(' • ');
   }
 
   void _applyAvailabilityPreset(String value) {
     setState(() => _availability.text = value);
+  }
+
+  String _previewTitle() {
+    final title = _title.text.trim();
+    return title.isEmpty ? 'Your sitter profile' : title;
+  }
+
+  String _previewLocation() {
+    final parts = [_city.text.trim(), _gov.text.trim()]
+        .where((e) => e.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return 'Add your location';
+    return parts.join(', ');
+  }
+
+  String _previewPrice() {
+    final value = _price.text.trim();
+    return value.isEmpty ? 'Ask in chat' : value;
+  }
+
+  String _previewAvailability() {
+    final value = _availability.text.trim();
+    return value.isEmpty ? 'Add availability' : value;
+  }
+
+  String _formatDateChip(String key) {
+    final d = babysittingDateFromKey(key);
+    if (d == null) return key;
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${d.day} ${months[d.month - 1]}';
   }
 
   Future<void> _submit() async {
@@ -154,9 +195,9 @@ class _CreateBabysittingListingSheetState
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not save listing: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save listing: $e')),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -187,314 +228,354 @@ class _CreateBabysittingListingSheetState
                 boxShadow: AppTheme.softShadows(0.24),
               ),
               child: Form(
-            key: _formKey,
-            child: ListView(
-              shrinkWrap: true,
-              padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-              children: [
-                Center(
-                  child: Container(
-                    width: 44,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: AppTheme.outline,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
+                key: _formKey,
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
                   children: [
-                    Expanded(
-                      child: Text(
-                        _editing ? 'Edit listing' : 'Create listing',
-                        style: const TextStyle(
-                          color: AppTheme.ink,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 17,
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: AppTheme.outline,
+                          borderRadius: BorderRadius.circular(999),
                         ),
                       ),
                     ),
-                    IconButton(
-                      onPressed: _loading ? null : () => Navigator.pop(context),
-                      icon: const Icon(Icons.close_rounded),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _editing ? 'Edit listing' : 'Create listing',
+                                style: const TextStyle(
+                                  color: AppTheme.ink,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 17,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                _heroSubtitle(),
+                                style: TextStyle(
+                                  color: AppTheme.muted.withAlpha(215),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: _loading ? null : () => Navigator.pop(context),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    _HeroCard(
+                      title: _editing ? 'Listing preview' : 'Sitter preview',
+                      subtitle: _previewTitle(),
+                      trailingText: _dateSummary(),
+                      location: _previewLocation(),
+                      price: _previewPrice(),
+                      availability: _previewAvailability(),
+                      petSummary: _selectedPetsSummary(),
+                      authorName: widget.editing?.authorName ?? 'You',
+                      authorPhotoUrl: widget.editing?.authorPhotoUrl ?? '',
+                    ),
+                    const SizedBox(height: 12),
+                    _Section(
+                      title: 'Profile',
+                      icon: Icons.pets_rounded,
+                      iconBg: AppTheme.lilac,
+                      iconFg: const Color(0xFF7C62D7),
+                      child: Column(
+                        children: [
+                          TextFormField(
+                            controller: _title,
+                            textInputAction: TextInputAction.next,
+                            decoration: const InputDecoration(
+                              labelText: 'Title',
+                              hintText: 'Weekend sitter in Sousse',
+                              prefixIcon: Icon(Icons.title_rounded),
+                            ),
+                            validator: (v) {
+                              final t = (v ?? '').trim();
+                              if (t.isEmpty) return 'Required';
+                              if (t.length > 120) return 'Max 120 characters';
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 10),
+                          TextFormField(
+                            controller: _desc,
+                            minLines: 4,
+                            maxLines: 6,
+                            decoration: const InputDecoration(
+                              labelText: 'About your service',
+                              hintText:
+                                  'Describe your routine, experience, and what pet owners can expect.',
+                              prefixIcon: Icon(Icons.notes_rounded),
+                              alignLabelWithHint: true,
+                            ),
+                            validator: (v) {
+                              final t = (v ?? '').trim();
+                              if (t.isEmpty) return 'Required';
+                              if (t.length > 2000) return 'Max 2000 characters';
+                              return null;
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _Section(
+                      title: 'Location & pricing',
+                      icon: Icons.place_rounded,
+                      iconBg: AppTheme.sky,
+                      iconFg: const Color(0xFF4C79C8),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _city,
+                                  textInputAction: TextInputAction.next,
+                                  decoration: const InputDecoration(
+                                    labelText: 'City',
+                                    prefixIcon: Icon(Icons.location_city_rounded),
+                                  ),
+                                  validator: (v) =>
+                                      (v ?? '').trim().isEmpty ? 'Required' : null,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _gov,
+                                  textInputAction: TextInputAction.next,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Governorate',
+                                    prefixIcon: Icon(Icons.map_rounded),
+                                  ),
+                                  validator: (v) =>
+                                      (v ?? '').trim().isEmpty ? 'Required' : null,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          TextFormField(
+                            controller: _price,
+                            decoration: const InputDecoration(
+                              labelText: 'Price',
+                              hintText: '25 TND/day',
+                              prefixIcon: Icon(Icons.payments_rounded),
+                            ),
+                            validator: (v) {
+                              final t = (v ?? '').trim();
+                              if (t.length > 80) return 'Max 80 characters';
+                              return null;
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _Section(
+                      title: 'Pets & availability',
+                      icon: Icons.schedule_rounded,
+                      iconBg: AppTheme.mint,
+                      iconFg: const Color(0xFF2F9A6A),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Pet types',
+                            style: TextStyle(
+                              color: AppTheme.ink,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 12.5,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          GridView.count(
+                            crossAxisCount: 2,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            childAspectRatio: 2.35,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
+                            children: const [
+                              'Dog',
+                              'Cat',
+                              'Bird',
+                              'Other',
+                            ].map((v) => _PetChip(label: v)).toList(),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            _selectedPetsSummary(),
+                            style: TextStyle(
+                              color: AppTheme.muted.withAlpha(215),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 11.6,
+                              height: 1.18,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          TextFormField(
+                            controller: _availability,
+                            decoration: const InputDecoration(
+                              labelText: 'Availability',
+                              hintText: 'Weekends, evenings, flexible',
+                              prefixIcon: Icon(Icons.schedule_rounded),
+                            ),
+                            validator: (v) {
+                              final t = (v ?? '').trim();
+                              if (t.isEmpty) return 'Required';
+                              if (t.length > 300) return 'Max 300 characters';
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              'Available now',
+                              'Weekends',
+                              'Evenings',
+                              'Flexible',
+                            ]
+                                .map(
+                                  (v) => _QuickAvailabilityChip(
+                                    label: v,
+                                    selected: _availability.text.trim() == v,
+                                    onTap: _loading
+                                        ? null
+                                        : () => _applyAvailabilityPreset(v),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _Section(
+                      title: 'Blocked dates',
+                      icon: Icons.event_busy_rounded,
+                      iconBg: const Color(0xFFFFF2DB),
+                      iconFg: const Color(0xFFDA8A1F),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: _loading ? null : _pickUnavailableDate,
+                            icon: const Icon(Icons.add_rounded, size: 18),
+                            label: const Text('Add date'),
+                          ),
+                          const SizedBox(height: 10),
+                          if (_unavailable.isEmpty)
+                            Text(
+                              'No blocked dates yet.',
+                              style: TextStyle(
+                                color: AppTheme.muted.withAlpha(220),
+                                fontWeight: FontWeight.w700,
+                              ),
+                            )
+                          else
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: (() {
+                                final ks = _unavailable.toList()..sort();
+                                return ks
+                                    .map(
+                                      (k) => InputChip(
+                                        label: Text(
+                                          _formatDateChip(k),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
+                                        onDeleted: _loading
+                                            ? null
+                                            : () => setState(
+                                                  () => _unavailable.remove(k),
+                                                ),
+                                      ),
+                                    )
+                                    .toList();
+                              })(),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.bg,
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(color: AppTheme.outline),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _editing
+                                  ? 'Save your changes when everything looks right.'
+                                  : 'Publish when the profile looks clear and complete.',
+                              style: TextStyle(
+                                color: AppTheme.muted.withAlpha(220),
+                                fontWeight: FontWeight.w700,
+                                height: 1.24,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton.icon(
+                            onPressed: _loading ? null : _submit,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.orchidDark,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 13,
+                              ),
+                            ),
+                            icon: _loading
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Icon(
+                                    _editing
+                                        ? Icons.save_rounded
+                                        : Icons.publish_rounded,
+                                    size: 18,
+                                  ),
+                            label: Text(
+                              _editing ? 'Save changes' : 'Publish listing',
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-
-                _HeroCard(
-                  title: _editing
-                      ? 'Refine your babysitting offer'
-                      : 'Publish a sitter profile',
-                  subtitle: _heroSubtitle(),
-                  trailingText: _dateSummary(),
-                ),
-                const SizedBox(height: 12),
-
-                _Section(
-                  title: 'Basics',
-                  icon: Icons.notes_rounded,
-                  iconBg: AppTheme.lilac,
-                  iconFg: const Color(0xFF7C62D7),
-                  child: Column(
-                    children: [
-                      TextFormField(
-                        controller: _title,
-                        textInputAction: TextInputAction.next,
-                        decoration: const InputDecoration(
-                          labelText: 'Listing title',
-                          hintText: 'Example: Loving weekend sitter in Sousse',
-                          prefixIcon: Icon(Icons.title_rounded),
-                        ),
-                        validator: (v) {
-                          final t = (v ?? '').trim();
-                          if (t.isEmpty) return 'Required';
-                          if (t.length > 120) return 'Max 120 characters';
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 10),
-                      TextFormField(
-                        controller: _desc,
-                        minLines: 4,
-                        maxLines: 7,
-                        decoration: const InputDecoration(
-                          labelText: 'Description',
-                          hintText:
-                              'Describe your experience, the pets you care for, and how a stay usually works.',
-                          prefixIcon: Icon(Icons.notes_rounded),
-                          alignLabelWithHint: true,
-                        ),
-                        validator: (v) {
-                          final t = (v ?? '').trim();
-                          if (t.isEmpty) return 'Required';
-                          if (t.length > 2000) return 'Max 2000 characters';
-                          return null;
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                _Section(
-                  title: 'Location',
-                  icon: Icons.place_rounded,
-                  iconBg: AppTheme.sky,
-                  iconFg: const Color(0xFF4C79C8),
-                  child: Column(
-                    children: [
-                      TextFormField(
-                        controller: _city,
-                        textInputAction: TextInputAction.next,
-                        decoration: const InputDecoration(
-                          labelText: 'City',
-                          prefixIcon: Icon(Icons.location_city_rounded),
-                        ),
-                        validator: (v) =>
-                            (v ?? '').trim().isEmpty ? 'Required' : null,
-                      ),
-                      const SizedBox(height: 10),
-                      TextFormField(
-                        controller: _gov,
-                        textInputAction: TextInputAction.next,
-                        decoration: const InputDecoration(
-                          labelText: 'Governorate',
-                          prefixIcon: Icon(Icons.map_rounded),
-                        ),
-                        validator: (v) =>
-                            (v ?? '').trim().isEmpty ? 'Required' : null,
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                _Section(
-                  title: 'Pets & availability',
-                  icon: Icons.pets_rounded,
-                  iconBg: AppTheme.mint,
-                  iconFg: const Color(0xFF2F9A6A),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Pet types you accept',
-                        style: TextStyle(
-                          color: AppTheme.ink,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 12.5,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      GridView.count(
-                        crossAxisCount: 2,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        childAspectRatio: 2.35,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
-                        children: const [
-                          'Dog',
-                          'Cat',
-                          'Bird',
-                          'Other',
-                        ].map((v) => _PetChip(label: v)).toList(),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        _selectedPetsSummary(),
-                        style: TextStyle(
-                          color: AppTheme.muted.withAlpha(215),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 11.6,
-                          height: 1.18,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      TextFormField(
-                        controller: _availability,
-                        decoration: const InputDecoration(
-                          labelText: 'Availability',
-                          hintText: 'Example: weekends, evenings, flexible',
-                          prefixIcon: Icon(Icons.schedule_rounded),
-                        ),
-                        validator: (v) {
-                          final t = (v ?? '').trim();
-                          if (t.isEmpty) return 'Required';
-                          if (t.length > 300) return 'Max 300 characters';
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          'Available now',
-                          'Weekends',
-                          'Evenings',
-                          'Flexible',
-                        ]
-                            .map(
-                              (v) => _QuickAvailabilityChip(
-                                label: v,
-                                selected: _availability.text.trim() == v,
-                                onTap: _loading ? null : () => _applyAvailabilityPreset(v),
-                              ),
-                            )
-                            .toList(),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                _Section(
-                  title: 'Pricing',
-                  icon: Icons.payments_rounded,
-                  iconBg: AppTheme.mist,
-                  iconFg: AppTheme.orchidDark,
-                  child: TextFormField(
-                    controller: _price,
-                    decoration: const InputDecoration(
-                      labelText: 'Price (optional)',
-                      hintText: 'Example: 25 TND/day',
-                      prefixIcon: Icon(Icons.payments_rounded),
-                    ),
-                    validator: (v) {
-                      final t = (v ?? '').trim();
-                      if (t.length > 80) return 'Max 80 characters';
-                      return null;
-                    },
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                _Section(
-                  title: 'Unavailable dates',
-                  icon: Icons.event_busy_rounded,
-                  iconBg: const Color(0xFFFFF2DB),
-                  iconFg: const Color(0xFFDA8A1F),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: _loading ? null : _pickUnavailableDate,
-                        icon: const Icon(Icons.add_rounded, size: 18),
-                        label: const Text('Add blocked date'),
-                      ),
-                      const SizedBox(height: 10),
-                      if (_unavailable.isEmpty)
-                        Text(
-                          'No unavailable dates added yet.',
-                          style: TextStyle(
-                            color: AppTheme.muted.withAlpha(220),
-                            fontWeight: FontWeight.w700,
-                          ),
-                        )
-                      else
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: (() {
-                            final ks = _unavailable.toList()..sort();
-                            return ks
-                                .map(
-                                  (k) => InputChip(
-                                    label: Text(
-                                      k,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w900,
-                                      ),
-                                    ),
-                                    onDeleted: _loading
-                                        ? null
-                                        : () => setState(
-                                            () => _unavailable.remove(k),
-                                          ),
-                                  ),
-                                )
-                                .toList();
-                          })(),
-                        ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 14),
-
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _loading ? null : _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.orchidDark,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                    ),
-                    icon: _loading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2.2),
-                          )
-                        : Icon(
-                            _editing
-                                ? Icons.save_rounded
-                                : Icons.publish_rounded,
-                            size: 18,
-                          ),
-                    label: Text(_editing ? 'Save changes' : 'Publish listing'),
-                  ),
-                ),
-              ],
-            ),
               ),
             ),
           ),
@@ -512,11 +593,23 @@ class _HeroCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.trailingText,
+    required this.location,
+    required this.price,
+    required this.availability,
+    required this.petSummary,
+    required this.authorName,
+    required this.authorPhotoUrl,
   });
 
   final String title;
   final String subtitle;
   final String trailingText;
+  final String location;
+  final String price;
+  final String availability;
+  final String petSummary;
+  final String authorName;
+  final String authorPhotoUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -532,63 +625,146 @@ class _HeroCard extends StatelessWidget {
         border: Border.all(color: AppTheme.outline),
         boxShadow: AppTheme.softShadows(0.16),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: Colors.white.withAlpha(235),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: Colors.white),
-            ),
-            child: const Icon(
-              Icons.pets_rounded,
-              color: AppTheme.orchidDark,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
+          Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(235),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: Colors.white),
+                ),
+                child: UserAvatar(
+                  uid: '',
+                  radius: 22,
+                  fallbackName: authorName,
+                  fallbackPhotoUrl: authorPhotoUrl,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: AppTheme.ink,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 15.2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppTheme.ink.withAlpha(180),
+                        fontWeight: FontWeight.w800,
+                        height: 1.18,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(225),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white),
+                ),
+                child: Text(
+                  trailingText,
                   style: const TextStyle(
                     color: AppTheme.ink,
                     fontWeight: FontWeight.w900,
-                    fontSize: 15.5,
-                    height: 1.08,
+                    fontSize: 11.5,
                   ),
                 ),
-                const SizedBox(height: 5),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: AppTheme.muted.withAlpha(220),
-                    fontWeight: FontWeight.w700,
-                    height: 1.18,
-                  ),
-                ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            location,
+            style: TextStyle(
+              color: AppTheme.muted.withAlpha(220),
+              fontWeight: FontWeight.w800,
+              fontSize: 12,
             ),
           ),
-          const SizedBox(width: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withAlpha(225),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white),
-            ),
-            child: Text(
-              trailingText,
-              style: const TextStyle(
-                color: AppTheme.ink,
-                fontWeight: FontWeight.w900,
-                fontSize: 11.5,
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _PreviewPill(
+                icon: Icons.payments_rounded,
+                label: price,
+                bg: AppTheme.mist,
+                fg: AppTheme.orchidDark,
               ),
+              _PreviewPill(
+                icon: Icons.schedule_rounded,
+                label: availability,
+                bg: AppTheme.mint,
+                fg: const Color(0xFF2F9A6A),
+              ),
+              _PreviewPill(
+                icon: Icons.pets_rounded,
+                label: petSummary,
+                bg: Colors.white.withAlpha(214),
+                fg: AppTheme.ink,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PreviewPill extends StatelessWidget {
+  const _PreviewPill({
+    required this.icon,
+    required this.label,
+    required this.bg,
+    required this.fg,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color bg;
+  final Color fg;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppTheme.outline),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: fg),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: TextStyle(
+              color: fg,
+              fontWeight: FontWeight.w900,
+              fontSize: 11.6,
             ),
           ),
         ],

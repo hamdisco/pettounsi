@@ -27,7 +27,9 @@ class LegalPage extends StatelessWidget {
               _Bullet('Do not share someone else’s private info.'),
               _Bullet('For lost/found posts: include last seen area and date.'),
               _Bullet('Report inappropriate content using the report button.'),
-              _Bullet('Repeat abuse may lead to content removal or account action.'),
+              _Bullet(
+                'Repeat abuse may lead to content removal or account action.',
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -37,7 +39,8 @@ class LegalPage extends StatelessWidget {
             iconBg: const Color(0xFFFFEBEB),
             iconFg: const Color(0xFFE05555),
             children: [
-              for (final line in StoreCompliance.prohibitedContent) _Bullet(line),
+              for (final line in StoreCompliance.prohibitedContent)
+                _Bullet(line),
             ],
           ),
           const SizedBox(height: 12),
@@ -60,7 +63,10 @@ class LegalPage extends StatelessWidget {
                 'You can block users anytime from their profile or in settings.',
               ),
               _Bullet(
-                'Account deletion requests can be submitted from Account settings or Support.',
+                'Account deletion requests can be submitted from Account settings or Support and are usually processed within 7 days.',
+              ),
+              _Bullet(
+                'When processed, account data is deleted or anonymized except where retention is required for legal, security, fraud-prevention, or abuse-prevention reasons.',
               ),
             ],
           ),

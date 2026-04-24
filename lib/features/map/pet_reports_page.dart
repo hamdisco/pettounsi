@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/date_formatters.dart';
+import '../../ui/adaptive_cached_image.dart';
 import '../../ui/app_theme.dart';
 import '../../ui/premium_cards.dart';
 import '../../ui/premium_feedback.dart';
@@ -687,10 +688,12 @@ class _PetReportDetailsSheet extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               child: AspectRatio(
                 aspectRatio: 1.45,
-                child: Image.network(
-                  item.photoUrl,
+                child: AdaptiveCachedImage(
+                  imageUrl: item.photoUrl,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
+                  fallbackHeight: 220,
+                  maxCacheDimension: 900,
+                  errorWidget: Container(
                     color: bg,
                     alignment: Alignment.center,
                     child: Icon(

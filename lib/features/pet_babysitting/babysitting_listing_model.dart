@@ -68,7 +68,7 @@ class BabysittingListingModel {
       authorId: readStr('authorId'),
       authorName: readStr('authorName', 'User'),
       authorPhotoUrl: readStr('authorPhotoUrl'),
-      title: readStr('title', 'Pet Babysitter'),
+      title: readStr('title', 'Pet Sitter'),
       description: readStr('description'),
       city: readStr('city'),
       governorate: readStr('governorate'),
