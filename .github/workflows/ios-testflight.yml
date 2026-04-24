@@ -143,6 +143,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          rm -rf ios/Pods ios/.symlinks ios/Podfile.lock
           cd ios
           pod install --repo-update
 
