@@ -35,8 +35,14 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
-          cache: true
+          flutter-version: '3.44.0-0.2.pre'
+          cache: false
+
+      - name: Check Flutter and Dart versions
+        shell: bash
+        run: |
+          flutter --version
+          dart --version
 
       - name: Flutter pub get
         shell: bash
