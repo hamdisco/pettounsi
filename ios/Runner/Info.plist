@@ -78,13 +78,22 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>We use your location to show nearby vets, petshops, and lost/found pins.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>We use the camera to let you add pet photos to posts, chats, and your profile.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>We need access to your photos so you can upload pet images to posts, chats, and your profile.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>We may save generated or edited images to your library when you choose to.</string>
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>We use your location to show nearby vets, petshops, and lost/found pins.</string>
+
+<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+<string>We use your location to help show nearby vets, pet shops, events, and pet reports when location access is allowed.</string>
+
+<key>NSCameraUsageDescription</key>
+<string>We use the camera to let you add pet photos to posts, chats, and your profile.</string>
+
+<key>NSPhotoLibraryUsageDescription</key>
+<string>We need access to your photos so you can upload pet images to posts, chats, and your profile.</string>
+
+<key>NSPhotoLibraryAddUsageDescription</key>
+<string>We may save generated or edited images to your library when you choose to.</string>
+
+<key>NSMicrophoneUsageDescription</key>
+<string>We use the microphone only when you choose to record audio or use audio features in the app.</string>
 </dict>
 </plist>
