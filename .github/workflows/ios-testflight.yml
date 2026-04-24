@@ -39,11 +39,18 @@ jobs:
           flutter-version: '3.44.0-0.2.pre'
           cache: false
 
+      - name: Disable Swift Package Manager for CI
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter config --no-enable-swift-package-manager
+
       - name: Check Flutter and Dart versions
         shell: bash
         run: |
           flutter --version
           dart --version
+          flutter config
 
       - name: Flutter pub get
         shell: bash
