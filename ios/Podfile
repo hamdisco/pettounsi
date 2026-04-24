@@ -1,4 +1,5 @@
 platform :ios, '15.0'
+use_modular_headers!
 
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
@@ -18,6 +19,7 @@ def flutter_root
     matches = line.match(/FLUTTER_ROOT\=(.*)/)
     return matches[1].strip if matches
   end
+
   raise 'FLUTTER_ROOT not found in Generated.xcconfig. Try deleting Generated.xcconfig, then run flutter pub get'
 end
 
