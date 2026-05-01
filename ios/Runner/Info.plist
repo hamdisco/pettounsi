@@ -24,7 +24,8 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
-
+	<key>GIDClientID</key>
+	<string>770446391455-50t9h2qfbt7ug4j7oofqbqbtat4f5qum.apps.googleusercontent.com</string>
 	<!-- Google Sign-In redirect scheme -->
 	<key>CFBundleURLTypes</key>
 	<array>
