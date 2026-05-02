@@ -58,25 +58,42 @@ class AuthService {
     return _auth.signInWithCredential(credential);
   }
 
-  Future<UserCredential> signInWithApple() async {
-    final rawNonce = _generateNonce();
-    final nonce = _sha256ofString(rawNonce);
+Future<UserCredential> signInWithApple() async {
+  final rawNonce = _generateNonce();
+  final nonce = _sha256ofString(rawNonce);
 
-    final appleCredential = await SignInWithApple.getAppleIDCredential(
-      scopes: [
-        AppleIDAuthorizationScopes.email,
-        AppleIDAuthorizationScopes.fullName,
-      ],
-      nonce: nonce,
+  final appleCredential = await SignInWithApple.getAppleIDCredential(
+    scopes: [
+      AppleIDAuthorizationScopes.email,
+      AppleIDAuthorizationScopes.fullName,
+    ],
+    nonce: nonce,
+  );
+
+  final identityToken = appleCredential.identityToken;
+  if (identityToken == null || identityToken.isEmpty) {
+    throw FirebaseAuthException(
+      code: 'missing-apple-id-token',
+      message: 'Apple did not return an identity token.',
     );
-
-    final oauthCredential = OAuthProvider('apple.com').credential(
-      idToken: appleCredential.identityToken,
-      rawNonce: rawNonce,
-    );
-
-    return _auth.signInWithCredential(oauthCredential);
   }
+
+  final authorizationCode = appleCredential.authorizationCode;
+  if (authorizationCode.isEmpty) {
+    throw FirebaseAuthException(
+      code: 'missing-apple-auth-code',
+      message: 'Apple did not return an authorization code.',
+    );
+  }
+
+  final oauthCredential = OAuthProvider('apple.com').credential(
+    idToken: identityToken,
+    rawNonce: rawNonce,
+    accessToken: authorizationCode,
+  );
+
+  return _auth.signInWithCredential(oauthCredential);
+}
 
   String _generateNonce([int length = 32]) {
     const charset =
