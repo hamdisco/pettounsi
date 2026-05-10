@@ -5,7 +5,6 @@ import '../../../ui/app_theme.dart';
 import '../../../ui/premium_cards.dart';
 import '../../../ui/premium_feedback.dart';
 import '../../../ui/premium_pills.dart';
-import '../../../ui/premium_sections.dart';
 import '../../../ui/premium_sheet.dart';
 import '../models/directory_item.dart';
 
@@ -26,73 +25,135 @@ class DirectoryHeroHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
       child: PremiumCardSurface(
-        radius: BorderRadius.circular(26),
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-        shadowOpacity: 0.15,
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppTheme.blush, AppTheme.lilac, AppTheme.sky],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+        radius: BorderRadius.circular(28),
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+        shadowOpacity: 0.07,
+        backgroundColor: Colors.white,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: Color.lerp(accent, Colors.white, 0.88),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppTheme.outline),
+              ),
+              child: Icon(icon, color: accent, size: 24),
             ),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: AppTheme.outline),
-          ),
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(225),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white),
-                ),
-                child: Icon(icon, color: accent, size: 24),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 1),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 18,
-                          color: AppTheme.ink,
-                          height: 1.08,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          color: AppTheme.muted.withAlpha(220),
-                          fontWeight: FontWeight.w700,
-                          height: 1.2,
-                        ),
-                      ),
-                    ],
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 21,
+                      color: AppTheme.ink,
+                      height: 1.05,
+                      letterSpacing: -0.2,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 6),
+                  Text(
+                    subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppTheme.muted,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12.6,
+                      height: 1.18,
+                    ),
+                  ),
+                ],
               ),
-              PremiumCardBadge(
-                label: 'Directory',
-                icon: Icons.place_rounded,
-                bg: AppTheme.mist,
-                fg: accent,
-                borderColor: AppTheme.outline,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class DirectoryPartnerBand extends StatelessWidget {
+  const DirectoryPartnerBand({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.ctaLabel,
+    required this.icon,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final String ctaLabel;
+  final IconData icon;
+  final Color accent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      child: PremiumCardSurface(
+        radius: BorderRadius.circular(24),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+        shadowOpacity: 0.05,
+        backgroundColor: Colors.white,
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: Color.lerp(accent, Colors.white, 0.90),
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: AppTheme.outline),
               ),
-            ],
-          ),
+              child: Icon(icon, color: accent, size: 21),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppTheme.ink,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 14.2,
+                      height: 1.05,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppTheme.muted,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11.7,
+                      height: 1.14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            _InlineButton(label: ctaLabel, accent: accent, onTap: onTap),
+          ],
         ),
       ),
     );
@@ -124,49 +185,42 @@ class DirectoryFiltersBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-      child: PremiumCardSurface(
-        radius: BorderRadius.circular(22),
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-        shadowOpacity: 0.07,
-        child: Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          PremiumPill(
+            label: 'Map',
+            icon: Icons.map_rounded,
+            onTap: onMap,
+            selected: false,
+            fontSize: 12,
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+            unselectedBackground: Colors.white,
+          ),
+          PremiumPill(
+            label: locBusy ? 'Locating' : (nearMeActive ? 'Near me' : 'Nearby'),
+            icon: locBusy ? Icons.sync_rounded : Icons.near_me_rounded,
+            onTap: locBusy ? null : onToggleNearMe,
+            selected: nearMeActive,
+            showCheckWhenSelected: nearMeActive,
+            fontSize: 12,
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+            unselectedBackground: Colors.white,
+          ),
+          if (isEvents)
             PremiumPill(
-              label: 'Map',
-              icon: Icons.map_rounded,
-              onTap: onMap,
-              selected: false,
+              label: upcomingOnly ? 'Upcoming' : 'All events',
+              icon: Icons.event_available_rounded,
+              onTap: onToggleUpcoming,
+              selected: upcomingOnly,
+              showCheckWhenSelected: upcomingOnly,
               fontSize: 12,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+              unselectedBackground: Colors.white,
             ),
-            PremiumPill(
-              label: locBusy
-                  ? 'Locating...'
-                  : (nearMeActive ? 'Near me on' : 'Near me'),
-              icon: locBusy ? Icons.sync_rounded : Icons.near_me_rounded,
-              onTap: locBusy ? null : onToggleNearMe,
-              selected: nearMeActive,
-              showCheckWhenSelected: nearMeActive,
-              fontSize: 12,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-            ),
-            if (isEvents)
-              PremiumPill(
-                label: upcomingOnly ? 'Upcoming only' : 'All events',
-                icon: Icons.event_available_rounded,
-                onTap: onToggleUpcoming,
-                selected: upcomingOnly,
-                showCheckWhenSelected: upcomingOnly,
-                fontSize: 12,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 9,
-                ),
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -193,100 +247,34 @@ class DirectorySearchBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-      child: PremiumCardSurface(
-        radius: BorderRadius.circular(22),
-        padding: const EdgeInsets.all(10),
-        shadowOpacity: 0.06,
-        child: TextField(
-          controller: controller,
-          onChanged: onChanged,
-          decoration: InputDecoration(
-            hintText: hintText,
-            prefixIcon: Icon(Icons.search_rounded, color: accent),
-            suffixIcon: query.trim().isEmpty
-                ? null
-                : IconButton(
-                    onPressed: onClear,
-                    icon: const Icon(Icons.close_rounded),
-                  ),
-            filled: true,
-            fillColor: AppTheme.mist,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 12,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(18),
-              borderSide: const BorderSide(color: AppTheme.outline),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(18),
-              borderSide: const BorderSide(color: AppTheme.outline),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(18),
-              borderSide: const BorderSide(color: AppTheme.outline),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class DirectoryTopHintCard extends StatelessWidget {
-  const DirectoryTopHintCard({
-    super.key,
-    required this.accent,
-    required this.isEvents,
-    required this.isVets,
-  });
-
-  final Color accent;
-  final bool isEvents;
-  final bool isVets;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = isEvents
-        ? 'Tip: open Directions to navigate directly to the event location.'
-        : isVets
-        ? 'Tip: call a clinic first to confirm hours and emergency availability.'
-        : 'Tip: use Near me and Map together to find nearby places faster.';
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-      child: PremiumCardSurface(
-        radius: BorderRadius.circular(20),
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-        shadowOpacity: 0.05,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: Color.lerp(accent, Colors.white, 0.88),
-                borderRadius: BorderRadius.circular(11),
-                border: Border.all(color: AppTheme.outline),
-              ),
-              child: Icon(Icons.info_outline_rounded, color: accent, size: 17),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                text,
-                style: TextStyle(
-                  color: AppTheme.ink.withAlpha(185),
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12.2,
-                  height: 1.22,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          hintText: hintText,
+          prefixIcon: Icon(Icons.search_rounded, color: accent),
+          suffixIcon: query.trim().isEmpty
+              ? null
+              : IconButton(
+                  onPressed: onClear,
+                  icon: const Icon(Icons.close_rounded),
                 ),
-              ),
-            ),
-          ],
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(20),
+            borderSide: const BorderSide(color: AppTheme.outline),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(20),
+            borderSide: const BorderSide(color: AppTheme.outline),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(20),
+            borderSide: BorderSide(color: accent, width: 1.2),
+          ),
         ),
       ),
     );
@@ -310,39 +298,31 @@ class DirectoryResultsSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isSearching = query.isNotEmpty;
+    final label = isSearching ? 'Results for "$query"' : '$title available';
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-      child: PremiumCardSurface(
-        radius: BorderRadius.circular(18),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        shadowOpacity: 0.05,
-        child: Row(
-          children: [
-            PremiumCardBadge(
-              label: '$count',
-              bg: Color.lerp(accent, Colors.white, 0.88)!,
-              fg: accent,
-              borderColor: AppTheme.outline,
-              fontSize: 11.7,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 10),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppTheme.ink,
+              fontWeight: FontWeight.w900,
+              fontSize: 15.2,
+              height: 1.05,
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                isSearching ? '$title matching "$query"' : '$title available',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: AppTheme.muted.withAlpha(220),
-                  fontWeight: FontWeight.w800,
-                  fontSize: 12.1,
-                  height: 1.0,
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+          const Spacer(),
+          PremiumCardBadge(
+            label: '$count',
+            bg: Color.lerp(accent, Colors.white, 0.88)!,
+            fg: accent,
+            borderColor: AppTheme.outline,
+            fontSize: 11.7,
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+          ),
+        ],
       ),
     );
   }
@@ -385,8 +365,8 @@ class DirectoryCardSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Padding(
-      padding: EdgeInsets.fromLTRB(12, 0, 12, 10),
-      child: PremiumSkeletonCard(height: 206, radius: 22),
+      padding: EdgeInsets.fromLTRB(16, 0, 16, 10),
+      child: PremiumSkeletonCard(height: 144, radius: 24),
     );
   }
 }
@@ -413,175 +393,120 @@ class DirectoryItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final titleColor = Color.lerp(AppTheme.ink, const Color(0xFF6F6482), 0.30)!;
+    final location = _locationLine(item);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       child: PremiumCardSurface(
         onTap: onTap,
-        radius: BorderRadius.circular(22),
-        padding: EdgeInsets.zero,
-        shadowOpacity: 0.10,
+        radius: BorderRadius.circular(26),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+        shadowOpacity: 0.08,
+        backgroundColor: Colors.white,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            PremiumSoftPanel(
-              padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-              radius: const BorderRadius.only(
-                topLeft: Radius.circular(22),
-                topRight: Radius.circular(22),
-              ),
-              gradient: const LinearGradient(
-                colors: [AppTheme.blush, AppTheme.lilac, AppTheme.sky],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderColor: Colors.transparent,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (item.isEvent && item.dateLabel.trim().isNotEmpty) ...[
-                    _EventPill(dateLabel: item.dateLabel, accent: accent),
-                    const SizedBox(height: 10),
-                  ],
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 46,
-                        height: 46,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withAlpha(225),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: Colors.white),
-                        ),
-                        child: Icon(leadingIcon, color: accent, size: 22),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text(
-                            item.name,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 15,
-                              height: 1.15,
-                              color: titleColor,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            if (item.hasPhoto)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
-                child: _DirectoryPhoto(
-                  photoUrl: item.photoUrl!,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _DirectoryAvatar(
+                  item: item,
                   accent: accent,
                   icon: leadingIcon,
-                  height: 164,
                 ),
-              ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(14, item.hasPhoto ? 10 : 12, 14, 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_locationLine(item).isNotEmpty) ...[
-                    _MetaRow(
-                      icon: Icons.place_outlined,
-                      accent: accent,
-                      text: _locationLine(item),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  if (item.distanceKm != null) ...[
-                    _MetaRow(
-                      icon: Icons.near_me_outlined,
-                      accent: accent,
-                      text: _formatKm(item.distanceKm!),
-                      prefix: 'Distance: ',
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  if ((item.phone ?? '').trim().isNotEmpty) ...[
-                    _MetaRow(
-                      icon: Icons.call_outlined,
-                      accent: accent,
-                      text: item.phone!,
-                      prefix: 'Phone: ',
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  if ((item.notes ?? '').trim().isNotEmpty) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(11),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFBF8FD),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppTheme.outline),
-                      ),
-                      child: Text(
-                        item.notes!,
-                        style: TextStyle(
-                          color: AppTheme.ink.withAlpha(175),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12.4,
-                          height: 1.22,
-                        ),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                  ],
-                  PremiumCardActionRow(
-                    icon: leadingIcon,
-                    label: 'Open details',
-                    iconColor: accent,
-                    textColor: accent,
-                    trailing: Icon(
-                      Icons.chevron_right_rounded,
-                      color: AppTheme.ink.withAlpha(120),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (onDirections != null)
-                        _ActionChipButton(
-                          label: 'Directions',
-                          icon: Icons.near_me_rounded,
-                          onTap: onDirections!,
-                          accent: accent,
-                          filled: true,
-                        ),
-                      if (onCall != null)
-                        _ActionChipButton(
-                          label: 'Call',
-                          icon: Icons.call_outlined,
-                          onTap: onCall!,
-                          accent: accent,
-                        ),
-                      if (onSource != null)
-                        _ActionChipButton(
-                          label: 'Source',
-                          icon: Icons.open_in_new_rounded,
-                          onTap: onSource!,
-                          accent: accent,
-                        ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              item.name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppTheme.ink,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 16.2,
+                                height: 1.08,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          if (item.isFeatured)
+                            _SmallBadge(label: 'Featured', accent: accent)
+                          else if (item.hasPartnerLabel)
+                            _SmallBadge(label: 'Partner', accent: accent),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 7,
+                        runSpacing: 7,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          _MiniMeta(
+                            icon: item.isEvent
+                                ? Icons.event_available_rounded
+                                : Icons.business_rounded,
+                            text: item.isEvent && item.dateLabel.isNotEmpty
+                                ? item.dateLabel
+                                : item.category,
+                          ),
+                          if (location.isNotEmpty)
+                            _MiniMeta(icon: Icons.place_outlined, text: location),
+                          if (item.distanceKm != null)
+                            _MiniMeta(
+                              icon: Icons.near_me_outlined,
+                              text: _formatKm(item.distanceKm!),
+                            ),
+                        ],
+                      ),
                     ],
                   ),
+                ),
+              ],
+            ),
+            if ((item.offerText ?? '').trim().isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _OfferStrip(text: item.offerText!, accent: accent),
+            ],
+            const SizedBox(height: 13),
+            Row(
+              children: [
+                Expanded(
+                  child: _CardButton(
+                    label: 'Details',
+                    icon: Icons.info_outline_rounded,
+                    onTap: onTap,
+                    accent: accent,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (onCall != null) ...[
+                  Expanded(
+                    child: _CardButton(
+                      label: 'Call',
+                      icon: Icons.call_outlined,
+                      onTap: onCall!,
+                      accent: accent,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                 ],
-              ),
+                Expanded(
+                  child: _CardButton(
+                    label: 'Directions',
+                    icon: Icons.near_me_rounded,
+                    onTap: onDirections,
+                    accent: accent,
+                    filled: true,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -589,201 +514,23 @@ class DirectoryItemCard extends StatelessWidget {
     );
   }
 
+  static String locationLine(DirectoryItem item) => _locationLine(item);
+  static String formatKm(double km) => _formatKm(km);
+
   static String _locationLine(DirectoryItem item) {
     final parts = <String>[
-      if (item.address.isNotEmpty) item.address,
       if (item.city.isNotEmpty) item.city,
-      if (item.governorate.isNotEmpty) item.governorate,
+      if (item.governorate.isNotEmpty && item.governorate != item.city)
+        item.governorate,
+      if (item.address.isNotEmpty) item.address,
     ];
-    return parts.join(' • ');
+    return parts.join(' · ');
   }
 
   static String _formatKm(double km) {
     if (km < 1) return '${(km * 1000).round()} m';
     if (km < 10) return '${km.toStringAsFixed(1)} km';
     return '${km.round()} km';
-  }
-}
-
-
-class _DirectoryPhoto extends StatelessWidget {
-  const _DirectoryPhoto({
-    required this.photoUrl,
-    required this.accent,
-    required this.icon,
-    required this.height,
-  });
-
-  final String photoUrl;
-  final Color accent;
-  final IconData icon;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: height,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.outline),
-        color: Color.lerp(accent, Colors.white, 0.9),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: AdaptiveCachedImage(
-        imageUrl: photoUrl,
-        fit: BoxFit.cover,
-        fallbackHeight: height,
-        placeholder: _DirectoryPhotoFallback(accent: accent, icon: icon),
-        errorWidget: _DirectoryPhotoFallback(accent: accent, icon: icon),
-      ),
-    );
-  }
-}
-
-class _DirectoryPhotoFallback extends StatelessWidget {
-  const _DirectoryPhotoFallback({required this.accent, required this.icon});
-
-  final Color accent;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Color.lerp(accent, Colors.white, 0.74)!,
-            Color.lerp(accent, Colors.white, 0.9)!,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Center(
-        child: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: Colors.white.withAlpha(220),
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: Colors.white),
-          ),
-          child: Icon(icon, color: accent, size: 22),
-        ),
-      ),
-    );
-  }
-}
-
-class _EventPill extends StatelessWidget {
-  const _EventPill({required this.dateLabel, required this.accent});
-
-  final String dateLabel;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    if (dateLabel.trim().isEmpty) return const SizedBox.shrink();
-
-    return PremiumCardBadge(
-      label: dateLabel,
-      icon: Icons.event_available_rounded,
-      bg: Color.lerp(accent, Colors.white, 0.88)!,
-      fg: accent,
-      borderColor: AppTheme.outline,
-      fontSize: 11.5,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-    );
-  }
-}
-
-class _MetaRow extends StatelessWidget {
-  const _MetaRow({
-    required this.icon,
-    required this.accent,
-    required this.text,
-    this.prefix,
-  });
-
-  final IconData icon;
-  final Color accent;
-  final String text;
-  final String? prefix;
-
-  @override
-  Widget build(BuildContext context) {
-    if (text.trim().isEmpty) return const SizedBox.shrink();
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 24,
-          height: 24,
-          margin: const EdgeInsets.only(top: 1),
-          decoration: BoxDecoration(
-            color: accent.withAlpha(16),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: accent, size: 13),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text.rich(
-            TextSpan(
-              children: [
-                if (prefix != null)
-                  TextSpan(
-                    text: prefix,
-                    style: TextStyle(
-                      color: AppTheme.ink.withAlpha(195),
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                TextSpan(text: text),
-              ],
-            ),
-            style: TextStyle(
-              color: AppTheme.ink.withAlpha(170),
-              fontWeight: FontWeight.w700,
-              height: 1.22,
-              fontSize: 12.2,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ActionChipButton extends StatelessWidget {
-  const _ActionChipButton({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-    required this.accent,
-    this.filled = false,
-  });
-
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-  final Color accent;
-  final bool filled;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumToneChip(
-      label: label,
-      icon: icon,
-      bg: filled ? Color.lerp(accent, Colors.white, 0.88)! : Colors.white,
-      fg: filled ? accent : AppTheme.ink,
-      iconColor: filled ? accent : AppTheme.ink,
-      borderColor: filled ? Colors.transparent : AppTheme.outline,
-      fontSize: 12.2,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-    );
   }
 }
 
@@ -807,14 +554,14 @@ class DirectoryDetailsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final location = DirectoryItemCard.locationLine(item);
+
     return PremiumBottomSheetFrame(
       icon: leadingIcon,
       iconColor: accent,
       iconBg: Color.lerp(accent, Colors.white, 0.88)!,
       title: item.name,
-      subtitle: item.isEvent
-          ? 'Event details and quick actions'
-          : 'Place details and quick actions',
+      subtitle: item.isEvent ? 'Event information' : item.category,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -827,19 +574,28 @@ class DirectoryDetailsSheet extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
-          if (item.isEvent && item.dateLabel.trim().isNotEmpty) ...[
-            _EventPill(dateLabel: item.dateLabel, accent: accent),
-            const SizedBox(height: 10),
-          ],
-          PremiumSheetInfoCard(
-            icon: leadingIcon,
-            iconBg: Color.lerp(accent, Colors.white, 0.88)!,
-            iconFg: accent,
-            title: item.name,
-            subtitle: _locationLine(item).isEmpty
-                ? 'Open actions below for more.'
-                : _locationLine(item),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (item.isEvent && item.dateLabel.trim().isNotEmpty)
+                _SmallBadge(label: item.dateLabel, accent: accent),
+              _SmallBadge(label: item.category, accent: accent),
+              if (item.isFeatured) _SmallBadge(label: 'Featured', accent: accent),
+              if (!item.isFeatured && item.hasPartnerLabel)
+                _SmallBadge(label: 'Partner', accent: accent),
+            ],
           ),
+          const SizedBox(height: 12),
+          if (location.isNotEmpty)
+            PremiumSheetInfoCard(
+              icon: Icons.place_outlined,
+              iconBg: Color.lerp(accent, Colors.white, 0.90)!,
+              iconFg: accent,
+              title: 'Location',
+              subtitle: location,
+              compact: true,
+            ),
           if (item.distanceKm != null) ...[
             const SizedBox(height: 10),
             PremiumSheetInfoCard(
@@ -847,7 +603,7 @@ class DirectoryDetailsSheet extends StatelessWidget {
               iconBg: AppTheme.sky,
               iconFg: const Color(0xFF4C79C8),
               title: 'Distance',
-              subtitle: DirectoryItemCard._formatKm(item.distanceKm!),
+              subtitle: DirectoryItemCard.formatKm(item.distanceKm!),
               compact: true,
             ),
           ],
@@ -862,25 +618,24 @@ class DirectoryDetailsSheet extends StatelessWidget {
               compact: true,
             ),
           ],
+          if ((item.openingHours ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            PremiumSheetInfoCard(
+              icon: Icons.schedule_rounded,
+              iconBg: AppTheme.butter,
+              iconFg: const Color(0xFFB87900),
+              title: item.isEvent ? 'Schedule' : 'Hours',
+              subtitle: item.openingHours!,
+              compact: true,
+            ),
+          ],
+          if ((item.offerText ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _OfferStrip(text: item.offerText!, accent: accent),
+          ],
           if ((item.notes ?? '').trim().isNotEmpty) ...[
             const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFBF8FD),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppTheme.outline),
-              ),
-              child: Text(
-                item.notes!,
-                style: TextStyle(
-                  color: AppTheme.ink.withAlpha(175),
-                  fontWeight: FontWeight.w700,
-                  height: 1.24,
-                ),
-              ),
-            ),
+            _NotesBox(text: item.notes!),
           ],
           const SizedBox(height: 14),
           Row(
@@ -905,26 +660,331 @@ class DirectoryDetailsSheet extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          _BigActionButton(
-            label: 'Open source',
-            icon: Icons.open_in_new_rounded,
-            accent: accent,
-            onTap: onSource,
-          ),
+          if (onSource != null) ...[
+            const SizedBox(height: 10),
+            _BigActionButton(
+              label: 'Website / source',
+              icon: Icons.open_in_new_rounded,
+              accent: accent,
+              onTap: onSource,
+            ),
+          ],
           const SizedBox(height: 4),
         ],
       ),
     );
   }
+}
 
-  static String _locationLine(DirectoryItem item) {
-    final parts = <String>[
-      if (item.address.isNotEmpty) item.address,
-      if (item.city.isNotEmpty) item.city,
-      if (item.governorate.isNotEmpty) item.governorate,
-    ];
-    return parts.join(' • ');
+class _DirectoryAvatar extends StatelessWidget {
+  const _DirectoryAvatar({
+    required this.item,
+    required this.accent,
+    required this.icon,
+  });
+
+  final DirectoryItem item;
+  final Color accent;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    if (item.hasPhoto) {
+      return Container(
+        width: 62,
+        height: 62,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppTheme.outline),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: AdaptiveCachedImage(
+          imageUrl: item.photoUrl!,
+          fit: BoxFit.cover,
+          fallbackHeight: 62,
+          placeholder: _DirectoryPhotoFallback(accent: accent, icon: icon),
+          errorWidget: _DirectoryPhotoFallback(accent: accent, icon: icon),
+        ),
+      );
+    }
+
+    return Container(
+      width: 62,
+      height: 62,
+      decoration: BoxDecoration(
+        color: Color.lerp(accent, Colors.white, 0.88),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.outline),
+      ),
+      child: Icon(icon, color: accent, size: 25),
+    );
+  }
+}
+
+class _DirectoryPhoto extends StatelessWidget {
+  const _DirectoryPhoto({
+    required this.photoUrl,
+    required this.accent,
+    required this.icon,
+    required this.height,
+  });
+
+  final String photoUrl;
+  final Color accent;
+  final IconData icon;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.outline),
+        color: Color.lerp(accent, Colors.white, 0.9),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: AdaptiveCachedImage(
+        imageUrl: photoUrl,
+        fit: BoxFit.cover,
+        fallbackHeight: height,
+        placeholder: _DirectoryPhotoFallback(accent: accent, icon: icon),
+        errorWidget: _DirectoryPhotoFallback(accent: accent, icon: icon),
+      ),
+    );
+  }
+}
+
+class _DirectoryPhotoFallback extends StatelessWidget {
+  const _DirectoryPhotoFallback({required this.accent, required this.icon});
+
+  final Color accent;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Color.lerp(accent, Colors.white, 0.86),
+      child: Center(child: Icon(icon, color: accent, size: 24)),
+    );
+  }
+}
+
+class _OfferStrip extends StatelessWidget {
+  const _OfferStrip({required this.text, required this.accent});
+
+  final String text;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Color.lerp(accent, Colors.white, 0.92),
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: Color.lerp(accent, Colors.white, 0.72)!),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.local_offer_rounded, size: 16, color: accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: AppTheme.ink.withAlpha(205),
+                fontWeight: FontWeight.w800,
+                fontSize: 12.2,
+                height: 1.15,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NotesBox extends StatelessWidget {
+  const _NotesBox({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFBF8FD),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.outline),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: AppTheme.ink.withAlpha(180),
+          fontWeight: FontWeight.w700,
+          height: 1.24,
+          fontSize: 12.6,
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniMeta extends StatelessWidget {
+  const _MiniMeta({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    if (text.trim().isEmpty) return const SizedBox.shrink();
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: AppTheme.muted),
+        const SizedBox(width: 5),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 185),
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppTheme.muted,
+              fontWeight: FontWeight.w800,
+              fontSize: 11.8,
+              height: 1.0,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SmallBadge extends StatelessWidget {
+  const _SmallBadge({required this.label, required this.accent});
+
+  final String label;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumToneChip(
+      label: label,
+      bg: Color.lerp(accent, Colors.white, 0.90)!,
+      fg: accent,
+      borderColor: Color.lerp(accent, Colors.white, 0.72)!,
+      fontSize: 11.4,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+    );
+  }
+}
+
+class _InlineButton extends StatelessWidget {
+  const _InlineButton({
+    required this.label,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final String label;
+  final Color accent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: accent,
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 11.6,
+              height: 1,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CardButton extends StatelessWidget {
+  const _CardButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    required this.accent,
+    this.filled = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback? onTap;
+  final Color accent;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    final bg = filled ? accent : Colors.white;
+    final fg = filled ? Colors.white : AppTheme.ink;
+    final border = filled ? accent : AppTheme.outline;
+
+    return Material(
+      color: enabled ? bg : AppTheme.mist,
+      borderRadius: BorderRadius.circular(17),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(17),
+        onTap: onTap,
+        child: Container(
+          height: 43,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(17),
+            border: Border.all(color: enabled ? border : AppTheme.outline),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: enabled ? fg : AppTheme.muted, size: 17),
+              const SizedBox(width: 7),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: enabled ? fg : AppTheme.muted,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12.2,
+                    height: 1,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -945,53 +1005,35 @@ class _BigActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final disabled = onTap == null;
-
-    final bg = disabled
-        ? AppTheme.outline.withAlpha(80)
-        : filled
-        ? accent
-        : Colors.white;
-
-    final borderColor = disabled
-        ? Colors.transparent
-        : filled
-        ? Colors.transparent
-        : AppTheme.outline;
-
-    final fg = disabled
-        ? AppTheme.muted
-        : filled
-        ? Colors.white
-        : AppTheme.ink;
+    final enabled = onTap != null;
+    final bg = filled ? accent : Colors.white;
+    final fg = filled ? Colors.white : AppTheme.ink;
+    final border = filled ? accent : AppTheme.outline;
 
     return Material(
-      color: Colors.transparent,
+      color: enabled ? bg : AppTheme.mist,
+      borderRadius: BorderRadius.circular(19),
       child: InkWell(
+        borderRadius: BorderRadius.circular(19),
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        child: Container(
+          height: 52,
+          alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: borderColor),
-            boxShadow: filled ? AppTheme.softShadows(0.20) : null,
+            borderRadius: BorderRadius.circular(19),
+            border: Border.all(color: enabled ? border : AppTheme.outline),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: fg, size: 18),
+              Icon(icon, color: enabled ? fg : AppTheme.muted, size: 19),
               const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  label,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: fg,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 13.4,
-                  ),
+              Text(
+                label,
+                style: TextStyle(
+                  color: enabled ? fg : AppTheme.muted,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 13.4,
                 ),
               ),
             ],

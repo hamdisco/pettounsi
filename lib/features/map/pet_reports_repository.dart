@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/content_safety.dart';
+import '../../services/user_identity_service.dart';
 
 class PetReportsRepository {
   PetReportsRepository._();
@@ -90,6 +91,11 @@ class PetReportsRepository {
       cleanAnimal,
     ], context: 'pet report');
     final finalPhoto = _clean(photoUrl ?? imageUrl, max: 2000);
+    final actor = await UserIdentityService.instance.getForUid(
+      user.uid,
+      authUser: user,
+      fallbackName: 'Pet owner',
+    );
 
     final doc = _col.doc();
 
@@ -115,8 +121,8 @@ class PetReportsRepository {
 
       // ownership
       'authorId': user.uid,
-      'authorName': (user.displayName ?? 'User').trim(),
-      'authorPhotoUrl': (user.photoURL ?? '').trim(),
+      'authorName': actor.safeName,
+      'authorPhotoUrl': actor.photoUrl.trim(),
 
       // status
       'status': 'open', // open | resolved

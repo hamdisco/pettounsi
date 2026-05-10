@@ -11,7 +11,7 @@ class PostModel {
 
   final String text;
 
-  /// postType: null = general post, 'adopt' = adoption, 'rescue' = rescue alert
+  /// postType: null = general post, 'lost', 'found', 'adopt', or 'rescue'.
   final String? postType;
 
   /// Multiple images (preferred)

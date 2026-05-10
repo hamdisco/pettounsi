@@ -8,12 +8,12 @@ class PetshopsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const DirectoryListPage(
-      title: 'Petshops',
+      title: 'Pet Shops',
       collectionName: 'petshops',
-      icon: Icons.storefront_outlined,
-      emptyText: 'No petshops available yet.',
-      accentColor: Color(0xFF8E24AA),
-      heroSubtitle: 'Food, accessories and grooming spots.',
+      icon: Icons.storefront_rounded,
+      emptyText: 'No pet shops yet.',
+      accentColor: Color(0xFFE86C4F),
+      heroSubtitle: 'Food, accessories, grooming, and trusted local pet stores.',
     );
   }
 }

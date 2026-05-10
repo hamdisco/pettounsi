@@ -14,14 +14,20 @@ class CreateRequestSheet extends StatefulWidget {
 }
 
 class _CreateRequestSheetState extends State<CreateRequestSheet> {
+  final _petName = TextEditingController();
+  final _petType = TextEditingController();
   final _msg = TextEditingController();
+
   bool _loading = false;
   DateTimeRange? _range;
+  String _handoff = 'Drop-off';
 
   static const int _maxMessage = 800;
 
   @override
   void dispose() {
+    _petName.dispose();
+    _petType.dispose();
     _msg.dispose();
     super.dispose();
   }
@@ -59,6 +65,109 @@ class _CreateRequestSheetState extends State<CreateRequestSheet> {
     return r.end.difference(r.start).inDays + 1;
   }
 
+  List<String> _selectedDateKeys() {
+    final r = _range;
+    if (r == null) return const [];
+    return babysittingExpandDateRangeKeys(r);
+  }
+
+  List<String> _blockedSelectedDateKeys() {
+    final selected = _selectedDateKeys();
+    if (selected.isEmpty) return const [];
+
+    final blocked = <String>{
+      ...widget.listing.unavailableDateKeys,
+      ...widget.listing.bookedDateKeys,
+    };
+
+    return selected.where(blocked.contains).toList();
+  }
+
+  String _blockedDatesLabel(List<String> keys) {
+    if (keys.isEmpty) return '';
+    if (keys.length == 1) return keys.first;
+    if (keys.length == 2) return '${keys.first} and ${keys.last}';
+    return '${keys.first}, ${keys[1]} +${keys.length - 2} more';
+  }
+
+  void _appendCareDetail(String text) {
+    final current = _msg.text.trim();
+    final next = current.isEmpty ? text : '$current\n$text';
+    if (next.length > _maxMessage) return;
+    _msg.text = next;
+    _msg.selection = TextSelection.fromPosition(
+      TextPosition(offset: _msg.text.length),
+    );
+    setState(() {});
+  }
+
+  String _finalMessage() {
+    final petName = _petName.text.trim();
+    final petType = _petType.text.trim();
+    final care = _msg.text.trim();
+    final lines = <String>[
+      if (petName.isNotEmpty) 'Pet name: $petName',
+      if (petType.isNotEmpty) 'Pet type: $petType',
+      'Dates: ${_rangeLabel()}',
+      'Handoff preference: $_handoff',
+      '',
+      'Care details:',
+      care,
+    ];
+    return lines.where((line) => line.trim().isNotEmpty).join('\n');
+  }
+
+  Future<bool> _confirmRequest() async {
+    final listing = widget.listing;
+    final days = _daysCount();
+    final price = listing.priceText.trim().isEmpty
+        ? 'Confirm final price in chat'
+        : listing.priceText.trim();
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Send stay request?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _DialogLine(icon: Icons.event_rounded, text: _rangeLabel()),
+              const SizedBox(height: 10),
+              _DialogLine(
+                icon: Icons.today_rounded,
+                text: '$days day${days == 1 ? '' : 's'} requested',
+              ),
+              const SizedBox(height: 10),
+              _DialogLine(icon: Icons.payments_rounded, text: price),
+              const SizedBox(height: 14),
+              Text(
+                'The sitter will receive a clear request with dates, pet details, and care notes. Chat next to confirm price, handoff, and emergency contact.',
+                style: TextStyle(
+                  color: AppTheme.muted.withAlpha(230),
+                  fontWeight: FontWeight.w700,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Review'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Send stay request'),
+            ),
+          ],
+        );
+      },
+    );
+    return ok == true;
+  }
+
   Future<void> _submit() async {
     final msg = _msg.text.trim();
     if (_range == null) {
@@ -67,12 +176,33 @@ class _CreateRequestSheetState extends State<CreateRequestSheet> {
       ).showSnackBar(const SnackBar(content: Text('Please choose dates.')));
       return;
     }
-    if (msg.isEmpty) {
+    if (_petType.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add a short message.')),
+        const SnackBar(content: Text('Please add your pet type.')),
       );
       return;
     }
+    if (msg.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add a short care message.')),
+      );
+      return;
+    }
+
+    final blocked = _blockedSelectedDateKeys();
+    if (blocked.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Some selected dates are unavailable: ${_blockedDatesLabel(blocked)}',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await _confirmRequest();
+    if (!confirmed || !mounted) return;
 
     final range = _range!;
     final startDateKey = babysittingDateKey(range.start);
@@ -91,7 +221,7 @@ class _CreateRequestSheetState extends State<CreateRequestSheet> {
     try {
       await BabysittingRepository.instance.createRequest(
         listing: widget.listing,
-        message: msg,
+        message: _finalMessage(),
         dateRangeText: dateRangeText,
         requestedDateKeys: requestedDateKeys,
         startDateKey: startDateKey,
@@ -102,7 +232,10 @@ class _CreateRequestSheetState extends State<CreateRequestSheet> {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Request sent to ${widget.listing.authorName}.'),
+          behavior: SnackBarBehavior.floating,
+          content: Text(
+            'Stay request sent to ${widget.listing.authorName}. You will be notified when they reply.',
+          ),
         ),
       );
     } catch (e) {
@@ -121,10 +254,12 @@ class _CreateRequestSheetState extends State<CreateRequestSheet> {
     final place =
         '${listing.city}${listing.governorate.trim().isEmpty ? '' : ', ${listing.governorate}'}';
     final remaining = _maxMessage - _msg.text.length;
+    final blockedDates = _blockedSelectedDateKeys();
+    final hasDates = _range != null;
 
     return _BottomSheetFrame(
-      title: 'Request sitter',
-      subtitle: 'Send a care request to ${listing.authorName}',
+      title: 'Request this stay',
+      subtitle: 'Send dates, pet details, and care expectations to ${listing.authorName}',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -158,6 +293,8 @@ class _CreateRequestSheetState extends State<CreateRequestSheet> {
             ],
           ),
           const SizedBox(height: 12),
+          _OwnerBookingChecklist(hasDates: hasDates, blockedDates: blockedDates),
+          const SizedBox(height: 12),
           _ActionCard(
             icon: Icons.date_range_rounded,
             iconBg: AppTheme.sky,
@@ -179,9 +316,86 @@ class _CreateRequestSheetState extends State<CreateRequestSheet> {
               iconBg: const Color(0xFFFFF2DB),
               iconFg: const Color(0xFFDA8A1F),
               text:
-                  'Some dates may already be unavailable. If the sitter cannot accept your range, choose different dates.',
+                  'Unavailable or already booked dates cannot be requested. Choose a clean date range before sending.',
             ),
           ],
+          if (blockedDates.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _HintCard(
+              icon: Icons.warning_amber_rounded,
+              iconBg: const Color(0xFFFFEBEB),
+              iconFg: const Color(0xFFE05555),
+              text:
+                  'Your selected range includes unavailable dates: ${_blockedDatesLabel(blockedDates)}. Please change the dates.',
+            ),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _petName,
+                  textCapitalization: TextCapitalization.words,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'Pet name',
+                    hintText: 'Miso',
+                    prefixIcon: Icon(Icons.badge_outlined),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: _petType,
+                  textCapitalization: TextCapitalization.words,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'Pet type',
+                    hintText: 'Cat, dog...',
+                    prefixIcon: Icon(Icons.pets_rounded),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _HandoffSelector(
+            value: _handoff,
+            onChanged: _loading ? null : (v) => setState(() => _handoff = v),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Quick care details',
+            style: TextStyle(
+              color: AppTheme.ink,
+              fontWeight: FontWeight.w900,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _CareQuickChip(
+                label: 'Feeding routine',
+                onTap: () => _appendCareDetail('Feeding routine: '),
+              ),
+              _CareQuickChip(
+                label: 'Medication',
+                onTap: () => _appendCareDetail('Medication or allergies: '),
+              ),
+              _CareQuickChip(
+                label: 'Behavior',
+                onTap: () => _appendCareDetail('Behavior with people/pets: '),
+              ),
+              _CareQuickChip(
+                label: 'Updates',
+                onTap: () => _appendCareDetail('Preferred updates: photos/messages during the stay.'),
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
           TextField(
             controller: _msg,
@@ -189,9 +403,9 @@ class _CreateRequestSheetState extends State<CreateRequestSheet> {
             maxLength: _maxMessage,
             onChanged: (_) => setState(() {}),
             decoration: const InputDecoration(
-              labelText: 'Message',
+              labelText: 'Care message',
               hintText:
-                  'Introduce yourself, your pet, and any care details the sitter should know.',
+                  'Introduce your pet and mention feeding, medication, behavior, pickup/drop-off, and anything important.',
               prefixIcon: Icon(Icons.chat_bubble_outline_rounded),
               alignLabelWithHint: true,
               counterText: '',
@@ -203,7 +417,9 @@ class _CreateRequestSheetState extends State<CreateRequestSheet> {
             child: Text(
               '$remaining characters left',
               style: TextStyle(
-                color: AppTheme.ink.withAlpha(145),
+                color: remaining < 0
+                    ? const Color(0xFFD64545)
+                    : AppTheme.ink.withAlpha(145),
                 fontWeight: FontWeight.w800,
                 fontSize: 11.5,
               ),
@@ -211,19 +427,19 @@ class _CreateRequestSheetState extends State<CreateRequestSheet> {
           ),
           const SizedBox(height: 12),
           _HintCard(
-            icon: Icons.checklist_rounded,
+            icon: Icons.shield_outlined,
             iconBg: AppTheme.mint,
             iconFg: const Color(0xFF2F9A6A),
             text:
-                'A strong request usually mentions pet type, feeding routine, medication, and pickup or drop-off expectations.',
+                'Chat before the stay starts to confirm final price, emergency contact, exact address, and handoff time.',
           ),
           const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: _loading ? null : _submit,
+              onPressed: _loading || remaining < 0 ? null : _submit,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.orchidDark,
+                backgroundColor: AppTheme.orangeDark,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 13),
               ),
@@ -234,11 +450,172 @@ class _CreateRequestSheetState extends State<CreateRequestSheet> {
                       child: CircularProgressIndicator(strokeWidth: 2.2),
                     )
                   : const Icon(Icons.send_rounded, size: 18),
-              label: const Text('Send request'),
+              label: const Text('Review and send request'),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _OwnerBookingChecklist extends StatelessWidget {
+  const _OwnerBookingChecklist({
+    required this.hasDates,
+    required this.blockedDates,
+  });
+
+  final bool hasDates;
+  final List<String> blockedDates;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withAlpha(235),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.outline),
+      ),
+      child: Column(
+        children: [
+          _ChecklistLine(
+            done: hasDates && blockedDates.isEmpty,
+            text: hasDates && blockedDates.isEmpty
+                ? 'Dates are ready'
+                : 'Choose available stay dates',
+          ),
+          const SizedBox(height: 8),
+          const _ChecklistLine(
+            done: false,
+            text: 'Add pet routine, behavior, and special care notes',
+          ),
+          const SizedBox(height: 8),
+          const _ChecklistLine(
+            done: false,
+            text: 'Use chat after sending to confirm price and handoff',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChecklistLine extends StatelessWidget {
+  const _ChecklistLine({required this.done, required this.text});
+
+  final bool done;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(
+          done ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+          size: 18,
+          color: done ? const Color(0xFF2F9A6A) : AppTheme.muted,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: AppTheme.ink.withAlpha(210),
+              fontWeight: FontWeight.w800,
+              fontSize: 12.5,
+              height: 1.25,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HandoffSelector extends StatelessWidget {
+  const _HandoffSelector({required this.value, required this.onChanged});
+
+  final String value;
+  final ValueChanged<String>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    const items = ['Drop-off', 'Pickup', 'Discuss in chat'];
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final item in items)
+          ChoiceChip(
+            selected: value == item,
+            label: Text(item),
+            avatar: Icon(
+              item == 'Pickup'
+                  ? Icons.directions_car_rounded
+                  : item == 'Drop-off'
+                      ? Icons.home_work_rounded
+                      : Icons.chat_bubble_outline_rounded,
+              size: 16,
+            ),
+            onSelected: onChanged == null ? null : (_) => onChanged!(item),
+            selectedColor: AppTheme.blush,
+            labelStyle: TextStyle(
+              fontWeight: FontWeight.w900,
+              color: value == item ? AppTheme.orangeDark : AppTheme.ink,
+            ),
+            shape: StadiumBorder(side: BorderSide(color: AppTheme.outline)),
+          ),
+      ],
+    );
+  }
+}
+
+class _CareQuickChip extends StatelessWidget {
+  const _CareQuickChip({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ActionChip(
+      onPressed: onTap,
+      avatar: const Icon(Icons.add_rounded, size: 16),
+      label: Text(label),
+      backgroundColor: AppTheme.bg,
+      side: BorderSide(color: AppTheme.outline),
+      labelStyle: const TextStyle(
+        color: AppTheme.ink,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+  }
+}
+
+class _DialogLine extends StatelessWidget {
+  const _DialogLine({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: AppTheme.orangeDark),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: AppTheme.ink,
+              fontWeight: FontWeight.w800,
+              height: 1.25,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -293,7 +670,12 @@ class _LeaveReviewSheetState extends State<LeaveReviewSheet> {
       Navigator.pop(context);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Review submitted')));
+      ).showSnackBar(
+        const SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text('Review published. Thanks for helping other pet owners.'),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -309,8 +691,8 @@ class _LeaveReviewSheetState extends State<LeaveReviewSheet> {
     final remaining = _maxComment - _comment.text.length;
 
     return _BottomSheetFrame(
-      title: 'Leave a review',
-      subtitle: widget.req.listingTitle,
+      title: 'Review this stay',
+      subtitle: 'Help other pet owners choose trusted sitters',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -318,9 +700,9 @@ class _LeaveReviewSheetState extends State<LeaveReviewSheet> {
             icon: Icons.verified_rounded,
             iconBg: AppTheme.mint,
             iconFg: const Color(0xFF2F9A6A),
-            title: 'Completed stay',
+            title: 'Stay completed',
             subtitle:
-                'Share how the babysitting experience went to help future pet owners.',
+                'Your review helps build trust for future bookings.',
           ),
           const SizedBox(height: 12),
           Container(
@@ -401,7 +783,7 @@ class _LeaveReviewSheetState extends State<LeaveReviewSheet> {
             child: ElevatedButton.icon(
               onPressed: _loading ? null : _submit,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.orchidDark,
+                backgroundColor: AppTheme.orangeDark,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 13),
               ),
@@ -412,7 +794,7 @@ class _LeaveReviewSheetState extends State<LeaveReviewSheet> {
                       child: CircularProgressIndicator(strokeWidth: 2.2),
                     )
                   : const Icon(Icons.star_rounded, size: 18),
-              label: const Text('Submit review'),
+              label: const Text('Publish review'),
             ),
           ),
         ],

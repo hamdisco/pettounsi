@@ -78,7 +78,7 @@ class LegalPage extends StatelessWidget {
             iconFg: const Color(0xFFDA8A1F),
             children: const [
               _Bullet(
-                'Pettounsi is a community app, not a veterinary service.',
+                'PetTounsi is a community app, not a veterinary service.',
               ),
               _Bullet(
                 'In emergencies, contact a vet or local rescue immediately.',

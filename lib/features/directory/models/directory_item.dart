@@ -18,6 +18,13 @@ class DirectoryItem {
   final double? lng;
   final bool isActive;
 
+  /// Optional partner/business fields. They are safe if missing in Firestore.
+  final String category;
+  final String? openingHours;
+  final String? offerText;
+  final String? partnerTier;
+  final bool isFeatured;
+
   /// Mainly for events (optional)
   final DateTime? startsAt;
   final String dateLabel;
@@ -39,6 +46,11 @@ class DirectoryItem {
     required this.lat,
     required this.lng,
     required this.isActive,
+    required this.category,
+    required this.openingHours,
+    required this.offerText,
+    required this.partnerTier,
+    required this.isFeatured,
     required this.startsAt,
     required this.dateLabel,
     this.distanceKm,
@@ -48,6 +60,8 @@ class DirectoryItem {
   bool get hasPhone => (phone ?? '').trim().isNotEmpty;
   bool get hasPhoto => (photoUrl ?? '').trim().isNotEmpty;
   bool get hasSource => (sourceUrl ?? '').trim().isNotEmpty;
+  bool get hasOffer => (offerText ?? '').trim().isNotEmpty;
+  bool get hasPartnerLabel => isFeatured || (partnerTier ?? '').trim().isNotEmpty;
   bool get isEvent => dateLabel.trim().isNotEmpty || startsAt != null;
 
   DirectoryItem withDistanceKm(double? km) {
@@ -65,6 +79,11 @@ class DirectoryItem {
       lat: lat,
       lng: lng,
       isActive: isActive,
+      category: category,
+      openingHours: openingHours,
+      offerText: offerText,
+      partnerTier: partnerTier,
+      isFeatured: isFeatured,
       startsAt: startsAt,
       dateLabel: dateLabel,
       distanceKm: km,
@@ -99,8 +118,35 @@ class DirectoryItem {
     );
     final photoUrl = _firstString(
       m,
-      ['photoUrl', 'imageUrl', 'coverPhotoUrl', 'coverImageUrl'],
+      ['photoUrl', 'imageUrl', 'coverPhotoUrl', 'coverImageUrl', 'logoUrl'],
     );
+
+    final category = _firstString(
+      m,
+      ['category', 'type', 'serviceType'],
+      fallback: _defaultCategory(collectionName),
+    );
+    final openingHours = _firstString(m, [
+      'openingHours',
+      'hours',
+      'availabilityText',
+      'scheduleText',
+    ]);
+    final offerText = _firstString(m, [
+      'offerText',
+      'offer',
+      'dealText',
+      'promotionText',
+    ]);
+    final partnerTier = _firstString(m, [
+      'partnerTier',
+      'partnerPlan',
+      'plan',
+      'badge',
+    ]);
+    final isFeatured = _asBool(m['isFeatured'] ?? m['featured']) ||
+        partnerTier.toLowerCase().contains('featured') ||
+        partnerTier.toLowerCase().contains('premium');
 
     final isActive = (m['isActive'] is bool) ? (m['isActive'] as bool) : true;
 
@@ -121,6 +167,11 @@ class DirectoryItem {
       lat: lat,
       lng: lng,
       isActive: isActive,
+      category: category,
+      openingHours: openingHours.isEmpty ? null : openingHours,
+      offerText: offerText.isEmpty ? null : offerText,
+      partnerTier: partnerTier.isEmpty ? null : partnerTier,
+      isFeatured: isFeatured,
       startsAt: startsAt,
       dateLabel: dateLabel,
     );
@@ -133,10 +184,7 @@ class DirectoryItem {
     if (collectionName != 'events') return null;
 
     return _asDateTime(
-      m['startAt'] ??
-          m['dateAt'] ??
-          m['startsAt'] ??
-          m['createdAt'],
+      m['startAt'] ?? m['dateAt'] ?? m['startsAt'] ?? m['createdAt'],
     );
   }
 
@@ -157,6 +205,19 @@ class DirectoryItem {
     return '';
   }
 
+  static String _defaultCategory(String collectionName) {
+    switch (collectionName) {
+      case 'vets':
+        return 'Vet clinic';
+      case 'petshops':
+        return 'Pet shop';
+      case 'events':
+        return 'Pet event';
+      default:
+        return 'Partner';
+    }
+  }
+
   static String _firstString(
     Map<String, dynamic> m,
     List<String> keys, {
@@ -169,6 +230,13 @@ class DirectoryItem {
       if (s.isNotEmpty) return s;
     }
     return fallback;
+  }
+
+  static bool _asBool(Object? v) {
+    if (v is bool) return v;
+    if (v is String) return v.trim().toLowerCase() == 'true';
+    if (v is num) return v != 0;
+    return false;
   }
 
   static DateTime? _asDateTime(Object? v) {

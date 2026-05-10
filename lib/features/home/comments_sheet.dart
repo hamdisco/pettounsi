@@ -320,21 +320,6 @@ class _CommentsSheetState extends State<CommentsSheet> {
                       _CommentsSheetHeader(
                         onClose: () => Navigator.pop(context),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            '',
-                            style: TextStyle(
-                              color: AppTheme.muted.withAlpha(220),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12.3,
-                              height: 1.2,
-                            ),
-                          ),
-                        ),
-                      ),
                       const Divider(height: 1, indent: 14, endIndent: 14),
                       Flexible(
                         fit: FlexFit.loose,
@@ -516,26 +501,41 @@ class _CommentsSheetHeader extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: AppTheme.lilac,
+              color: const Color(0xFFFFEEE8),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Colors.white),
             ),
             child: const Icon(
               Icons.chat_bubble_rounded,
-              color: Color(0xFF7C62D7),
+              color: AppTheme.orangeDark,
               size: 20,
             ),
           ),
           const SizedBox(width: 12),
           const Expanded(
-            child: Text(
-              'Comments',
-              style: TextStyle(
-                color: AppTheme.ink,
-                fontWeight: FontWeight.w900,
-                fontSize: 15.8,
-                height: 1.0,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Comments',
+                  style: TextStyle(
+                    color: AppTheme.ink,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16.2,
+                    height: 1.0,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Join the conversation',
+                  style: TextStyle(
+                    color: AppTheme.muted,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12.2,
+                    height: 1.0,
+                  ),
+                ),
+              ],
             ),
           ),
           IconButton(onPressed: onClose, icon: const Icon(Icons.close_rounded)),
@@ -582,10 +582,10 @@ class _CommentInputBar extends StatelessWidget {
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
                   decoration: BoxDecoration(
-                    color: AppTheme.lilac.withAlpha(110),
+                    color: const Color(0xFFFFEEE8),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: const Color(0xFF7C62D7).withAlpha(70),
+                      color: AppTheme.orangeDark.withAlpha(50),
                     ),
                   ),
                   child: Row(
@@ -593,7 +593,7 @@ class _CommentInputBar extends StatelessWidget {
                       const Icon(
                         Icons.reply_rounded,
                         size: 18,
-                        color: Color(0xFF7C62D7),
+                        color: AppTheme.orangeDark,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -659,7 +659,7 @@ class _CommentInputBar extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   Material(
-                    color: const Color(0xFF7C62D7),
+                    color: AppTheme.orangeDark,
                     borderRadius: BorderRadius.circular(18),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(18),
@@ -737,8 +737,8 @@ class _CommentTile extends StatelessWidget {
           UserAvatar(
             uid: authorId,
             radius: 18,
-            fallbackName: authorName,
-            fallbackPhotoUrl: authorPhoto,
+            fallbackName: 'PetTounsi user',
+            fallbackPhotoUrl: null,
             onTap: authorId.isEmpty
                 ? null
                 : () => Navigator.push(
@@ -790,7 +790,7 @@ class _CommentTile extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(10),
                                 child: UserName(
                                   uid: authorId,
-                                  fallback: authorName,
+                                  fallback: 'PetTounsi user',
                                   style: const TextStyle(
                                     color: AppTheme.ink,
                                     fontWeight: FontWeight.w900,
@@ -953,13 +953,13 @@ class _CommentTile extends StatelessWidget {
                             vertical: 7,
                           ),
                           decoration: BoxDecoration(
-                            color: AppTheme.lilac.withAlpha(95),
+                            color: const Color(0xFFFFEEE8),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
                             'Replying to $replyToName',
                             style: const TextStyle(
-                              color: Color(0xFF7C62D7),
+                              color: AppTheme.orangeDark,
                               fontWeight: FontWeight.w800,
                               fontSize: 11.8,
                             ),
@@ -973,7 +973,7 @@ class _CommentTile extends StatelessWidget {
                         child: TextButton.icon(
                           onPressed: onReply,
                           style: TextButton.styleFrom(
-                            foregroundColor: const Color(0xFF7C62D7),
+                            foregroundColor: AppTheme.orangeDark,
                             minimumSize: const Size(0, 0),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 4,
@@ -1019,7 +1019,7 @@ class _TaggedCommentText extends StatelessWidget {
           TextSpan(
             text: part,
             style: const TextStyle(
-              color: Color(0xFF7C62D7),
+              color: AppTheme.orangeDark,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -1118,8 +1118,8 @@ class _CommentsStateCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14),
         child: PremiumEmptyStateCard(
           icon: icon,
-          iconColor: const Color(0xFF7C62D7),
-          iconBg: AppTheme.lilac,
+          iconColor: AppTheme.orangeDark,
+          iconBg: const Color(0xFFFFEEE8),
           title: title,
           subtitle: subtitle,
           compact: true,

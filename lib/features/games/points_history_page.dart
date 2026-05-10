@@ -87,7 +87,7 @@ class PointsHistoryPage extends StatelessWidget {
                       ? '+${e.amount} pts'
                       : e.amount < 0
                       ? '${e.amount} pts'
-                      : '0 pts';
+                      : 'Review';
 
                   return Container(
                     decoration: BoxDecoration(
@@ -270,20 +270,55 @@ class _PointsHistoryEntry {
         (data['updatedAt'] as Timestamp?) ?? (data['createdAt'] as Timestamp?);
     final date = ts?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
 
-    if (status != 'approved' || reward <= 0) return null;
+    if (reward <= 0) return null;
 
-    return _PointsHistoryEntry(
-      title: title,
-      amount: reward,
-      icon: Icons.emoji_events_outlined,
-      statusLabel: 'Approved',
-      statusTone: _StatusTone.success,
-      meta: (data['dayKey'] ?? '').toString().isEmpty
-          ? null
-          : 'Day ${(data['dayKey'] ?? '').toString()}',
-      sortDate: date,
-      dateLabel: _formatDate(date),
-    );
+    final dayKey = (data['dayKey'] ?? '').toString();
+    final missionId = (data['missionId'] ?? '').toString();
+    final source = (data['source'] ?? '').toString();
+    final isArcade = missionId.startsWith('arcade_') || source.startsWith('arcade_game');
+    final dayMeta = dayKey.isEmpty ? (isArcade ? 'Arcade' : null) : '${isArcade ? 'Arcade · ' : ''}Day $dayKey';
+    final claimIcon = isArcade ? Icons.sports_esports_rounded : Icons.emoji_events_outlined;
+
+    if (status == 'approved') {
+      return _PointsHistoryEntry(
+        title: title,
+        amount: reward,
+        icon: claimIcon,
+        statusLabel: 'Approved',
+        statusTone: _StatusTone.success,
+        meta: dayMeta,
+        sortDate: date,
+        dateLabel: _formatDate(date),
+      );
+    }
+
+    if (status == 'pending') {
+      return _PointsHistoryEntry(
+        title: title,
+        amount: 0,
+        icon: isArcade ? Icons.sports_esports_rounded : Icons.hourglass_top_outlined,
+        statusLabel: '+$reward pts pending',
+        statusTone: _StatusTone.pending,
+        meta: dayMeta,
+        sortDate: date,
+        dateLabel: _formatDate(date),
+      );
+    }
+
+    if (status == 'rejected' || status == 'declined') {
+      return _PointsHistoryEntry(
+        title: title,
+        amount: 0,
+        icon: isArcade ? Icons.sports_esports_rounded : Icons.cancel_outlined,
+        statusLabel: 'Reviewed',
+        statusTone: _StatusTone.danger,
+        meta: dayMeta,
+        sortDate: date,
+        dateLabel: _formatDate(date),
+      );
+    }
+
+    return null;
   }
 
   static _PointsHistoryEntry? fromRedemption(

@@ -111,10 +111,7 @@ class FollowingPage extends StatelessWidget {
                               ),
                             ),
                           ),
-                          Icon(
-                            Icons.chevron_right,
-                            color: AppTheme.ink.withAlpha(120),
-                          ),
+
                         ],
                       ),
                     ),

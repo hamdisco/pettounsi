@@ -118,7 +118,7 @@ class _AvailabilityMonthPagerState extends State<AvailabilityMonthPager> {
               IconButton(
                 tooltip: 'Next month',
                 onPressed: _page < widget.monthsAhead ? () => _go(_page + 1) : null,
-                icon: const Icon(Icons.chevron_right_rounded),
+                icon: const Icon(Icons.arrow_forward_rounded),
               ),
             ],
           ),

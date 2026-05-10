@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../repositories/block_repository.dart';
+import '../../services/user_identity_service.dart';
 import '../../ui/app_theme.dart';
 import '../../ui/premium_cards.dart';
 import '../../ui/premium_feedback.dart';
@@ -149,14 +150,13 @@ class _NewChatSheetState extends State<NewChatSheet> {
                                       .snapshots(),
                                   builder: (context, us) {
                                     final d = us.data?.data() ?? {};
-                                    final name =
-                                        (d['username'] ??
-                                                d['displayName'] ??
-                                                'User')
-                                            .toString();
+                                    final name = UserIdentityService
+                                        .instance
+                                        .displayNameFromData(d);
                                     final nameLower = name.toLowerCase();
-                                    final photo = (d['photoUrl'] ?? '')
-                                        .toString();
+                                    final photo = UserIdentityService
+                                        .instance
+                                        .photoUrlFromData(d);
 
                                     if (_q.isNotEmpty &&
                                         !nameLower.contains(_q)) {

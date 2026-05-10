@@ -11,6 +11,7 @@ import '../../ui/adaptive_cached_image.dart';
 import '../../repositories/block_repository.dart';
 import '../../repositories/follow_repository.dart';
 import '../../services/cloudinary_service.dart';
+import '../../services/user_identity_service.dart';
 import '../../ui/app_theme.dart';
 import '../../ui/skeleton.dart';
 import '../follow/followers_page.dart';
@@ -21,7 +22,6 @@ import '../home/posts_repository.dart';
 import '../messages/chat_page.dart';
 import '../moderation/report_sheet.dart';
 import '../../ui/premium_feedback.dart';
-import '../../ui/premium_sections.dart';
 
 // --- Media URL normalization ---
 // Keeps UI unchanged. Fixes release-only failures due to unsafe URL characters,
@@ -81,7 +81,10 @@ class ProfilePage extends StatelessWidget {
                 .snapshots(),
             builder: (context, uSnap) {
               final data = uSnap.data?.data() ?? {};
-              final username = (data['username'] as String?)?.trim() ?? 'User';
+              final username = UserIdentityService.instance.displayNameFromData(
+                data,
+                authUser: isMe ? FirebaseAuth.instance.currentUser : null,
+              );
               final bio = (data['bio'] as String?)?.trim() ?? '';
               final phone = (data['phone'] as String?)?.trim() ?? '';
               final showPhone = (data['showPhone'] as bool?) ?? true;
@@ -328,23 +331,22 @@ class _PremiumProfileHeader extends StatelessWidget {
                     )
                   else
                     Text(
-                      isMe
-                          ? 'Add a short bio to help people know you.'
-                          : 'No bio yet',
+                      'No bio yet',
                       style: TextStyle(
                         color: AppTheme.muted.withAlpha(220),
                         fontWeight: FontWeight.w700,
                       ),
                     ),
 
+                  const SizedBox(height: 10),
+
                   if (showPhone && phone.trim().isNotEmpty) ...[
-                    const SizedBox(height: 10),
                     _ContactChip(phone: phone),
-                  ],
+                    const SizedBox(height: 12),
+                  ] else
+                    const SizedBox(height: 8),
 
-                  const SizedBox(height: 12),
-
-                  // stats row (IG-like)
+                  // stats row (community profile)
                   Row(
                     children: [
                       Expanded(
@@ -470,7 +472,7 @@ Future<void> _openProfileActionsSheet(
               _SheetTile(
                 icon: Icons.flag_rounded,
                 title: 'Report user',
-                subtitle: 'Tell us what’s going on',
+                subtitle: 'Report this profile',
                 danger: true,
                 onTap: () async {
                   Navigator.pop(ctx);
@@ -497,8 +499,8 @@ Future<void> _openProfileActionsSheet(
                 icon: isBlocked ? Icons.lock_open_rounded : Icons.block_rounded,
                 title: isBlocked ? 'Unblock' : 'Block',
                 subtitle: isBlocked
-                    ? 'You will be able to see posts and chat again'
-                    : 'Hide posts and prevent chat',
+                    ? 'Show posts and chat again'
+                    : 'Hide posts and chat',
                 danger: !isBlocked,
                 onTap: () async {
                   Navigator.pop(ctx);
@@ -537,7 +539,7 @@ class _Cover extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFFFFF1E8), Color(0xFFF4EEFF), Color(0xFFEEF7FF)],
+            colors: [Color(0xFFFFF4EC), Color(0xFFF7F1EC)],
           ),
         ),
         child: Align(
@@ -554,7 +556,7 @@ class _Cover extends StatelessWidget {
     final placeholder = Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFFFFF1E8), Color(0xFFF4EEFF), Color(0xFFEEF7FF)],
+          colors: [Color(0xFFFFF4EC), Color(0xFFF7F1EC)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -595,9 +597,7 @@ class _Avatar extends StatelessWidget {
       padding: const EdgeInsets.all(3.5),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFFD6C9), Color(0xFFF0E9FF), Color(0xFFEEF7FF)],
-        ),
+        color: Colors.white,
         border: Border.all(color: Colors.white),
         boxShadow: AppTheme.softShadows(0.12),
       ),
@@ -678,49 +678,6 @@ class _GlassIcon extends StatelessWidget {
           ),
           child: Icon(icon, color: AppTheme.ink.withAlpha(190), size: 20),
         ),
-      ),
-    );
-  }
-}
-
-// ignore: unused_element
-class _Pill extends StatelessWidget {
-  const _Pill({
-    required this.icon,
-    required this.text,
-    required this.bg,
-    required this.fg,
-  });
-
-  final IconData icon;
-  final String text;
-  final Color bg;
-  final Color fg;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: fg),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: TextStyle(
-              color: fg,
-              fontWeight: FontWeight.w900,
-              fontSize: 11.2,
-              height: 1.0,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -969,7 +926,7 @@ class _BlockedNoticeCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'You blocked this user. Unblock to view their posts or start chatting again.',
+            'Unblock to view posts or chat again.',
             style: TextStyle(
               color: AppTheme.ink.withAlpha(175),
               fontWeight: FontWeight.w700,
@@ -1055,7 +1012,6 @@ class _SheetTile extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: fg.withAlpha(140)),
             ],
           ),
         ),
@@ -1072,20 +1028,14 @@ class _PostsSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PremiumCardSurface(
-      radius: BorderRadius.circular(22),
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-      shadowOpacity: 0.08,
-      child: PremiumSectionHeader(
-        title: isMe ? 'My posts' : 'Posts',
-        subtitle: isMe
-            ? 'Your latest updates and photo posts.'
-            : 'Recent updates shared on this profile.',
-        compact: true,
-        trailing: const PremiumCardBadge(
-          label: 'Latest',
-          bg: AppTheme.lilac,
-          fg: Color(0xFF6B56C9),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 2, 2, 0),
+      child: Text(
+        isMe ? 'My posts' : 'Posts',
+        style: const TextStyle(
+          fontWeight: FontWeight.w900,
+          fontSize: 16,
+          color: AppTheme.ink,
         ),
       ),
     );
@@ -1118,9 +1068,7 @@ class _EmptyPostsCard extends StatelessWidget {
       iconColor: AppTheme.orangeDark,
       iconBg: const Color(0xFFFFF1E8),
       title: isMe ? 'You haven’t posted yet' : 'No posts yet',
-      subtitle: isMe
-          ? 'Create your first post to start sharing updates.'
-          : 'This user has not published any posts yet.',
+      subtitle: isMe ? 'Share your first update.' : 'No posts to show.',
       compact: true,
     );
   }
@@ -1142,6 +1090,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
   final _phone = TextEditingController();
 
   bool _loading = false;
+  bool _showPhone = true;
   String? _photoUrl;
   String? _coverUrl;
 
@@ -1161,6 +1110,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
     _bio.text = (d['bio'] ?? '') as String;
     _phone.text = (d['phone'] ?? '') as String;
     setState(() {
+      _showPhone = (d['showPhone'] as bool?) ?? true;
       _photoUrl = (d['photoUrl'] as String?)?.trim();
       _coverUrl = (d['coverPhotoUrl'] as String?)?.trim();
     });
@@ -1228,12 +1178,23 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
     final b = _bio.text.trim();
     final p = _phone.text.trim();
 
+    if (u.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please add a username.')));
+      return;
+    }
+
     setState(() => _loading = true);
     try {
       final update = <String, dynamic>{
         'username': u,
+        'usernameLower': u.toLowerCase(),
+        'displayName': u,
         'bio': b,
         'phone': p,
+        'showPhone': _showPhone,
         'updatedAt': FieldValue.serverTimestamp(),
       };
       // Only write media fields if we actually have a value.
@@ -1395,9 +1356,56 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
 
             TextField(
               controller: _phone,
+              keyboardType: TextInputType.phone,
               decoration: const InputDecoration(
                 hintText: 'Phone',
                 prefixIcon: Icon(Icons.phone_outlined),
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withAlpha(240),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.outline),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF1E8),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.phone_in_talk_rounded,
+                      size: 18,
+                      color: AppTheme.orangeDark,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Show phone on profile',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        color: AppTheme.ink,
+                      ),
+                    ),
+                  ),
+                  Switch.adaptive(
+                    value: _showPhone,
+                    activeThumbColor: AppTheme.orangeDark,
+                    activeTrackColor: AppTheme.softOrange,
+                    onChanged: _loading
+                        ? null
+                        : (value) => setState(() => _showPhone = value),
+                  ),
+                ],
               ),
             ),
 

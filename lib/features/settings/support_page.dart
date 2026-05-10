@@ -15,7 +15,7 @@ class SupportPage extends StatelessWidget {
     final uri = Uri(
       scheme: 'mailto',
       path: LegalLinks.supportEmail,
-      queryParameters: const {'subject': 'Pettounsi support request'},
+      queryParameters: const {'subject': 'PetTounsi support request'},
     );
 
     final ok = await launchUrl(uri);

@@ -1,6 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:pettounsi/features/settings/settings_page.dart';
 
 import '../ui/app_theme.dart';
@@ -15,6 +14,7 @@ import '../features/events/events_page.dart';
 import '../features/adopt_rescue/adopt_rescue_page.dart';
 import '../features/podcasts/podcasts_page.dart';
 import '../features/accessories/accessories_page.dart';
+import '../features/games/games_page.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -119,7 +119,14 @@ class AppDrawer extends StatelessWidget {
                                     onTap: () => _push(
                                         context, const PetshopsPage()),
                                   ),
-                                  // ✅ Games replaced with Adopt & Rescue
+                                  _DrawerTile(
+                                    title: 'Games',
+                                    icon: Icons.sports_esports_rounded,
+                                    iconBg: const Color(0xFFFFF1EA),
+                                    iconFg: AppTheme.orangeDark,
+                                    onTap: () => _push(
+                                        context, const GamesPage()),
+                                  ),
                                   _DrawerTile(
                                     title: 'Adopt & Rescue',
                                     icon: Icons.favorite_rounded,
@@ -409,12 +416,9 @@ class _QuickServicesStack extends StatelessWidget {
           title: 'Pet Sitting',
           subtitle: 'Trusted sitters',
           icon: Icons.volunteer_activism_rounded,
-          grad: const [Color(0xFFE2D7FF), Color(0xFFF4F0FF)],
-          accent: const Color(0xFF7B5BE8),
+          grad: const [Color(0xFFFFEFE8), Color(0xFFFFF8F4)],
+          accent: const Color(0xFFFF6D4D),
           badge: 'Care',
-          photoUrl:
-              'https://images.unsplash.com/photo-1770786442845-a48353e5cdb3?auto=format&fit=crop&fm=jpg&q=60&w=1000',
-          photoAlign: const Alignment(0.0, 0.2),
           onTap: onBabysitting,
         ),
         const SizedBox(height: gap),
@@ -423,12 +427,9 @@ class _QuickServicesStack extends StatelessWidget {
           title: 'Vets',
           subtitle: 'Clinics • emergency',
           icon: Icons.local_hospital_rounded,
-          grad: const [Color(0xFFCFF4E2), Color(0xFFEFFAF4)],
-          accent: const Color(0xFF26A06F),
+          grad: const [Color(0xFFEAF8F0), Color(0xFFF8FCFA)],
+          accent: const Color(0xFF26976B),
           badge: 'Help',
-          photoUrl:
-              'https://images.unsplash.com/photo-1770836037289-e00e5f351d11?auto=format&fit=crop&fm=jpg&q=60&w=1000',
-          photoAlign: const Alignment(0.25, 0.0),
           onTap: onVets,
         ),
         const SizedBox(height: gap),
@@ -437,12 +438,9 @@ class _QuickServicesStack extends StatelessWidget {
           title: 'Events',
           subtitle: 'Meetups • local',
           icon: Icons.event_rounded,
-          grad: const [Color(0xFFFFD7C8), Color(0xFFFFEEE6)],
-          accent: AppTheme.orangeDark,
+          grad: const [Color(0xFFF2EEFF), Color(0xFFFBF9FF)],
+          accent: const Color(0xFF7C62D7),
           badge: 'Social',
-          photoUrl:
-              'https://images.unsplash.com/photo-1667230228326-c881966e2a29?auto=format&fit=crop&fm=jpg&q=60&w=1000',
-          photoAlign: const Alignment(0.0, 0.25),
           onTap: onEvents,
         ),
         const SizedBox(height: gap),
@@ -451,12 +449,9 @@ class _QuickServicesStack extends StatelessWidget {
           title: 'Accessories',
           subtitle: 'Rewards • points',
           icon: Icons.shopping_bag_rounded,
-          grad: const [Color(0xFFD8E5FF), Color(0xFFEEF4FF)],
+          grad: const [Color(0xFFEEF4FF), Color(0xFFF8FBFF)],
           accent: const Color(0xFF4679F0),
           badge: 'Rewards',
-          photoUrl:
-              'https://images.unsplash.com/photo-1747443148294-a91791c0a62a?auto=format&fit=crop&fm=jpg&q=60&w=1000',
-          photoAlign: const Alignment(-0.2, 0.0),
           onTap: onAccessories,
         ),
       ],
@@ -473,8 +468,6 @@ class _ServicePhotoCard extends StatelessWidget {
     required this.grad,
     required this.accent,
     required this.badge,
-    required this.photoUrl,
-    required this.photoAlign,
     required this.onTap,
   });
 
@@ -485,8 +478,6 @@ class _ServicePhotoCard extends StatelessWidget {
   final List<Color> grad;
   final Color accent;
   final String badge;
-  final String photoUrl;
-  final Alignment photoAlign;
   final VoidCallback onTap;
 
   @override
@@ -511,24 +502,9 @@ class _ServicePhotoCard extends StatelessWidget {
           child: Stack(
             children: [
               Positioned.fill(
-                child: _NetworkBackdrop(
-                  url: photoUrl,
-                  alignment: photoAlign,
-                  opacity: 0.16,
-                ),
-              ),
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.white.withAlpha(26),
-                        Colors.white.withAlpha(90),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
+                child: _SoftServiceBackdrop(
+                  icon: icon,
+                  accent: accent,
                 ),
               ),
               Positioned(
@@ -627,75 +603,57 @@ class _ServicePhotoCard extends StatelessWidget {
   }
 }
 
-class _NetworkBackdrop extends StatelessWidget {
-  const _NetworkBackdrop({
-    required this.url,
-    required this.alignment,
-    required this.opacity,
+class _SoftServiceBackdrop extends StatelessWidget {
+  const _SoftServiceBackdrop({
+    required this.icon,
+    required this.accent,
   });
 
-  final String url;
-  final Alignment alignment;
-  final double opacity;
+  final IconData icon;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
-    final clean = url.trim();
-    if (clean.isEmpty) return const SizedBox.shrink();
-
-    return Opacity(
-      opacity: opacity,
-      child: LayoutBuilder(
-        builder: (context, c) {
-          final dpr = MediaQuery.of(context).devicePixelRatio;
-          final w = c.maxWidth.isFinite
-              ? c.maxWidth
-              : MediaQuery.of(context).size.width;
-          final h =
-              c.maxHeight.isFinite ? c.maxHeight : 120.0;
-
-          int clampInt(int v, int min, int max) {
-            if (v < min) return min;
-            if (v > max) return max;
-            return v;
-          }
-
-          final cacheW =
-              clampInt((w * dpr).round(), 240, 1400);
-          final cacheH =
-              clampInt((h * dpr).round(), 240, 1400);
-
-          final provider = ResizeImage(
-            CachedNetworkImageProvider(clean),
-            width: cacheW,
-            height: cacheH,
-          );
-
-          return Image(
-            image: provider,
-            fit: BoxFit.cover,
-            alignment: alignment,
-            filterQuality: FilterQuality.low,
-            gaplessPlayback: true,
-            loadingBuilder: (context, child, progress) {
-              if (progress == null) return child;
-              return ColoredBox(
-                  color: Colors.white.withAlpha(18));
-            },
-            errorBuilder: (_, __, ___) {
-              return Container(
-                color: Colors.white.withAlpha(40),
-                alignment: Alignment.center,
-                child: Icon(
-                  Icons.pets_rounded,
-                  color: AppTheme.muted.withAlpha(70),
-                  size: 64,
-                ),
-              );
-            },
-          );
-        },
-      ),
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white.withAlpha(22),
+                  Colors.white.withAlpha(86),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          right: -22,
+          bottom: -28,
+          child: Icon(
+            icon,
+            size: 112,
+            color: accent.withAlpha(24),
+          ),
+        ),
+        Positioned(
+          right: 16,
+          top: 14,
+          child: Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: Colors.white.withAlpha(206),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: accent.withAlpha(24)),
+            ),
+            child: Icon(icon, color: accent.withAlpha(216), size: 21),
+          ),
+        ),
+      ],
     );
   }
 }

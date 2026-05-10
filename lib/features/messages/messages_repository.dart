@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/content_safety.dart';
 import '../../repositories/follow_repository.dart';
 import '../../services/cloudinary_service.dart';
+import '../../services/user_identity_service.dart';
 import 'conversation_model.dart';
 import 'message_model.dart';
 
@@ -80,6 +81,15 @@ class MessagesRepository {
 
     final id = dmId(me.uid, otherUid);
     final ref = convoRef(id);
+    final myIdentity = await UserIdentityService.instance.getForUid(
+      me.uid,
+      authUser: me,
+    );
+    final otherIdentity = await UserIdentityService.instance.getForUid(
+      otherUid,
+      fallbackName: otherName,
+      fallbackPhotoUrl: otherPhoto ?? '',
+    );
 
     await _db.runTransaction((tx) async {
       final snap = await tx.get(ref);
@@ -92,12 +102,12 @@ class MessagesRepository {
         'starterUid': me.uid,
         'starterAt': FieldValue.serverTimestamp(),
         'participantNames': {
-          me.uid: me.displayName ?? 'User',
-          otherUid: otherName,
+          me.uid: myIdentity.safeName,
+          otherUid: otherIdentity.safeName,
         },
         'participantPhotos': {
-          me.uid: me.photoURL ?? '',
-          otherUid: otherPhoto ?? '',
+          me.uid: myIdentity.photoUrl,
+          otherUid: otherIdentity.photoUrl,
         },
         'lastMessage': '',
         'lastMessageAt': FieldValue.serverTimestamp(),

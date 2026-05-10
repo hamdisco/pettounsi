@@ -6,15 +6,18 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../ui/app_theme.dart';
-import '../../ui/premium_cards.dart';
-import '../../ui/premium_pills.dart';
-import '../../ui/premium_sheet.dart';
 import '../../ui/user_avatar.dart';
 import 'posts_repository.dart';
 
 class CreatePostSheet extends StatefulWidget {
-  const CreatePostSheet({super.key, this.initialImages = const []});
+  const CreatePostSheet({
+    super.key,
+    this.initialImages = const [],
+    this.initialPostType,
+  });
+
   final List<File> initialImages;
+  final String? initialPostType;
 
   @override
   State<CreatePostSheet> createState() => _CreatePostSheetState();
@@ -24,39 +27,55 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
   static const int _maxImages = 4;
   static const int _maxText = 2000;
 
-  final _txt = TextEditingController();
+  final _message = TextEditingController();
+  final _petName = TextEditingController();
+  final _petType = TextEditingController();
+  final _city = TextEditingController();
+  final _area = TextEditingController();
+  final _contact = TextEditingController();
+  final _details = TextEditingController();
+
   final List<File> _images = [];
-
   bool _loading = false;
-
-  // null = general post, 'adopt' = adoption, 'rescue' = rescue alert
   String? _postType;
 
   String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
 
+  _PostTypeSpec get _spec => _PostTypeSpec.fromType(_postType);
+
   @override
   void initState() {
     super.initState();
+    _postType = _normalizeType(widget.initialPostType);
     _images.addAll(widget.initialImages.take(_maxImages));
-    _txt.addListener(_handleTextChanged);
+    for (final c in [_message, _petName, _petType, _city, _area, _contact, _details]) {
+      c.addListener(_refresh);
+    }
   }
 
   @override
   void dispose() {
-    _txt.removeListener(_handleTextChanged);
-    _txt.dispose();
+    for (final c in [_message, _petName, _petType, _city, _area, _contact, _details]) {
+      c.removeListener(_refresh);
+      c.dispose();
+    }
     super.dispose();
   }
 
-  void _handleTextChanged() {
+  String? _normalizeType(String? value) {
+    final v = value?.trim().toLowerCase();
+    if (v == 'lost' || v == 'found' || v == 'adopt' || v == 'rescue') return v;
+    return null;
+  }
+
+  void _refresh() {
     if (mounted) setState(() {});
   }
 
   Future<void> _pickFromGallery() async {
     if (_loading || _images.length >= _maxImages) return;
-    final picker = ImagePicker();
     try {
-      final x = await picker.pickImage(
+      final x = await ImagePicker().pickImage(
         source: ImageSource.gallery,
         imageQuality: 82,
         maxWidth: 1600,
@@ -66,16 +85,16 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
       setState(() => _images.add(File(x.path)));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Could not open gallery: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open photos: $e')),
+      );
     }
   }
 
-  Future<void> _cameraAdd() async {
+  Future<void> _pickFromCamera() async {
     if (_loading || _images.length >= _maxImages) return;
-    final picker = ImagePicker();
     try {
-      final x = await picker.pickImage(
+      final x = await ImagePicker().pickImage(
         source: ImageSource.camera,
         imageQuality: 82,
         maxWidth: 1600,
@@ -85,35 +104,75 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
       setState(() => _images.add(File(x.path)));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Could not open camera: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open camera: $e')),
+      );
     }
   }
 
-  Future<void> _submit() async {
-    final text = _txt.text.trim();
-    if (_loading) return;
-    if (text.isEmpty && _images.isEmpty) return;
+  String _composePostText() {
+    final lines = <String>[];
+    final spec = _spec;
 
+    if (_postType != null) {
+      lines.add(spec.headline);
+      void add(String label, TextEditingController c) {
+        final v = c.text.trim();
+        if (v.isNotEmpty) lines.add('$label: $v');
+      }
+
+      add('Pet name', _petName);
+      add('Pet type', _petType);
+      add('City', _city);
+      add('Area', _area);
+      add(spec.detailLabel, _details);
+      add('Contact', _contact);
+
+      final msg = _message.text.trim();
+      if (msg.isNotEmpty) {
+        lines.add('');
+        lines.add(msg);
+      }
+      return lines.join('\n').trim();
+    }
+
+    return _message.text.trim();
+  }
+
+  bool get _hasRequiredSpecialFields {
+    if (_postType == null) return true;
+    return _city.text.trim().isNotEmpty || _area.text.trim().isNotEmpty || _details.text.trim().isNotEmpty;
+  }
+
+  bool get _canPublish {
+    final text = _composePostText();
+    return !_loading &&
+        text.characters.length <= _maxText &&
+        _hasRequiredSpecialFields &&
+        (text.isNotEmpty || _images.isNotEmpty);
+  }
+
+  Future<void> _submit() async {
+    if (!_canPublish) return;
     setState(() => _loading = true);
     try {
-      final postId = FirebaseFirestore.instance.collection('posts').doc().id;
-      final clientCreatedAt = DateTime.now();
-
       await PostsRepository.instance.createPost(
-        text: text,
+        text: _composePostText(),
         imageFiles: _images,
-        postId: postId,
-        clientCreatedAt: clientCreatedAt,
+        postId: FirebaseFirestore.instance.collection('posts').doc().id,
+        clientCreatedAt: DateTime.now(),
         postType: _postType,
       );
-
       if (!mounted) return;
-      Navigator.pop(context);
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_spec.successMessage)),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Could not publish: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not publish post: $e')),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -121,317 +180,384 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final remaining = _maxText - _txt.text.characters.length;
-    final canPost = !_loading &&
-        remaining >= 0 &&
-        (_txt.text.trim().isNotEmpty || _images.isNotEmpty);
+    final remaining = _maxText - _composePostText().characters.length;
+    final spec = _spec;
 
-    return PremiumBottomSheetFrame(
-      icon: Icons.edit_note_rounded,
-      iconColor: const Color(0xFF7C62D7),
-      iconBg: AppTheme.lilac,
-      title: 'Create post',
-      subtitle: 'Add text or photos.',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _ComposerCard(
-            uid: _uid,
-            remaining: remaining,
-            controller: _txt,
-            images: _images,
-            loading: _loading,
-            onRemoveImage: (i) => setState(() => _images.removeAt(i)),
-            onPickGallery: _pickFromGallery,
-            onPickCamera: _cameraAdd,
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.92,
+      minChildSize: 0.55,
+      maxChildSize: 0.96,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFFFFFBFD),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
           ),
-          const SizedBox(height: 12),
-
-          // --- Post type selector ---
-          _PostTypeSelector(
-            selected: _postType,
-            onChanged: (v) => setState(() => _postType = v),
-          ),
-          const SizedBox(height: 12),
-
-          const PremiumSheetInfoCard(
-            icon: Icons.public_rounded,
-            iconBg: AppTheme.sky,
-            iconFg: Color(0xFF4C79C8),
-            title: 'Public post',
-            subtitle:
-                'Posts and comments are visible to other users in the app.',
-            compact: true,
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: canPost ? _submit : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.orangeDark,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 13),
-              ),
-              icon: _loading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.2,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : const Icon(Icons.send_rounded, size: 18),
-              label: const Text(
-                'Publish post',
-                style: TextStyle(fontWeight: FontWeight.w900),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Post type selector — three pills: General, Adopt, Rescue
-// ---------------------------------------------------------------------------
-class _PostTypeSelector extends StatelessWidget {
-  const _PostTypeSelector({
-    required this.selected,
-    required this.onChanged,
-  });
-
-  final String? selected;
-  final ValueChanged<String?> onChanged;
-
-  static const _types = [
-    (null, 'General', Icons.edit_note_rounded,
-        AppTheme.lilac, Color(0xFF7C62D7)),
-    ('adopt', 'Adopt', Icons.favorite_rounded,
-        Color(0xFFFFE8EC), Color(0xFFD94F70)),
-    ('rescue', 'Rescue', Icons.campaign_rounded,
-        Color(0xFFFFECE7), Color(0xFFE86C4F)),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Icon(Icons.label_outline_rounded,
-                size: 15, color: AppTheme.muted),
-            const SizedBox(width: 6),
-            Text(
-              'Post type',
-              style: TextStyle(
-                color: AppTheme.muted.withAlpha(220),
-                fontWeight: FontWeight.w800,
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: _types.map((t) {
-            final isSelected = selected == t.$1;
-            return GestureDetector(
-              onTap: () => onChanged(t.$1),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                curve: Curves.easeOut,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 9),
+          child: Column(
+            children: [
+              const SizedBox(height: 10),
+              Container(
+                width: 44,
+                height: 5,
                 decoration: BoxDecoration(
-                  color: isSelected ? t.$4 : AppTheme.mist,
+                  color: AppTheme.outline,
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: isSelected
-                        ? t.$5.withAlpha(100)
-                        : AppTheme.outline,
-                    width: isSelected ? 1.5 : 1,
-                  ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+              ),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    16,
+                    16,
+                    MediaQuery.of(context).viewInsets.bottom + 18,
+                  ),
                   children: [
-                    Icon(t.$3,
-                        size: 14,
-                        color: isSelected ? t.$5 : AppTheme.muted),
-                    const SizedBox(width: 6),
-                    Text(
-                      t.$2,
-                      style: TextStyle(
-                        color: isSelected ? t.$5 : AppTheme.ink,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 12.2,
-                        height: 1,
+                    _SheetHeader(uid: _uid, spec: spec),
+                    const SizedBox(height: 18),
+                    _TypeSelector(
+                      selected: _postType,
+                      onChanged: (value) => setState(() => _postType = value),
+                    ),
+                    const SizedBox(height: 16),
+                    if (_postType != null) ...[
+                      _SpecialFields(
+                        spec: spec,
+                        petName: _petName,
+                        petType: _petType,
+                        city: _city,
+                        area: _area,
+                        details: _details,
+                        contact: _contact,
                       ),
+                      const SizedBox(height: 14),
+                    ],
+                    _MessageBox(controller: _message, spec: spec),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        _MediaButton(
+                          icon: Icons.photo_library_rounded,
+                          label: 'Photos',
+                          color: const Color(0xFF4C79C8),
+                          background: const Color(0xFFEEF5FF),
+                          onTap: _pickFromGallery,
+                        ),
+                        const SizedBox(width: 10),
+                        _MediaButton(
+                          icon: Icons.photo_camera_rounded,
+                          label: 'Camera',
+                          color: const Color(0xFF2F9A6A),
+                          background: const Color(0xFFEAF8F0),
+                          onTap: _pickFromCamera,
+                        ),
+                        const Spacer(),
+                        _PhotoCounter(count: _images.length, max: _maxImages),
+                      ],
+                    ),
+                    if (_images.isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      _ImagePreviewGrid(
+                        images: _images,
+                        onRemove: (index) => setState(() => _images.removeAt(index)),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    _SafetyNote(spec: spec),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            remaining < 0 ? 'Too long' : '$remaining characters left',
+                            style: TextStyle(
+                              color: remaining < 0 ? const Color(0xFFD64545) : AppTheme.muted,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12.6,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        ElevatedButton.icon(
+                          onPressed: _canPublish ? _submit : null,
+                          icon: _loading
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : Icon(spec.publishIcon, size: 18),
+                          label: Text(spec.publishLabel),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: spec.color,
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: AppTheme.outline,
+                            disabledForegroundColor: AppTheme.muted,
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            textStyle: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-            );
-          }).toList(),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SheetHeader extends StatelessWidget {
+  const _SheetHeader({required this.uid, required this.spec});
+
+  final String uid;
+  final _PostTypeSpec spec;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            color: spec.background,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Icon(spec.icon, color: spec.color, size: 26),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                spec.title,
+                style: const TextStyle(
+                  color: AppTheme.ink,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 22,
+                  height: 1.0,
+                ),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                spec.subtitle,
+                style: const TextStyle(
+                  color: AppTheme.muted,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13.4,
+                  height: 1.34,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  UserAvatar(uid: uid, radius: 15, fallbackName: 'You'),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Public post',
+                    style: TextStyle(
+                      color: AppTheme.muted,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12.2,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Composer card
-// ---------------------------------------------------------------------------
-class _ComposerCard extends StatelessWidget {
-  const _ComposerCard({
-    required this.uid,
-    required this.remaining,
-    required this.controller,
-    required this.images,
-    required this.loading,
-    required this.onRemoveImage,
-    required this.onPickGallery,
-    required this.onPickCamera,
-  });
+class _TypeSelector extends StatelessWidget {
+  const _TypeSelector({required this.selected, required this.onChanged});
 
-  final String uid;
-  final int remaining;
-  final TextEditingController controller;
-  final List<File> images;
-  final bool loading;
-  final void Function(int index) onRemoveImage;
-  final VoidCallback onPickGallery;
-  final VoidCallback onPickCamera;
+  final String? selected;
+  final ValueChanged<String?> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    final maxReached = images.length >= _CreatePostSheetState._maxImages;
+    final items = <_PostTypeSpec>[
+      _PostTypeSpec.general,
+      _PostTypeSpec.lost,
+      _PostTypeSpec.found,
+      _PostTypeSpec.adopt,
+      _PostTypeSpec.rescue,
+    ];
 
-    return PremiumCardSurface(
-      radius: BorderRadius.circular(24),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'What are you sharing?',
+          style: TextStyle(
+            color: AppTheme.ink,
+            fontWeight: FontWeight.w900,
+            fontSize: 15,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final item in items)
+              _TypeChip(
+                spec: item,
+                selected: selected == item.value,
+                onTap: () => onChanged(item.value),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _TypeChip extends StatelessWidget {
+  const _TypeChip({required this.spec, required this.selected, required this.onTap});
+
+  final _PostTypeSpec spec;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? spec.background : Colors.white,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected ? spec.color.withAlpha(95) : AppTheme.outline,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(spec.icon, size: 15, color: selected ? spec.color : AppTheme.muted),
+            const SizedBox(width: 7),
+            Text(
+              spec.chipLabel,
+              style: TextStyle(
+                color: selected ? spec.color : AppTheme.ink,
+                fontWeight: FontWeight.w900,
+                fontSize: 12.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SpecialFields extends StatelessWidget {
+  const _SpecialFields({
+    required this.spec,
+    required this.petName,
+    required this.petType,
+    required this.city,
+    required this.area,
+    required this.details,
+    required this.contact,
+  });
+
+  final _PostTypeSpec spec;
+  final TextEditingController petName;
+  final TextEditingController petType;
+  final TextEditingController city;
+  final TextEditingController area;
+  final TextEditingController details;
+  final TextEditingController contact;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
       padding: const EdgeInsets.all(14),
-      shadowOpacity: 0.10,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppTheme.outline),
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              UserAvatar(uid: uid, radius: 18, fallbackName: 'You'),
+              Expanded(
+                child: _CleanField(
+                  controller: petName,
+                  label: 'Pet name',
+                  hint: spec.petNameHint,
+                ),
+              ),
               const SizedBox(width: 10),
               Expanded(
-                child: UserName(
-                  uid: uid,
-                  fallback: 'You',
-                  style: const TextStyle(
-                    color: AppTheme.ink,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 13.6,
-                    height: 1,
-                  ),
+                child: _CleanField(
+                  controller: petType,
+                  label: 'Pet type',
+                  hint: 'Cat, dog...',
                 ),
-              ),
-              PremiumCardBadge(
-                label: remaining < 0 ? '0 left' : '$remaining left',
-                icon: Icons.text_fields_rounded,
-                bg: remaining < 0
-                    ? const Color(0xFFFFECEC)
-                    : AppTheme.blush,
-                fg: remaining < 0
-                    ? const Color(0xFFD64545)
-                    : AppTheme.orangeDark,
-                borderColor: AppTheme.outline,
-                fontSize: 11.1,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 9, vertical: 6),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: AppTheme.mist,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.outline),
-            ),
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-            child: TextField(
-              controller: controller,
-              minLines: 4,
-              maxLines: 8,
-              maxLength: _CreatePostSheetState._maxText,
-              enabled: !loading,
-              style: const TextStyle(
-                color: AppTheme.ink,
-                fontWeight: FontWeight.w700,
-                height: 1.28,
-                fontSize: 14,
-              ),
-              decoration: InputDecoration(
-                counterText: '',
-                border: InputBorder.none,
-                hintText:
-                    'Share something helpful, warm, or important…',
-                hintStyle: TextStyle(
-                  color: AppTheme.muted.withAlpha(200),
-                  fontWeight: FontWeight.w700,
-                ),
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-                fillColor: Colors.transparent,
-                filled: false,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-              ),
-            ),
-          ),
-          if (images.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _ImageGrid(images: images, onRemove: onRemoveImage),
-          ],
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+          const SizedBox(height: 10),
+          Row(
             children: [
-              PremiumPill(
-                label: maxReached ? 'Max photos' : 'Add photo',
-                icon: Icons.photo_library_rounded,
-                onTap: loading || maxReached ? null : onPickGallery,
-                selected: false,
-                fontSize: 12,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 10),
+              Expanded(
+                child: _CleanField(
+                  controller: city,
+                  label: 'City',
+                  hint: 'Tunis',
+                ),
               ),
-              PremiumPill(
-                label:
-                    maxReached ? 'Limit reached' : 'Camera',
-                icon: Icons.photo_camera_rounded,
-                onTap: loading || maxReached ? null : onPickCamera,
-                selected: false,
-                fontSize: 12,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 10),
-              ),
-              PremiumToneChip(
-                label:
-                    '${images.length}/${_CreatePostSheetState._maxImages} photos',
-                icon: Icons.collections_rounded,
-                bg: AppTheme.sky,
-                fg: const Color(0xFF4C79C8),
-                borderColor: AppTheme.outline,
-                fontSize: 11.6,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 7),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _CleanField(
+                  controller: area,
+                  label: 'Area',
+                  hint: spec.areaHint,
+                ),
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+          _CleanField(
+            controller: details,
+            label: spec.detailLabel,
+            hint: spec.detailHint,
+            minLines: 2,
+            maxLines: 3,
+          ),
+          const SizedBox(height: 10),
+          _CleanField(
+            controller: contact,
+            label: 'Contact option',
+            hint: 'Phone, WhatsApp, or message me here',
           ),
         ],
       ),
@@ -439,33 +565,192 @@ class _ComposerCard extends StatelessWidget {
   }
 }
 
-class _ImageGrid extends StatelessWidget {
-  const _ImageGrid({required this.images, required this.onRemove});
+class _MessageBox extends StatelessWidget {
+  const _MessageBox({required this.controller, required this.spec});
+
+  final TextEditingController controller;
+  final _PostTypeSpec spec;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppTheme.outline),
+      ),
+      child: TextField(
+        controller: controller,
+        minLines: spec.value == null ? 5 : 3,
+        maxLines: 8,
+        maxLength: 2000,
+        decoration: InputDecoration(
+          counterText: '',
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          fillColor: Colors.transparent,
+          filled: false,
+          contentPadding: EdgeInsets.zero,
+          hintText: spec.messageHint,
+        ),
+        style: const TextStyle(
+          color: AppTheme.ink,
+          fontWeight: FontWeight.w700,
+          fontSize: 14.6,
+          height: 1.38,
+        ),
+      ),
+    );
+  }
+}
+
+class _CleanField extends StatelessWidget {
+  const _CleanField({
+    required this.controller,
+    required this.label,
+    required this.hint,
+    this.minLines = 1,
+    this.maxLines = 1,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final String hint;
+  final int minLines;
+  final int maxLines;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      minLines: minLines,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        filled: true,
+        fillColor: const Color(0xFFFFFBFD),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppTheme.outline),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppTheme.outline),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppTheme.orangeDark, width: 1.3),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      ),
+      style: const TextStyle(
+        color: AppTheme.ink,
+        fontWeight: FontWeight.w700,
+        fontSize: 13.6,
+      ),
+    );
+  }
+}
+
+class _MediaButton extends StatelessWidget {
+  const _MediaButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.background,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color background;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: background,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: color),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 12.8,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PhotoCounter extends StatelessWidget {
+  const _PhotoCounter({required this.count, required this.max});
+
+  final int count;
+  final int max;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.outline),
+      ),
+      child: Text(
+        '$count/$max photos',
+        style: const TextStyle(
+          color: AppTheme.muted,
+          fontWeight: FontWeight.w800,
+          fontSize: 12.3,
+        ),
+      ),
+    );
+  }
+}
+
+class _ImagePreviewGrid extends StatelessWidget {
+  const _ImagePreviewGrid({required this.images, required this.onRemove});
 
   final List<File> images;
   final void Function(int index) onRemove;
 
   @override
   Widget build(BuildContext context) {
-    final itemCount = images.length.clamp(1, 4);
-
     return GridView.builder(
-      itemCount: itemCount,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
+      itemCount: images.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
       ),
-      itemBuilder: (context, i) {
-        final file = images[i];
+      itemBuilder: (context, index) {
         return ClipRRect(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(18),
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.file(file, fit: BoxFit.cover),
+              Image.file(images[index], fit: BoxFit.cover),
               Positioned(
                 top: 8,
                 right: 8,
@@ -474,12 +759,11 @@ class _ImageGrid extends StatelessWidget {
                   shape: const CircleBorder(),
                   child: InkWell(
                     customBorder: const CircleBorder(),
-                    onTap: () => onRemove(i),
+                    onTap: () => onRemove(index),
                     child: const SizedBox(
                       width: 34,
                       height: 34,
-                      child: Icon(Icons.close_rounded,
-                          color: AppTheme.ink),
+                      child: Icon(Icons.close_rounded, color: AppTheme.ink),
                     ),
                   ),
                 ),
@@ -489,5 +773,196 @@ class _ImageGrid extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+class _SafetyNote extends StatelessWidget {
+  const _SafetyNote({required this.spec});
+
+  final _PostTypeSpec spec;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: spec.background.withAlpha(150),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: spec.color.withAlpha(55)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.shield_outlined, size: 18, color: spec.color),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              spec.safetyNote,
+              style: const TextStyle(
+                color: AppTheme.muted,
+                fontWeight: FontWeight.w700,
+                fontSize: 12.7,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PostTypeSpec {
+  const _PostTypeSpec({
+    required this.value,
+    required this.chipLabel,
+    required this.title,
+    required this.subtitle,
+    required this.headline,
+    required this.messageHint,
+    required this.publishLabel,
+    required this.successMessage,
+    required this.safetyNote,
+    required this.icon,
+    required this.publishIcon,
+    required this.color,
+    required this.background,
+    required this.petNameHint,
+    required this.areaHint,
+    required this.detailLabel,
+    required this.detailHint,
+  });
+
+  final String? value;
+  final String chipLabel;
+  final String title;
+  final String subtitle;
+  final String headline;
+  final String messageHint;
+  final String publishLabel;
+  final String successMessage;
+  final String safetyNote;
+  final IconData icon;
+  final IconData publishIcon;
+  final Color color;
+  final Color background;
+  final String petNameHint;
+  final String areaHint;
+  final String detailLabel;
+  final String detailHint;
+
+  static const general = _PostTypeSpec(
+    value: null,
+    chipLabel: 'General',
+    title: 'Create post',
+    subtitle: 'Share a question, a pet moment, or something useful with the community.',
+    headline: 'Community update',
+    messageHint: 'What would you like to share with pet owners?',
+    publishLabel: 'Publish',
+    successMessage: 'Post published.',
+    safetyNote: 'Keep posts respectful and useful. Reports help us protect the community.',
+    icon: Icons.edit_note_rounded,
+    publishIcon: Icons.send_rounded,
+    color: AppTheme.orangeDark,
+    background: Color(0xFFFFEFE8),
+    petNameHint: 'Miso',
+    areaHint: 'Mutuelleville',
+    detailLabel: 'Details',
+    detailHint: 'Useful details for the community',
+  );
+
+  static const lost = _PostTypeSpec(
+    value: 'lost',
+    chipLabel: 'Lost Pet',
+    title: 'Lost pet alert',
+    subtitle: 'Help nearby pet owners recognize and share the alert quickly.',
+    headline: 'Lost pet alert',
+    messageHint: 'Add any important details: color, behavior, collar, reward...',
+    publishLabel: 'Publish alert',
+    successMessage: 'Lost pet alert published.',
+    safetyNote: 'For safety, avoid sharing private addresses. Use a clear area and contact option.',
+    icon: Icons.pets_rounded,
+    publishIcon: Icons.campaign_rounded,
+    color: Color(0xFF7C62D7),
+    background: Color(0xFFF2EEFF),
+    petNameHint: 'Miso',
+    areaHint: 'Last seen area',
+    detailLabel: 'Last seen details',
+    detailHint: 'When and where was the pet last seen?',
+  );
+
+  static const found = _PostTypeSpec(
+    value: 'found',
+    chipLabel: 'Found Pet',
+    title: 'Found pet post',
+    subtitle: 'Help a pet return home by sharing where it was found.',
+    headline: 'Found pet',
+    messageHint: 'Add visible signs, behavior, and how the owner can prove ownership...',
+    publishLabel: 'Publish found post',
+    successMessage: 'Found pet post published.',
+    safetyNote: 'Ask for proof of ownership before handing over a found pet.',
+    icon: Icons.volunteer_activism_rounded,
+    publishIcon: Icons.volunteer_activism_rounded,
+    color: Color(0xFF2BA56E),
+    background: Color(0xFFEAF8F0),
+    petNameHint: 'Unknown',
+    areaHint: 'Found area',
+    detailLabel: 'Found details',
+    detailHint: 'Where was the pet found? Any collar or special mark?',
+  );
+
+  static const adopt = _PostTypeSpec(
+    value: 'adopt',
+    chipLabel: 'Adoption',
+    title: 'Adoption post',
+    subtitle: 'Describe the pet and the safe home you are looking for.',
+    headline: 'Adoption post',
+    messageHint: 'Add age, gender, temperament, vaccination, and adoption conditions...',
+    publishLabel: 'Publish adoption',
+    successMessage: 'Adoption post published.',
+    safetyNote: 'Share honest details and choose adopters carefully. The pet safety comes first.',
+    icon: Icons.favorite_rounded,
+    publishIcon: Icons.favorite_rounded,
+    color: Color(0xFFE26E96),
+    background: Color(0xFFFFEEF4),
+    petNameHint: 'Luna',
+    areaHint: 'Current area',
+    detailLabel: 'Adoption details',
+    detailHint: 'Age, health, temperament, adoption conditions...',
+  );
+
+  static const rescue = _PostTypeSpec(
+    value: 'rescue',
+    chipLabel: 'Rescue',
+    title: 'Rescue request',
+    subtitle: 'Ask the community for urgent help clearly and responsibly.',
+    headline: 'Rescue help needed',
+    messageHint: 'Explain the situation, urgency, and what help is needed...',
+    publishLabel: 'Ask for help',
+    successMessage: 'Rescue request published.',
+    safetyNote: 'Use rescue posts responsibly. Add enough detail so helpers understand the situation.',
+    icon: Icons.campaign_rounded,
+    publishIcon: Icons.campaign_rounded,
+    color: Color(0xFFFF6A4B),
+    background: Color(0xFFFFEFE8),
+    petNameHint: 'Unknown',
+    areaHint: 'Rescue area',
+    detailLabel: 'Situation',
+    detailHint: 'Injured, trapped, abandoned, needs transport...',
+  );
+
+  static _PostTypeSpec fromType(String? type) {
+    switch (type) {
+      case 'lost':
+        return lost;
+      case 'found':
+        return found;
+      case 'adopt':
+        return adopt;
+      case 'rescue':
+        return rescue;
+      default:
+        return general;
+    }
   }
 }

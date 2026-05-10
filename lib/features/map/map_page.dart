@@ -73,7 +73,7 @@ class _MapPageState extends State<MapPage> {
         iconBg: AppTheme.softOrange,
         title: 'Turn on location',
         message:
-            'To center the map on you, turn on Location Services on your phone, then return to Pettounsi.',
+            'To center the map on you, turn on Location Services on your phone, then return to PetTounsi.',
         primaryLabel: 'Open settings',
         onPrimary: () => Geolocator.openLocationSettings(),
       );
@@ -96,7 +96,7 @@ class _MapPageState extends State<MapPage> {
           iconBg: AppTheme.lilac,
           title: 'Allow location access',
           message:
-              'Pettounsi cannot use your location until you allow access in app settings.',
+              'PetTounsi cannot use your location until you allow access in app settings.',
           primaryLabel: 'Open app settings',
           onPrimary: () => Geolocator.openAppSettings(),
           secondaryLabel: 'Later',

@@ -30,6 +30,10 @@ class NotificationsPage extends StatelessWidget {
   }
 
   String _titleFor(Map<String, dynamic> d) {
+    final storedTitle = ((d['notificationTitle'] ?? d['title'] ?? '') as String)
+        .trim();
+    if (storedTitle.isNotEmpty) return storedTitle;
+
     final type = (d['type'] ?? '') as String;
     final name = ((d['actorName'] ?? 'Someone') as String).trim();
     final listingTitle = ((d['listingTitle'] ?? '') as String).trim();
@@ -50,6 +54,8 @@ class NotificationsPage extends StatelessWidget {
         return '$name declined your request';
       case 'babysitting_completed':
         return '$name marked your stay as completed';
+      case 'babysitting_booking_canceled':
+        return '$name canceled a confirmed stay';
       case 'babysitting_canceled':
         return '$name canceled a babysitting request';
       case 'babysitting_review':
@@ -62,6 +68,10 @@ class NotificationsPage extends StatelessWidget {
   }
 
   String _subtitleFor(Map<String, dynamic> d) {
+    final storedBody = ((d['notificationBody'] ?? d['body'] ?? '') as String)
+        .trim();
+    if (storedBody.isNotEmpty) return storedBody;
+
     final type = (d['type'] ?? '') as String;
     final listingTitle = ((d['listingTitle'] ?? '') as String).trim();
     final dateRangeText = ((d['dateRangeText'] ?? '') as String).trim();
@@ -77,6 +87,7 @@ class NotificationsPage extends StatelessWidget {
       case 'babysitting_accepted':
       case 'babysitting_declined':
       case 'babysitting_completed':
+      case 'babysitting_booking_canceled':
       case 'babysitting_canceled':
         if (listingTitle.isNotEmpty && dateRangeText.isNotEmpty) {
           return '$listingTitle • $dateRangeText';
@@ -110,6 +121,7 @@ class NotificationsPage extends StatelessWidget {
         return Icons.cancel_rounded;
       case 'babysitting_completed':
         return Icons.verified_rounded;
+      case 'babysitting_booking_canceled':
       case 'babysitting_canceled':
         return Icons.event_busy_rounded;
       case 'babysitting_review':
@@ -135,6 +147,7 @@ class NotificationsPage extends StatelessWidget {
       case 'babysitting_completed':
         return const Color(0xFF2F9A6A);
       case 'babysitting_declined':
+      case 'babysitting_booking_canceled':
       case 'babysitting_canceled':
         return const Color(0xFFE05555);
       case 'babysitting_review':
@@ -150,6 +163,7 @@ class NotificationsPage extends StatelessWidget {
     switch ((d['type'] ?? '') as String) {
       case 'like':
       case 'babysitting_declined':
+      case 'babysitting_booking_canceled':
       case 'babysitting_canceled':
         return const Color(0xFFFFEBEB);
       case 'comment':
@@ -170,7 +184,7 @@ class NotificationsPage extends StatelessWidget {
 
   String _sectionLabel(String type) {
     if (type == 'event') return 'Event';
-    if (type.startsWith('babysitting_')) return 'Babysitting';
+    if (type.startsWith('babysitting_')) return 'Pet Sitting';
     return 'Activity';
   }
 
@@ -182,7 +196,9 @@ class NotificationsPage extends StatelessWidget {
     if ((type == 'like' || type == 'comment') && postId.trim().isNotEmpty) {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => PostDetailPage(postId: postId.trim())),
+        MaterialPageRoute(
+          builder: (_) => PostDetailPage(postId: postId.trim()),
+        ),
       );
       return;
     }
@@ -276,7 +292,9 @@ class NotificationsPage extends StatelessWidget {
           animation: ConnectivityStatusController.instance,
           builder: (context, _) {
             return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: NotificationsRepository.instance.streamMyNotifications(limit: 80),
+              stream: NotificationsRepository.instance.streamMyNotifications(
+                limit: 80,
+              ),
               builder: (context, notifSnap) {
                 final offline = ConnectivityStatusController.instance.isOffline;
 
@@ -292,7 +310,10 @@ class NotificationsPage extends StatelessWidget {
                     .length;
 
                 return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: FirebaseFirestore.instance.collection('events').limit(16).snapshots(),
+                  stream: FirebaseFirestore.instance
+                      .collection('events')
+                      .limit(16)
+                      .snapshots(),
                   builder: (context, eventSnap) {
                     final eventCards = eventSnap.hasData
                         ? _buildEventCards(eventSnap.data!.docs)
@@ -355,8 +376,13 @@ class NotificationsPage extends StatelessWidget {
                                 accent: _accentFor(d),
                                 bg: _bgFor(d),
                                 leadingIcon: _iconFor(d),
-                                actorPhotoUrl: (d['actorPhotoUrl'] ?? '').toString(),
-                                section: _sectionLabel((d['type'] ?? '') as String),
+                                actorPhotoUrl: (d['actorPhotoUrl'] ?? '')
+                                    .toString(),
+                                section: _sectionLabel(
+                                  (d['type'] ?? '') as String,
+                                ),
+                                actionLabel: (d['actionLabel'] ?? '')
+                                    .toString(),
                                 onTap: () => _openTarget(context, d),
                               ),
                             ),
@@ -391,7 +417,9 @@ class NotificationsPage extends StatelessWidget {
                                     color: Color(0xFFD64545),
                                   ),
                                 ),
-                                onDismissed: (_) => NotificationsRepository.instance.deleteNotification(doc.id),
+                                onDismissed: (_) => NotificationsRepository
+                                    .instance
+                                    .deleteNotification(doc.id),
                                 child: _NotificationTile(
                                   title: _titleFor(d),
                                   subtitle: _subtitleFor(d),
@@ -401,10 +429,15 @@ class NotificationsPage extends StatelessWidget {
                                   bg: _bgFor(d),
                                   leadingIcon: _iconFor(d),
                                   actorPhotoUrl: photo,
-                                  section: _sectionLabel((d['type'] ?? '') as String),
+                                  section: _sectionLabel(
+                                    (d['type'] ?? '') as String,
+                                  ),
+                                  actionLabel: (d['actionLabel'] ?? '')
+                                      .toString(),
                                   onTap: () async {
                                     try {
-                                      await NotificationsRepository.instance.markAsRead(doc.id);
+                                      await NotificationsRepository.instance
+                                          .markAsRead(doc.id);
                                     } catch (_) {}
                                     if (!context.mounted) return;
                                     await _openTarget(context, d);
@@ -440,9 +473,7 @@ class _InboxSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final summary = unreadCount > 0
-        ? '$unreadCount unread'
-        : 'All caught up';
+    final summary = unreadCount > 0 ? '$unreadCount unread' : 'All caught up';
     final trailing = <String>[
       if (totalCount > 0) '$totalCount item${totalCount == 1 ? '' : 's'}',
       if (eventCount > 0) '$eventCount event${eventCount == 1 ? '' : 's'}',
@@ -568,6 +599,7 @@ class _NotificationTile extends StatelessWidget {
     required this.leadingIcon,
     required this.actorPhotoUrl,
     required this.section,
+    required this.actionLabel,
     required this.onTap,
   });
 
@@ -580,6 +612,7 @@ class _NotificationTile extends StatelessWidget {
   final IconData leadingIcon;
   final String actorPhotoUrl;
   final String section;
+  final String actionLabel;
   final VoidCallback onTap;
 
   @override
@@ -681,7 +714,10 @@ class _NotificationTile extends StatelessWidget {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: bg,
                         borderRadius: BorderRadius.circular(999),
@@ -705,11 +741,32 @@ class _NotificationTile extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      color: AppTheme.ink.withAlpha(110),
-                      size: 22,
-                    ),
+                    if (actionLabel.trim().isNotEmpty)
+                      Container(
+                        constraints: const BoxConstraints(maxWidth: 140),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: AppTheme.outline),
+                        ),
+                        child: Text(
+                          actionLabel.trim(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: AppTheme.ink.withAlpha(190),
+                            fontWeight: FontWeight.w900,
+                            fontSize: 10.8,
+                            height: 1,
+                          ),
+                        ),
+                      )
+                    else
+                      const SizedBox.shrink(),
                   ],
                 ),
               ],
@@ -742,7 +799,6 @@ class _NotificationsLoading extends StatelessWidget {
     );
   }
 }
-
 
 class _NotificationsOffline extends StatelessWidget {
   const _NotificationsOffline();

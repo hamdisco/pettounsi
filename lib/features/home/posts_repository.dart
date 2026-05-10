@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../services/cloudinary_service.dart';
+import '../../services/user_identity_service.dart';
 import 'post_model.dart';
 
 
@@ -36,44 +37,15 @@ class PostsRepository {
   // Identity helpers
   // -----------------------------
   Future<_Actor> _actorFor(User user) async {
-    try {
-      final snap = await _db.collection('users').doc(user.uid).get();
-      final d = snap.data() ?? <String, dynamic>{};
-
-      final name = _pickName(d, user);
-      final photo = _pickPhoto(d, user);
-
-      return _Actor(name: name, photoUrl: photo);
-    } catch (_) {
-      final name = (user.displayName ?? user.email ?? 'User').trim();
-      final photo = (user.photoURL ?? '').trim();
-      return _Actor(
-        name: name.isEmpty ? 'User' : name,
-        photoUrl: photo.isEmpty ? null : photo,
-      );
-    }
-  }
-
-  String _pickName(Map<String, dynamic> d, User user) {
-    final candidates = <Object?>[
-      d['username'],
-      d['displayName'],
-      user.displayName,
-      user.email,
-    ];
-
-    for (final c in candidates) {
-      if (c is String && c.trim().isNotEmpty) return c.trim();
-    }
-    return 'User';
-  }
-
-  String? _pickPhoto(Map<String, dynamic> d, User user) {
-    final candidates = <Object?>[d['photoUrl'], user.photoURL];
-    for (final c in candidates) {
-      if (c is String && c.trim().isNotEmpty) return c.trim();
-    }
-    return null;
+    final identity = await UserIdentityService.instance.getForUid(
+      user.uid,
+      authUser: user,
+      fallbackName: 'Pet owner',
+    );
+    return _Actor(
+      name: identity.safeName,
+      photoUrl: identity.nullablePhotoUrl,
+    );
   }
 
   // -----------------------------
@@ -345,7 +317,7 @@ class PostsRepository {
       urls.add(uploaded.secureUrl);
     }
 
-    final postRef = _posts.doc();
+    final postRef = _posts.doc(postId);
 
     await postRef.set({
       'authorId': user.uid,

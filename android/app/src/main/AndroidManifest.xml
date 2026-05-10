@@ -27,7 +27,7 @@
         tools:node="remove" />
 
     <application
-        android:label="Pettounsi"
+        android:label="PetTounsi"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
 

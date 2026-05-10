@@ -23,11 +23,7 @@ class _FirstStepsGuidePageState extends State<FirstStepsGuidePage> {
       title: 'Follow what matters first',
       subtitle:
           'Discover pet posts, reactions, comments, and everyday community activity from Home.',
-      bullets: [
-        'Browse new posts',
-        'React and comment',
-        'Follow pet profiles',
-      ],
+      bullets: ['Browse new posts', 'React and comment', 'Follow pet profiles'],
     ),
     _GuidePageData(
       icon: Icons.map_rounded,
@@ -37,11 +33,7 @@ class _FirstStepsGuidePageState extends State<FirstStepsGuidePage> {
       title: 'Use the map for local essentials',
       subtitle:
           'Find lost and found reports, vets, petshops, and events around you in one place.',
-      bullets: [
-        'Lost & found reports',
-        'Vets and petshops',
-        'Nearby events',
-      ],
+      bullets: ['Lost & found reports', 'Vets and petshops', 'Nearby events'],
     ),
     _GuidePageData(
       icon: Icons.chat_bubble_rounded,
@@ -51,11 +43,7 @@ class _FirstStepsGuidePageState extends State<FirstStepsGuidePage> {
       title: 'Follow before you start a chat',
       subtitle:
           'Messaging opens after you follow the other profile, so conversations stay relevant and safer.',
-      bullets: [
-        'Follow first',
-        'Then open Messages',
-        'Keep chats focused',
-      ],
+      bullets: ['Follow first', 'Then open Messages', 'Keep chats focused'],
     ),
     _GuidePageData(
       icon: Icons.shield_outlined,
@@ -65,11 +53,7 @@ class _FirstStepsGuidePageState extends State<FirstStepsGuidePage> {
       title: 'Keep your account under control',
       subtitle:
           'Settings gives you privacy details, support, reporting tools, blocked users, and account actions.',
-      bullets: [
-        'Report content',
-        'Block users',
-        'Manage account settings',
-      ],
+      bullets: ['Report content', 'Block users', 'Manage account settings'],
     ),
   ];
 
@@ -129,7 +113,7 @@ class _FirstStepsGuidePageState extends State<FirstStepsGuidePage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Welcome to Pettounsi',
+                          'Welcome to PetTounsi',
                           style: TextStyle(
                             color: AppTheme.ink,
                             fontWeight: FontWeight.w900,
@@ -248,10 +232,9 @@ class _GuidePageView extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             data.title,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontSize: 28,
-              height: 1.02,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontSize: 28, height: 1.02),
           ),
           const SizedBox(height: 10),
           Text(
@@ -288,11 +271,7 @@ class _GuideHeroCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            data.cardColor,
-            Colors.white,
-            data.cardColor.withAlpha(230),
-          ],
+          colors: [data.cardColor, Colors.white, data.cardColor.withAlpha(230)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -339,8 +318,11 @@ class _GuideHeroCard extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.check_circle_rounded,
-                            color: data.accent, size: 18),
+                        Icon(
+                          Icons.check_circle_rounded,
+                          color: data.accent,
+                          size: 18,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           item,

@@ -728,7 +728,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      'This sends a permanent deletion request for your Pettounsi account. Once processed, your profile and account-related data will be deleted or anonymized, except for information we are legally required to keep or must retain for safety, fraud-prevention, or security reasons.\n\nDeletion requests are usually processed within 7 days.',
+                      'This sends a permanent deletion request for your PetTounsi account. Once processed, your profile and account-related data will be deleted or anonymized, except for information we are legally required to keep or must retain for safety, fraud-prevention, or security reasons.\n\nDeletion requests are usually processed within 7 days.',
                       style: TextStyle(
                         color: AppTheme.muted.withAlpha(220),
                         fontWeight: FontWeight.w700,
@@ -804,7 +804,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                             child: Padding(
                               padding: const EdgeInsets.only(top: 12),
                               child: Text(
-                                'I understand that this request may permanently delete my Pettounsi account and associated data once it is processed.',
+                                'I understand that this request may permanently delete my PetTounsi account and associated data once it is processed.',
                                 style: TextStyle(
                                   color: AppTheme.ink.withAlpha(220),
                                   fontWeight: FontWeight.w700,
@@ -1053,7 +1053,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Use this to request permanent deletion of your Pettounsi account and associated data.',
+                  'Use this to request permanent deletion of your PetTounsi account and associated data.',
                   style: TextStyle(
                     color: AppTheme.muted.withAlpha(215),
                     fontWeight: FontWeight.w700,

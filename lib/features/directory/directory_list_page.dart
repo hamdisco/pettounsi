@@ -10,10 +10,11 @@ import '../../ui/app_theme.dart';
 import '../../ui/premium_permission_dialog.dart';
 import '../map/map_models.dart';
 import '../map/map_page.dart';
+import '../services/partner_application_page.dart';
 import 'models/directory_item.dart';
 import 'widgets/directory_widgets.dart';
 
-enum DirectorySort { name, distance, upcoming }
+enum DirectorySort { name, distance, upcoming, featured }
 
 class DirectoryListPage extends StatefulWidget {
   const DirectoryListPage({
@@ -50,11 +51,12 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
 
   bool get _isEvents => widget.collectionName == 'events';
   bool get _isVets => widget.collectionName == 'vets';
+  bool get _isPetshops => widget.collectionName == 'petshops';
 
   @override
   void initState() {
     super.initState();
-    _sort = _isEvents ? DirectorySort.upcoming : DirectorySort.name;
+    _sort = _isEvents ? DirectorySort.upcoming : DirectorySort.featured;
     _upcomingOnly = _isEvents;
   }
 
@@ -71,13 +73,78 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
 
     switch (widget.collectionName) {
       case 'vets':
-        return 'Trusted clinics and emergency contacts — find help fast.';
+        return 'Clinics, emergency care, and trusted veterinary contacts.';
       case 'events':
-        return 'Upcoming meetups, adoption days, and pet-friendly events.';
+        return 'Adoption days, campaigns, and pet-friendly events.';
       case 'petshops':
-        return 'Food, grooming and accessories — discover nearby shops.';
+        return 'Food, accessories, grooming, and trusted local pet stores.';
       default:
-        return 'Browse places and open Directions to navigate quickly.';
+        return 'Find trusted places and partners near you.';
+    }
+  }
+
+  String get _searchHint {
+    switch (widget.collectionName) {
+      case 'vets':
+        return 'Search clinic, city, or phone';
+      case 'petshops':
+        return 'Search shop, city, or service';
+      case 'events':
+        return 'Search event, city, or organizer';
+      default:
+        return 'Search';
+    }
+  }
+
+  String get _partnerTitle {
+    switch (widget.collectionName) {
+      case 'vets':
+        return 'Clinic partner program';
+      case 'petshops':
+        return 'Shop partner program';
+      case 'events':
+        return 'Promote a pet event';
+      default:
+        return 'Become a partner';
+    }
+  }
+
+  String get _partnerSubtitle {
+    switch (widget.collectionName) {
+      case 'vets':
+        return 'Featured placement for clinics and local visibility.';
+      case 'petshops':
+        return 'Show offers, products, and directions to pet owners.';
+      case 'events':
+        return 'Share adoption days, campaigns, and partner activities.';
+      default:
+        return 'Apply for partner visibility inside PetTounsi.';
+    }
+  }
+
+  String get _partnerType {
+    switch (widget.collectionName) {
+      case 'vets':
+        return 'vet';
+      case 'petshops':
+        return 'pet_shop';
+      case 'events':
+        return 'pet_friendly_place';
+      default:
+        return 'other';
+    }
+  }
+
+  String get _partnerPlan {
+    switch (widget.collectionName) {
+      case 'vets':
+        return 'vet_care_plan';
+      case 'petshops':
+        return 'shop_growth';
+      case 'events':
+        return 'partner_offers';
+      default:
+        return 'free_listing';
     }
   }
 
@@ -86,11 +153,14 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
     if (q.isEmpty) return true;
 
     return item.name.toLowerCase().contains(q) ||
+        item.category.toLowerCase().contains(q) ||
         item.address.toLowerCase().contains(q) ||
         item.city.toLowerCase().contains(q) ||
         item.governorate.toLowerCase().contains(q) ||
         (item.phone ?? '').toLowerCase().contains(q) ||
-        (item.notes ?? '').toLowerCase().contains(q);
+        (item.notes ?? '').toLowerCase().contains(q) ||
+        (item.openingHours ?? '').toLowerCase().contains(q) ||
+        (item.offerText ?? '').toLowerCase().contains(q);
   }
 
   Future<void> _openDirections(DirectoryItem item) async {
@@ -173,7 +243,7 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('No source link available')));
+      ).showSnackBar(const SnackBar(content: Text('No link available')));
       return;
     }
 
@@ -237,7 +307,7 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
           iconBg: AppTheme.softOrange,
           title: 'Turn on location',
           message:
-              'To use Near me, enable Location Services on your phone, then come back to Pettounsi.',
+              'Enable Location Services on your phone to use nearby partner results.',
           primaryLabel: 'Open settings',
           onPrimary: () => Geolocator.openLocationSettings(),
         );
@@ -260,7 +330,7 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
             iconBg: AppTheme.lilac,
             title: 'Allow location access',
             message:
-                'Near me needs location permission for Pettounsi. Open app settings and allow access to continue.',
+                'Open app settings and allow location access to sort partners near you.',
             primaryLabel: 'Open app settings',
             onPrimary: () => Geolocator.openAppSettings(),
             secondaryLabel: 'Later',
@@ -301,6 +371,17 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
           initialCenter: _me,
           initialZoom: _me != null ? 12.8 : null,
           standalone: true,
+        ),
+      ),
+    );
+  }
+
+  void _openPartnerApplication() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PartnerApplicationPage(
+          initialType: _partnerType,
+          initialPlan: _partnerPlan,
         ),
       ),
     );
@@ -360,12 +441,16 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
             itemBuilder: (_) {
               final items = <PopupMenuEntry<DirectorySort>>[
                 const PopupMenuItem(
+                  value: DirectorySort.featured,
+                  child: Text('Featured first'),
+                ),
+                const PopupMenuItem(
                   value: DirectorySort.name,
-                  child: Text('Sort by name'),
+                  child: Text('Name'),
                 ),
                 const PopupMenuItem(
                   value: DirectorySort.distance,
-                  child: Text('Sort by distance'),
+                  child: Text('Distance'),
                 ),
               ];
               if (_isEvents) {
@@ -373,13 +458,13 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
                   0,
                   const PopupMenuItem(
                     value: DirectorySort.upcoming,
-                    child: Text('Sort by date (upcoming)'),
+                    child: Text('Upcoming first'),
                   ),
                 );
               }
               return items;
             },
-            icon: const Icon(Icons.sort_rounded),
+            icon: const Icon(Icons.tune_rounded),
           ),
         ],
       ),
@@ -395,6 +480,31 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
               accent: accent,
               icon: widget.icon,
             ),
+            DirectoryPartnerBand(
+              title: _partnerTitle,
+              subtitle: _partnerSubtitle,
+              ctaLabel: _isEvents ? 'Submit event' : 'Become partner',
+              icon: _isEvents
+                  ? Icons.campaign_rounded
+                  : (_isVets
+                        ? Icons.verified_rounded
+                        : (_isPetshops
+                              ? Icons.storefront_rounded
+                              : Icons.workspace_premium_rounded)),
+              accent: accent,
+              onTap: _openPartnerApplication,
+            ),
+            DirectorySearchBox(
+              controller: _searchCtrl,
+              query: _query,
+              accent: accent,
+              hintText: _searchHint,
+              onChanged: (v) => setState(() => _query = v),
+              onClear: () {
+                _searchCtrl.clear();
+                setState(() => _query = '');
+              },
+            ),
             DirectoryFiltersBar(
               accent: accent,
               onMap: _openMap,
@@ -406,22 +516,6 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
               onToggleUpcoming: _isEvents
                   ? () => setState(() => _upcomingOnly = !_upcomingOnly)
                   : null,
-            ),
-            DirectorySearchBox(
-              controller: _searchCtrl,
-              query: _query,
-              accent: accent,
-              hintText: 'Search ${widget.title.toLowerCase()}...',
-              onChanged: (v) => setState(() => _query = v),
-              onClear: () {
-                _searchCtrl.clear();
-                setState(() => _query = '');
-              },
-            ),
-            DirectoryTopHintCard(
-              accent: accent,
-              isEvents: _isEvents,
-              isVets: _isVets,
             ),
           ];
 
@@ -455,7 +549,6 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
           if (!snap.hasData) {
             return buildList([
               ...header,
-              const DirectoryCardSkeleton(),
               const DirectoryCardSkeleton(),
               const DirectoryCardSkeleton(),
               const DirectoryCardSkeleton(),
@@ -533,6 +626,15 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
               if (cmp != 0) return cmp;
             }
 
+            if (_sort == DirectorySort.featured) {
+              cmp = (b.isFeatured ? 1 : 0).compareTo(a.isFeatured ? 1 : 0);
+              if (cmp != 0) return cmp;
+              cmp = (b.hasPartnerLabel ? 1 : 0).compareTo(
+                a.hasPartnerLabel ? 1 : 0,
+              );
+              if (cmp != 0) return cmp;
+            }
+
             return a.name.toLowerCase().compareTo(b.name.toLowerCase());
           });
 
@@ -545,9 +647,9 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
                 title: q.isEmpty ? widget.emptyText : 'No results for "$q"',
                 subtitle: q.isEmpty
                     ? (_nearMe
-                          ? 'No nearby places were found around your current location.'
-                          : 'Nothing is available here yet. Please check back soon.')
-                    : 'Try another keyword like city, address, name, or phone.',
+                          ? 'No nearby partners were found around your current location.'
+                          : 'New partners can apply from this page.')
+                    : 'Try another keyword, city, category, or phone.',
                 accent: accent,
               ),
             ]);

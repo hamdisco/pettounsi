@@ -4,8 +4,21 @@ import '../ui/brand_widgets.dart';
 import '../auth/auth_gate.dart';
 
 class SplashPage extends StatefulWidget {
-  const SplashPage({super.key});
+  const SplashPage({
+    super.key,
+    this.autoNavigate = true,
+    this.duration = const Duration(milliseconds: 1400),
+  });
+
   static const String route = "/splash";
+
+  /// When true, the splash moves to [AuthGate.route] after [duration].
+  ///
+  /// The bootstrap app uses the same splash with [autoNavigate] set to false
+  /// so the user sees the real branded splash while Firebase initializes,
+  /// without trying to navigate before the main route table is ready.
+  final bool autoNavigate;
+  final Duration duration;
 
   @override
   State<SplashPage> createState() => _SplashPageState();
@@ -30,10 +43,12 @@ class _SplashPageState extends State<SplashPage>
 
     _c.forward();
 
-    Future.delayed(const Duration(milliseconds: 1400), () {
-      if (!mounted) return;
-      Navigator.pushReplacementNamed(context, AuthGate.route);
-    });
+    if (widget.autoNavigate) {
+      Future.delayed(widget.duration, () {
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, AuthGate.route);
+      });
+    }
   }
 
   @override
@@ -64,7 +79,7 @@ class _SplashPageState extends State<SplashPage>
                   const AppLogo(size: 128),
                   const SizedBox(height: 10),
                   Text(
-                    'powered by M.E.R.I.T',
+                    'Powered by M.E.R.I.T',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.9),
                       fontWeight: FontWeight.w600,
@@ -74,7 +89,7 @@ class _SplashPageState extends State<SplashPage>
                   ),
                   const SizedBox(height: 10),
                   const Text(
-                    "Pettounsi",
+                    "PetTounsi",
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,

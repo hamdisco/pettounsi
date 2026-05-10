@@ -104,14 +104,19 @@ class _UserAvatarState extends State<UserAvatar> {
       builder: (context, snap) {
         final mini = snap.data;
 
+        final hasLiveProfile = mini != null;
         final name = (mini?.name.trim().isNotEmpty == true)
             ? mini!.name
-            : widget.fallbackName;
+            : (widget.uid.trim().isNotEmpty
+                ? 'Pettounsi user'
+                : widget.fallbackName);
 
         final photo = (mini?.photoUrl.trim().isNotEmpty == true)
             ? mini!.photoUrl
-            : ((widget.fallbackPhotoUrl ?? '').trim().isNotEmpty
-                ? widget.fallbackPhotoUrl
+            : (hasLiveProfile || widget.uid.trim().isEmpty
+                ? ((widget.fallbackPhotoUrl ?? '').trim().isNotEmpty
+                    ? widget.fallbackPhotoUrl
+                    : null)
                 : null);
 
         final avatar = (photo == null) ? _placeholder(name) : _image(photo, name);
@@ -162,7 +167,9 @@ class UserName extends StatelessWidget {
       stream: UserMiniCache.instance.stream(uid),
       initialData: UserMiniCache.instance.peek(uid),
       builder: (context, snap) {
-        final name = (snap.data?.name.trim().isNotEmpty == true) ? snap.data!.name : fallback;
+        final name = (snap.data?.name.trim().isNotEmpty == true)
+            ? snap.data!.name
+            : (uid.trim().isNotEmpty ? 'Pettounsi user' : fallback);
         return Text(
           name,
           maxLines: maxLines,

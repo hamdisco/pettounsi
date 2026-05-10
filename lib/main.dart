@@ -17,6 +17,7 @@ import 'services/app_theme_controller.dart';
 import 'services/connectivity_status_controller.dart';
 import 'services/post_outbox_service.dart';
 import 'shell/main_scaffold.dart';
+import 'splash/splash_page.dart';
 import 'ui/app_theme.dart';
 import 'ui/offline_banner_overlay.dart';
 
@@ -33,7 +34,14 @@ class _BootstrapApp extends StatefulWidget {
 }
 
 class _BootstrapAppState extends State<_BootstrapApp> {
-  late final Future<void> _bootstrapFuture = _bootstrap();
+  late final Future<void> _bootstrapFuture = _bootstrapWithMinimumSplash();
+
+  Future<void> _bootstrapWithMinimumSplash() async {
+    await Future.wait<void>([
+      _bootstrap(),
+      Future<void>.delayed(const Duration(milliseconds: 1400)),
+    ]);
+  }
 
   Future<void> _bootstrap() async {
     await Firebase.initializeApp(
@@ -119,24 +127,9 @@ class _BootstrapAppState extends State<_BootstrapApp> {
       future: _bootstrapFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return MaterialApp(
+          return const MaterialApp(
             debugShowCheckedModeBanner: false,
-            home: Scaffold(
-              backgroundColor: Colors.black,
-              body: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text(
-                      'Starting Pettounsi...',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            home: SplashPage(autoNavigate: false),
           );
         }
 

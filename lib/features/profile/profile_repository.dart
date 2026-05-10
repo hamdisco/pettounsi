@@ -18,8 +18,11 @@ class ProfileRepository {
     String? photoUrl,
     String? coverPhotoUrl,
   }) async {
+    final cleanUsername = username.trim();
     final data = <String, dynamic>{
-      'username': username.trim(),
+      'username': cleanUsername,
+      'usernameLower': cleanUsername.isEmpty ? null : cleanUsername.toLowerCase(),
+      'displayName': cleanUsername,
       'bio': bio.trim(),
       'phone': phone.trim(),
       'updatedAt': FieldValue.serverTimestamp(),

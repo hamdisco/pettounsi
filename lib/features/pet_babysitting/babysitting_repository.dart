@@ -2,6 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart' show DateTimeRange;
 
+import '../../services/user_identity_service.dart';
+import 'pet_sitting_metrics_service.dart';
+
 class BabysittingListing {
   final String id;
   final String authorId;
@@ -201,6 +204,20 @@ class BabysittingReview {
   }
 }
 
+class _BabysittingNotificationCopy {
+  const _BabysittingNotificationCopy({
+    required this.title,
+    required this.body,
+    required this.actionLabel,
+    required this.tone,
+  });
+
+  final String title;
+  final String body;
+  final String actionLabel;
+  final String tone;
+}
+
 class BabysitterRatingSummary {
   final int count;
   final double average;
@@ -303,6 +320,7 @@ class BabysittingRepository {
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final PetSittingMetricsService _metrics = PetSittingMetricsService.instance;
 
   CollectionReference<Map<String, dynamic>> get _listings =>
       _db.collection('babysitting_listings');
@@ -322,13 +340,32 @@ class BabysittingRepository {
     return u;
   }
 
-  String _safeNameFromUser(User u) {
-    final raw = (u.displayName ?? '').trim();
-    return raw.isEmpty ? 'User' : raw;
+  Future<_ActorMeta> _actorFromUser(User u) async {
+    final identity = await UserIdentityService.instance.getForUid(
+      u.uid,
+      authUser: u,
+      fallbackName: 'Pet owner',
+    );
+    return _ActorMeta(
+      name: identity.safeName,
+      photoUrl: identity.photoUrl.trim(),
+    );
   }
 
-  String _safePhotoFromUser(User u) {
-    return (u.photoURL ?? '').trim();
+  Future<_ActorMeta> _actorFromUid(
+    String uid, {
+    String fallbackName = 'Pet owner',
+    String fallbackPhotoUrl = '',
+  }) async {
+    final identity = await UserIdentityService.instance.getForUid(
+      uid,
+      fallbackName: fallbackName,
+      fallbackPhotoUrl: fallbackPhotoUrl,
+    );
+    return _ActorMeta(
+      name: identity.safeName,
+      photoUrl: identity.photoUrl.trim(),
+    );
   }
 
   List<String> _cleanPetTypes(Iterable<String> values) {
@@ -357,16 +394,29 @@ class BabysittingRepository {
     final safeActor = actorUid.trim();
     if (safeTo.isEmpty || safeActor.isEmpty || safeTo == safeActor) return;
 
+    final safeActorName = actorName.trim().isEmpty ? 'User' : actorName.trim();
+    final copy = _babysittingNotificationCopy(
+      type: type,
+      actorName: safeActorName,
+      listingTitle: listingTitle.trim(),
+      dateRangeText: dateRangeText.trim(),
+      rating: rating,
+    );
+
     final payload = <String, dynamic>{
       'type': type,
       'toUid': safeTo,
       'actorUid': safeActor,
-      'actorName': actorName.trim().isEmpty ? 'User' : actorName.trim(),
+      'actorName': safeActorName,
       'actorPhotoUrl': actorPhotoUrl.trim(),
       'requestId': requestId.trim(),
       'listingId': listingId.trim(),
       'listingTitle': listingTitle.trim(),
       'dateRangeText': dateRangeText.trim(),
+      'notificationTitle': copy.title,
+      'notificationBody': copy.body,
+      'actionLabel': copy.actionLabel,
+      'statusTone': copy.tone,
       'createdAt': FieldValue.serverTimestamp(),
       'read': false,
     };
@@ -378,6 +428,78 @@ class BabysittingRepository {
         .doc(safeTo)
         .collection('items')
         .add(payload);
+  }
+
+  _BabysittingNotificationCopy _babysittingNotificationCopy({
+    required String type,
+    required String actorName,
+    required String listingTitle,
+    required String dateRangeText,
+    int? rating,
+  }) {
+    final listing = listingTitle.trim().isEmpty ? 'the stay' : listingTitle.trim();
+    final dates = dateRangeText.trim();
+    final suffix = dates.isEmpty ? listing : '$listing • $dates';
+
+    switch (type) {
+      case 'babysitting_request':
+        return _BabysittingNotificationCopy(
+          title: '$actorName sent a stay request',
+          body: 'Review the dates and care details before accepting. $suffix',
+          actionLabel: 'Review request',
+          tone: 'pending',
+        );
+      case 'babysitting_accepted':
+        return _BabysittingNotificationCopy(
+          title: '$actorName accepted your stay request',
+          body: 'Your dates are now reserved. Open chat to confirm handoff, price, and routine. $suffix',
+          actionLabel: 'Open chat',
+          tone: 'confirmed',
+        );
+      case 'babysitting_declined':
+        return _BabysittingNotificationCopy(
+          title: '$actorName declined your stay request',
+          body: 'The sitter cannot accept these dates. Try another sitter or choose different dates. $suffix',
+          actionLabel: 'Find another sitter',
+          tone: 'closed',
+        );
+      case 'babysitting_completed':
+        return _BabysittingNotificationCopy(
+          title: '$actorName marked the stay completed',
+          body: 'Leave a review to help other pet owners choose trusted sitters. $suffix',
+          actionLabel: 'Leave review',
+          tone: 'done',
+        );
+      case 'babysitting_booking_canceled':
+        return _BabysittingNotificationCopy(
+          title: '$actorName canceled a confirmed stay',
+          body: 'The booked dates were released. Check chat if you need to clarify details. $suffix',
+          actionLabel: 'View request',
+          tone: 'closed',
+        );
+      case 'babysitting_canceled':
+        return _BabysittingNotificationCopy(
+          title: '$actorName canceled a stay request',
+          body: 'No action is needed. The request is now closed. $suffix',
+          actionLabel: 'View requests',
+          tone: 'closed',
+        );
+      case 'babysitting_review':
+        final stars = rating == null ? 'a review' : '$rating/5 review';
+        return _BabysittingNotificationCopy(
+          title: '$actorName left $stars',
+          body: 'New feedback helps make your sitter profile more trustworthy. $suffix',
+          actionLabel: 'View review',
+          tone: 'review',
+        );
+      default:
+        return _BabysittingNotificationCopy(
+          title: 'New pet sitting activity',
+          body: suffix,
+          actionLabel: 'Open Pet Sitting',
+          tone: 'info',
+        );
+    }
   }
 
   Stream<List<BabysittingListing>> streamActiveListings({int limit = 100}) {
@@ -458,24 +580,36 @@ class BabysittingRepository {
     List<String> unavailableDateKeys = const [],
   }) async {
     final u = _user;
+    final actor = await _actorFromUser(u);
     final now = FieldValue.serverTimestamp();
 
-    await _listings.doc().set({
+    final ref = _listings.doc();
+    final cleanPetTypes = _cleanPetTypes(petTypes);
+
+    await ref.set({
       'authorId': u.uid,
-      'authorName': _safeNameFromUser(u),
-      'authorPhotoUrl': _safePhotoFromUser(u),
+      'authorName': actor.name,
+      'authorPhotoUrl': actor.photoUrl,
       'title': title.trim(),
       'description': description.trim(),
       'city': city.trim(),
       'governorate': governorate.trim(),
       'priceText': priceText.trim(),
-      'petTypes': _cleanPetTypes(petTypes),
+      'petTypes': cleanPetTypes,
       'availabilityText': availabilityText.trim(),
       'unavailableDateKeys': babysittingNormalizeDateKeys(unavailableDateKeys),
       'isActive': true,
       'createdAt': now,
       'updatedAt': now,
     });
+
+    await _metrics.trackListingCreated(
+      listingId: ref.id,
+      sitterUid: u.uid,
+      city: city,
+      governorate: governorate,
+      petTypes: cleanPetTypes,
+    );
   }
 
   Future<void> updateListing({
@@ -491,11 +625,12 @@ class BabysittingRepository {
     List<String>? unavailableDateKeys,
   }) async {
     final u = _user;
+    final actor = await _actorFromUser(u);
 
     await _listings.doc(listingId).update({
       'authorId': u.uid,
-      'authorName': _safeNameFromUser(u),
-      'authorPhotoUrl': _safePhotoFromUser(u),
+      'authorName': actor.name,
+      'authorPhotoUrl': actor.photoUrl,
       'title': title.trim(),
       'description': description.trim(),
       'city': city.trim(),
@@ -514,11 +649,12 @@ class BabysittingRepository {
 
   Future<void> toggleListingActive(String listingId, bool isActive) async {
     final u = _user;
+    final actor = await _actorFromUser(u);
 
     await _listings.doc(listingId).update({
       'authorId': u.uid,
-      'authorName': _safeNameFromUser(u),
-      'authorPhotoUrl': _safePhotoFromUser(u),
+      'authorName': actor.name,
+      'authorPhotoUrl': actor.photoUrl,
       'isActive': isActive,
       'updatedAt': FieldValue.serverTimestamp(),
     });
@@ -537,6 +673,12 @@ class BabysittingRepository {
     String? endDateKey,
   }) async {
     final u = _user;
+    final actor = await _actorFromUser(u);
+    final listingOwner = await _actorFromUid(
+      listing.authorId,
+      fallbackName: listing.authorName,
+      fallbackPhotoUrl: listing.authorPhotoUrl,
+    );
 
     if (listing.authorId == u.uid) {
       throw Exception("You can't request your own listing");
@@ -553,16 +695,26 @@ class BabysittingRepository {
       maxItems: 90,
     );
 
+    final blockedDateKeys = <String>{
+      ...listing.unavailableDateKeys,
+      ...listing.bookedDateKeys,
+    };
+    if (normalizedRequestedDateKeys.any(blockedDateKeys.contains)) {
+      throw Exception(
+        'One or more selected dates are no longer available. Please choose another range.',
+      );
+    }
+
     final ref = _requests.doc();
 
     await ref.set({
       'listingId': listing.id,
       'listingTitle': listing.title,
       'listingOwnerId': listing.authorId,
-      'listingOwnerName': listing.authorName,
+      'listingOwnerName': listingOwner.name,
       'requesterId': u.uid,
-      'requesterName': _safeNameFromUser(u),
-      'requesterPhotoUrl': _safePhotoFromUser(u),
+      'requesterName': actor.name,
+      'requesterPhotoUrl': actor.photoUrl,
       'message': cleanMsg,
       'dateRangeText': cleanDates,
       'status': 'pending',
@@ -586,12 +738,22 @@ class BabysittingRepository {
       toUid: listing.authorId,
       type: 'babysitting_request',
       actorUid: u.uid,
-      actorName: _safeNameFromUser(u),
-      actorPhotoUrl: _safePhotoFromUser(u),
+      actorName: actor.name,
+      actorPhotoUrl: actor.photoUrl,
       requestId: ref.id,
       listingId: listing.id,
       listingTitle: listing.title,
       dateRangeText: cleanDates,
+    );
+
+    await _metrics.trackRequestCreated(
+      requestId: ref.id,
+      listingId: listing.id,
+      sitterUid: listing.authorId,
+      requesterUid: u.uid,
+      city: listing.city,
+      governorate: listing.governorate,
+      requestedDayCount: normalizedRequestedDateKeys.length,
     );
   }
 
@@ -602,6 +764,7 @@ class BabysittingRepository {
   Future<String> acceptRequestAndBlockDates(BabysittingRequestModel req) async {
     final u = _user;
     if (u.uid != req.listingOwnerId) throw Exception('Not allowed');
+    final actor = await _actorFromUser(u);
 
     final convId = await _createOrGetConversation(
       aUid: req.listingOwnerId,
@@ -645,18 +808,26 @@ class BabysittingRepository {
         maxItems: 365,
       ).toSet();
 
+      final booked = babysittingNormalizeDateKeys(
+        ((listingData['bookedDateKeys'] as List?) ?? const []).map(
+          (e) => e.toString(),
+        ),
+        maxItems: 365,
+      ).toSet();
+
       if (requested.isNotEmpty) {
-        final hasOverlap = requested.any(unavailable.contains);
-        if (hasOverlap) {
+        final hasUnavailableOverlap = requested.any(unavailable.contains);
+        final hasBookedOverlap = requested.any(booked.contains);
+        if (hasUnavailableOverlap || hasBookedOverlap) {
           throw Exception(
             'These dates are no longer available. Please ask for another date range.',
           );
         }
 
-        unavailable.addAll(requested);
+        booked.addAll(requested);
 
         tx.update(listingRef, {
-          'unavailableDateKeys': unavailable.toList()..sort(),
+          'bookedDateKeys': booked.toList()..sort(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
       }
@@ -672,12 +843,20 @@ class BabysittingRepository {
       toUid: req.requesterId,
       type: 'babysitting_accepted',
       actorUid: req.listingOwnerId,
-      actorName: req.listingOwnerName,
-      actorPhotoUrl: '',
+      actorName: actor.name,
+      actorPhotoUrl: actor.photoUrl,
       requestId: req.id,
       listingId: req.listingId,
       listingTitle: req.listingTitle,
       dateRangeText: req.dateRangeText,
+    );
+
+    await _metrics.trackRequestStatusChanged(
+      requestId: req.id,
+      listingId: req.listingId,
+      sitterUid: req.listingOwnerId,
+      requesterUid: req.requesterId,
+      status: 'accepted',
     );
 
     return convId;
@@ -686,8 +865,18 @@ class BabysittingRepository {
   Future<void> declineRequest(BabysittingRequestModel req) async {
     final u = _user;
     if (u.uid != req.listingOwnerId) throw Exception('Not allowed');
+    final actor = await _actorFromUser(u);
 
-    await _requests.doc(req.id).update({
+    final ref = _requests.doc(req.id);
+    final snap = await ref.get();
+    if (!snap.exists) throw Exception('Request not found');
+
+    final status = (snap.data()?['status'] ?? '').toString();
+    if (status != 'pending') {
+      throw Exception('Only pending requests can be declined');
+    }
+
+    await ref.update({
       'status': 'declined',
       'conversationId': req.conversationId,
       'updatedAt': FieldValue.serverTimestamp(),
@@ -697,20 +886,38 @@ class BabysittingRepository {
       toUid: req.requesterId,
       type: 'babysitting_declined',
       actorUid: req.listingOwnerId,
-      actorName: req.listingOwnerName,
-      actorPhotoUrl: '',
+      actorName: actor.name,
+      actorPhotoUrl: actor.photoUrl,
       requestId: req.id,
       listingId: req.listingId,
       listingTitle: req.listingTitle,
       dateRangeText: req.dateRangeText,
+    );
+
+    await _metrics.trackRequestStatusChanged(
+      requestId: req.id,
+      listingId: req.listingId,
+      sitterUid: req.listingOwnerId,
+      requesterUid: req.requesterId,
+      status: 'declined',
     );
   }
 
   Future<void> completeRequest(BabysittingRequestModel req) async {
     final u = _user;
     if (u.uid != req.listingOwnerId) throw Exception('Not allowed');
+    final actor = await _actorFromUser(u);
 
-    await _requests.doc(req.id).update({
+    final ref = _requests.doc(req.id);
+    final snap = await ref.get();
+    if (!snap.exists) throw Exception('Request not found');
+
+    final status = (snap.data()?['status'] ?? '').toString();
+    if (status != 'accepted') {
+      throw Exception('Only accepted stays can be marked completed');
+    }
+
+    await ref.update({
       'status': 'completed',
       'conversationId': req.conversationId,
       'updatedAt': FieldValue.serverTimestamp(),
@@ -720,34 +927,99 @@ class BabysittingRepository {
       toUid: req.requesterId,
       type: 'babysitting_completed',
       actorUid: req.listingOwnerId,
-      actorName: req.listingOwnerName,
-      actorPhotoUrl: '',
+      actorName: actor.name,
+      actorPhotoUrl: actor.photoUrl,
       requestId: req.id,
       listingId: req.listingId,
       listingTitle: req.listingTitle,
       dateRangeText: req.dateRangeText,
+    );
+
+    await _metrics.trackRequestStatusChanged(
+      requestId: req.id,
+      listingId: req.listingId,
+      sitterUid: req.listingOwnerId,
+      requesterUid: req.requesterId,
+      status: 'completed',
     );
   }
 
   Future<void> cancelRequest(BabysittingRequestModel req) async {
     final u = _user;
     if (u.uid != req.requesterId) throw Exception('Not allowed');
+    final actor = await _actorFromUser(u);
 
-    await _requests.doc(req.id).update({
-      'status': 'canceled',
-      'updatedAt': FieldValue.serverTimestamp(),
+    final reqRef = _requests.doc(req.id);
+    final listingRef = _listings.doc(req.listingId);
+
+    String previousStatus = req.status;
+
+    await _db.runTransaction((tx) async {
+      final reqSnap = await tx.get(reqRef);
+      if (!reqSnap.exists) throw Exception('Request not found');
+
+      final reqData = reqSnap.data() ?? <String, dynamic>{};
+      final status = (reqData['status'] ?? '').toString();
+      previousStatus = status;
+
+      if (status == 'completed' || status == 'declined' || status == 'canceled') {
+        throw Exception('This request can no longer be canceled');
+      }
+
+      tx.update(reqRef, {
+        'status': 'canceled',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (status == 'accepted') {
+        final listingSnap = await tx.get(listingRef);
+        if (listingSnap.exists) {
+          final listingData = listingSnap.data() ?? <String, dynamic>{};
+
+          final requested = babysittingNormalizeDateKeys(
+            ((reqData['requestedDateKeys'] as List?) ?? const []).map(
+              (e) => e.toString(),
+            ),
+            maxItems: 90,
+          ).toSet();
+
+          if (requested.isNotEmpty) {
+            final booked = babysittingNormalizeDateKeys(
+              ((listingData['bookedDateKeys'] as List?) ?? const []).map(
+                (e) => e.toString(),
+              ),
+              maxItems: 365,
+            ).where((key) => !requested.contains(key)).toList();
+
+            tx.update(listingRef, {
+              'bookedDateKeys': booked..sort(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
+        }
+      }
     });
 
     await _pushBabysittingNotification(
       toUid: req.listingOwnerId,
-      type: 'babysitting_canceled',
+      type: previousStatus == 'accepted'
+          ? 'babysitting_booking_canceled'
+          : 'babysitting_canceled',
       actorUid: req.requesterId,
-      actorName: req.requesterName,
-      actorPhotoUrl: req.requesterPhotoUrl,
+      actorName: actor.name,
+      actorPhotoUrl: actor.photoUrl,
       requestId: req.id,
       listingId: req.listingId,
       listingTitle: req.listingTitle,
       dateRangeText: req.dateRangeText,
+    );
+
+    await _metrics.trackRequestStatusChanged(
+      requestId: req.id,
+      listingId: req.listingId,
+      sitterUid: req.listingOwnerId,
+      requesterUid: req.requesterId,
+      status: 'canceled',
     );
   }
 
@@ -803,6 +1075,7 @@ class BabysittingRepository {
     required String comment,
   }) async {
     final u = _user;
+    final actor = await _actorFromUser(u);
 
     if (u.uid != req.requesterId) {
       throw Exception('Only requester can review');
@@ -824,8 +1097,8 @@ class BabysittingRepository {
       'listingId': req.listingId,
       'listingOwnerId': req.listingOwnerId,
       'requesterId': req.requesterId,
-      'requesterName': req.requesterName,
-      'requesterPhotoUrl': req.requesterPhotoUrl,
+      'requesterName': actor.name,
+      'requesterPhotoUrl': actor.photoUrl,
       'rating': rating,
       'comment': cleanComment,
       'createdAt': FieldValue.serverTimestamp(),
@@ -836,12 +1109,20 @@ class BabysittingRepository {
       toUid: req.listingOwnerId,
       type: 'babysitting_review',
       actorUid: req.requesterId,
-      actorName: req.requesterName,
-      actorPhotoUrl: req.requesterPhotoUrl,
+      actorName: actor.name,
+      actorPhotoUrl: actor.photoUrl,
       requestId: req.id,
       listingId: req.listingId,
       listingTitle: req.listingTitle,
       dateRangeText: req.dateRangeText,
+      rating: rating,
+    );
+
+    await _metrics.trackReviewPublished(
+      requestId: req.id,
+      listingId: req.listingId,
+      sitterUid: req.listingOwnerId,
+      requesterUid: req.requesterId,
       rating: rating,
     );
   }
@@ -915,6 +1196,8 @@ class BabysittingRepository {
   }) async {
     final ids = [aUid, bUid]..sort();
     final convId = 'dm_${ids[0]}_${ids[1]}';
+    final aActor = await _actorFromUid(aUid, fallbackName: aName);
+    final bActor = await _actorFromUid(bUid, fallbackName: bName);
 
     final ref = _conversations.doc(convId);
     final snap = await ref.get();
@@ -923,8 +1206,12 @@ class BabysittingRepository {
       await ref.set({
         'participants': ids,
         'participantNames': {
-          ids[0]: ids[0] == aUid ? aName : bName,
-          ids[1]: ids[1] == aUid ? aName : bName,
+          ids[0]: ids[0] == aUid ? aActor.name : bActor.name,
+          ids[1]: ids[1] == aUid ? aActor.name : bActor.name,
+        },
+        'participantPhotos': {
+          ids[0]: ids[0] == aUid ? aActor.photoUrl : bActor.photoUrl,
+          ids[1]: ids[1] == aUid ? aActor.photoUrl : bActor.photoUrl,
         },
         'lastMessage': '',
         'lastMessageType': 'system',
@@ -938,4 +1225,12 @@ class BabysittingRepository {
 
     return convId;
   }
+}
+
+
+class _ActorMeta {
+  const _ActorMeta({required this.name, required this.photoUrl});
+
+  final String name;
+  final String photoUrl;
 }

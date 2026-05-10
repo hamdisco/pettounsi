@@ -165,7 +165,7 @@ class _AboutUseCasesCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _CuteSectionCard(
-      title: 'Why Pettounsi is useful',
+      title: 'Why PetTounsi is useful',
       icon: Icons.favorite_outline_rounded,
       iconBg: AboutPage._pink,
       iconFg: AboutPage._pinkDeep,

@@ -2,7 +2,6 @@ import 'dart:async';
 import '../../ui/premium_pills.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import '../../ui/premium_page_header.dart';
 import '../../ui/app_theme.dart';
 import '../../ui/user_avatar.dart';
 import '../messages/chat_page.dart';
@@ -13,6 +12,12 @@ import 'listing_details_page.dart';
 import 'request_timeline_card.dart';
 import '../../ui/premium_cards.dart';
 import '../../ui/premium_feedback.dart';
+
+const Color _petPrimary = AppTheme.orangeDark;
+const Color _petPrimarySoft = Color(0xFFFFF3EE);
+const Color _petTrust = Color(0xFF2F9A6A);
+const Color _petInfo = Color(0xFF4C79C8);
+const Color _petNeutralChip = Color(0xFFF8F5FA);
 
 class PetBabysittingPage extends StatefulWidget {
   const PetBabysittingPage({super.key});
@@ -154,12 +159,12 @@ class _PremiumTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(3),
+      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: AppTheme.mist,
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppTheme.outline),
-        boxShadow: AppTheme.softShadows(0.07),
+        boxShadow: AppTheme.softShadows(0.04),
       ),
       child: TabBar(
         controller: controller,
@@ -167,31 +172,27 @@ class _PremiumTabs extends StatelessWidget {
         splashBorderRadius: BorderRadius.circular(14),
         overlayColor: WidgetStateProperty.all(Colors.transparent),
         indicator: BoxDecoration(
-          borderRadius: BorderRadius.circular(13),
-          gradient: const LinearGradient(
-            colors: [AppTheme.orchidDark, AppTheme.roseDark],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          borderRadius: BorderRadius.circular(14),
+          color: _petPrimary,
           boxShadow: [
             BoxShadow(
-              color: AppTheme.orchidDark.withAlpha(24),
-              blurRadius: 7,
+              color: _petPrimary.withAlpha(22),
+              blurRadius: 8,
               offset: const Offset(0, 3),
             ),
           ],
         ),
         indicatorSize: TabBarIndicatorSize.tab,
         labelColor: Colors.white,
-        unselectedLabelColor: AppTheme.ink.withAlpha(176),
+        unselectedLabelColor: AppTheme.muted,
         labelStyle: const TextStyle(
           fontWeight: FontWeight.w900,
-          fontSize: 11.2,
+          fontSize: 11.4,
           height: 1,
         ),
         unselectedLabelStyle: const TextStyle(
           fontWeight: FontWeight.w800,
-          fontSize: 11.0,
+          fontSize: 11.2,
           height: 1,
         ),
         tabs: const [
@@ -450,7 +451,7 @@ class _BrowseTabState extends State<_BrowseTab> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 120),
             children: const [
-              _BrowseHeroLoading(),
+              _CardSkeleton(),
               SizedBox(height: 12),
               _CardSkeleton(),
               SizedBox(height: 12),
@@ -463,12 +464,6 @@ class _BrowseTabState extends State<_BrowseTab> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 120),
             children: [
-              _BrowseHero(
-                query: _query,
-                filtersCount: _activeFiltersCount,
-                totalCount: 0,
-              ),
-              const SizedBox(height: 12),
               _EmptyBrowseState(
                 title: 'Could not load listings',
                 subtitle: 'Please check your connection and try again.',
@@ -493,12 +488,6 @@ class _BrowseTabState extends State<_BrowseTab> {
         return ListView(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 120),
           children: [
-            _BrowseHero(
-              query: _query,
-              filtersCount: _activeFiltersCount,
-              totalCount: items.length,
-            ),
-            const SizedBox(height: 12),
             _BrowseHeader(
               controller: _q,
               onChanged: _onQueryChanged,
@@ -515,16 +504,13 @@ class _BrowseTabState extends State<_BrowseTab> {
               },
             ),
             const SizedBox(height: 12),
-            _SectionTitle(
-              icon: Icons.pets_rounded,
+            _BrowseCountHeader(
               title: _query.isEmpty ? 'Available sitters' : 'Search results',
-              subtitle: _query.isEmpty
-                  ? '$visibleListings active listing${visibleListings == 1 ? '' : 's'} ready to browse.'
-                  : '${items.length} listing${items.length == 1 ? '' : 's'} match your search.',
-              bg: AppTheme.lilac,
-              fg: const Color(0xFF7C62D7),
+              countLabel: _query.isEmpty
+                  ? '$visibleListings active listing${visibleListings == 1 ? '' : 's'}'
+                  : '${items.length} result${items.length == 1 ? '' : 's'}',
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             if (items.isEmpty)
               _EmptyBrowseState(
                 title: visibleListings == 0
@@ -600,16 +586,13 @@ class _CreateListingBanner extends StatelessWidget {
             height: 48,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(17),
-              gradient: const LinearGradient(
-                colors: [AppTheme.orchidDark, AppTheme.roseDark],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              boxShadow: AppTheme.softShadows(0.08),
+              color: _petPrimarySoft,
+              border: Border.all(color: AppTheme.outline.withAlpha(160)),
+              boxShadow: AppTheme.softShadows(0.035),
             ),
             child: const Icon(
               Icons.add_home_work_rounded,
-              color: Colors.white,
+              color: _petPrimary,
               size: 20,
             ),
           ),
@@ -649,10 +632,7 @@ class _CreateListingBanner extends StatelessWidget {
               border: Border.all(color: AppTheme.outline),
             ),
             alignment: Alignment.center,
-            child: const Icon(
-              Icons.arrow_forward_rounded,
-              color: AppTheme.orchidDark,
-            ),
+            child: const Icon(Icons.arrow_forward_rounded, color: _petPrimary),
           ),
         ],
       ),
@@ -660,44 +640,21 @@ class _CreateListingBanner extends StatelessWidget {
   }
 }
 
-class _BrowseHero extends StatelessWidget {
-  const _BrowseHero({
-    required this.query,
-    required this.filtersCount,
-    required this.totalCount,
-  });
+class _BrowseCountHeader extends StatelessWidget {
+  const _BrowseCountHeader({required this.title, required this.countLabel});
 
-  final String query;
-  final int filtersCount;
-  final int totalCount;
+  final String title;
+  final String countLabel;
 
   @override
   Widget build(BuildContext context) {
-    final title = query.trim().isEmpty
-        ? 'Find a trusted sitter'
-        : 'Results for "${query.trim()}"';
-
-    final subtitle = query.trim().isEmpty
-        ? 'Compare sitters, pricing, and availability without extra back-and-forth.'
-        : '$totalCount listing${totalCount == 1 ? '' : 's'} found${filtersCount > 0 ? ' • $filtersCount filter${filtersCount == 1 ? '' : 's'} active' : ''}.';
-
-    return PremiumPageHeader(
+    return _SectionTitle(
       icon: Icons.pets_rounded,
-      iconColor: const Color(0xFF7C62D7),
       title: title,
-      subtitle: subtitle,
-      badgeLabel: filtersCount > 0 ? '$filtersCount filters' : null,
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      subtitle: countLabel,
+      bg: _petPrimarySoft,
+      fg: _petPrimary,
     );
-  }
-}
-
-class _BrowseHeroLoading extends StatelessWidget {
-  const _BrowseHeroLoading();
-
-  @override
-  Widget build(BuildContext context) {
-    return const PremiumSkeletonCard(height: 118, radius: 26);
   }
 }
 
@@ -822,7 +779,7 @@ class _SearchField extends StatelessWidget {
               onChanged: onChanged,
               textInputAction: TextInputAction.search,
               decoration: const InputDecoration(
-                hintText: 'Search sitters, city, pets, or price…',
+                hintText: 'Search city, sitter, pet, or price…',
                 border: InputBorder.none,
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(vertical: 6),
@@ -879,11 +836,11 @@ class _ActionPill extends StatelessWidget {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: AppTheme.lilac,
+                color: _petNeutralChip,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white),
+                border: Border.all(color: AppTheme.outline.withAlpha(160)),
               ),
-              child: Icon(icon, size: 18, color: const Color(0xFF7C62D7)),
+              child: Icon(icon, size: 18, color: AppTheme.muted),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -934,10 +891,7 @@ class _ActionPill extends StatelessWidget {
                 ),
               )
             else
-              Icon(
-                Icons.chevron_right_rounded,
-                color: AppTheme.ink.withAlpha(120),
-              ),
+              const SizedBox.shrink(),
           ],
         ),
       ),
@@ -1049,7 +1003,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                     ).pop(_FilterValues(pet: _pet, availability: _avail));
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.orchidDark,
+                    backgroundColor: _petPrimary,
                     foregroundColor: Colors.white,
                   ),
                   child: const Text(
@@ -1203,6 +1157,15 @@ class _ListingCard extends StatelessWidget {
     );
   }
 
+  Future<void> _openQuickDetails(BuildContext context) async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ListingDetailsSheet(listing: listing),
+    );
+  }
+
   String _location() {
     return [
       listing.city.trim(),
@@ -1228,9 +1191,9 @@ class _ListingCard extends StatelessWidget {
   String _petsCompact() {
     final p = listing.petTypes.where((e) => e.trim().isNotEmpty).toList();
     if (p.isEmpty) return 'Any pets';
-    if (p.length == 1) return p.first;
-    if (p.length == 2) return '${p[0]} & ${p[1]}';
-    return '${p.first} +${p.length - 1}';
+    if (p.length == 1) return _titleCase(p.first);
+    if (p.length == 2) return '${_titleCase(p[0])} & ${_titleCase(p[1])}';
+    return '${_titleCase(p.first)} +${p.length - 1}';
   }
 
   String _statusText() {
@@ -1238,7 +1201,7 @@ class _ListingCard extends StatelessWidget {
     final blocked =
         listing.unavailableDateKeys.length + listing.bookedDateKeys.length;
     if (blocked >= 8) return 'Limited dates';
-    return 'Live listing';
+    return 'Accepting requests';
   }
 
   Color _statusBg() {
@@ -1257,213 +1220,320 @@ class _ListingCard extends StatelessWidget {
     return const Color(0xFF2F9A6A);
   }
 
+  String _updatedText() {
+    final date = listing.updatedAt ?? listing.createdAt;
+    if (date == null) return 'Recently updated';
+    final diff = DateTime.now().difference(date).inDays;
+    if (diff <= 0) return 'Updated today';
+    if (diff == 1) return 'Updated yesterday';
+    if (diff < 7) return 'Updated ${diff}d ago';
+    return 'Updated ${date.day}/${date.month}/${date.year}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final place = _location();
+    final price = listing.priceText.trim().isEmpty
+        ? 'Ask price'
+        : listing.priceText.trim();
+    final title = listing.title.trim().isEmpty
+        ? 'Pet sitting service'
+        : listing.title.trim();
+    final description = listing.description.trim();
+    final updated = _updatedText();
 
-    return PremiumCardSurface(
-      radius: BorderRadius.circular(24),
-      padding: EdgeInsets.zero,
-      shadowOpacity: 0.11,
-      onTap: () => _openDetails(context),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 11,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _statusBg(),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: AppTheme.outline),
-                  ),
-                  child: Text(
-                    _statusText(),
-                    style: TextStyle(
-                      color: _statusFg(),
-                      fontWeight: FontWeight.w900,
-                      fontSize: 11.6,
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                _RatingBadge(listingId: listing.id),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              listing.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppTheme.ink,
-                fontWeight: FontWeight.w900,
-                fontSize: 17,
-                height: 1.06,
-                letterSpacing: -0.2,
-              ),
-            ),
-            if (place.isNotEmpty) ...[
-              const SizedBox(height: 7),
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: () => _openDetails(context),
+        onLongPress: () => _openQuickDetails(context),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: AppTheme.outline),
+            boxShadow: AppTheme.softShadows(0.06),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Row(
-                children: [
-                  Icon(
-                    Icons.place_rounded,
-                    size: 17,
-                    color: AppTheme.muted.withAlpha(190),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      place,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: AppTheme.muted.withAlpha(215),
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12.1,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-              decoration: BoxDecoration(
-                color: AppTheme.bg,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppTheme.outline),
-              ),
-              child: Row(
                 children: [
                   UserAvatar(
                     uid: listing.authorId,
-                    radius: 19,
-                    fallbackName: listing.authorName,
-                    fallbackPhotoUrl: listing.authorPhotoUrl,
+                    radius: 24,
+                    fallbackName: 'Pet sitter',
+                    fallbackPhotoUrl: null,
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 11),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          listing.authorName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        UserName(
+                          uid: listing.authorId,
+                          fallback: listing.authorName.trim().isEmpty
+                              ? 'Pet sitter'
+                              : listing.authorName.trim(),
                           style: const TextStyle(
                             color: AppTheme.ink,
                             fontWeight: FontWeight.w900,
-                            fontSize: 14.2,
+                            fontSize: 15.2,
+                            height: 1.05,
                           ),
                         ),
-                        const SizedBox(height: 3),
-                        Text(
-                          'Sitter profile',
-                          style: TextStyle(
-                            color: AppTheme.muted.withAlpha(210),
-                            fontWeight: FontWeight.w700,
-                            fontSize: 11.6,
-                          ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Container(
+                              width: 7,
+                              height: 7,
+                              decoration: BoxDecoration(
+                                color: _statusBg(),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: _statusFg()),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                place.isEmpty ? _statusText() : place,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: AppTheme.muted,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 11.8,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                  if (listing.priceText.trim().isNotEmpty)
-                    _PricePill(text: listing.priceText),
+                  const SizedBox(width: 8),
+                  _RatingBadge(listingId: listing.id),
                 ],
               ),
-            ),
-            if (listing.description.trim().isNotEmpty) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 13),
               Text(
-                listing.description,
+                title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: AppTheme.ink.withAlpha(176),
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12.8,
-                  height: 1.32,
+                style: const TextStyle(
+                  color: AppTheme.ink,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16.4,
+                  height: 1.08,
                 ),
               ),
+              if (description.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  description,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.muted,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12.2,
+                    height: 1.2,
+                  ),
+                ),
+              ],
+              Semantics(label: updated, child: const SizedBox.shrink()),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _CleanListingMetric(
+                    label: 'Price',
+                    value: price,
+                    icon: Icons.payments_rounded,
+                  ),
+                  _CleanListingMetric(
+                    label: 'Pets',
+                    value: _petsCompact(),
+                    icon: Icons.pets_rounded,
+                  ),
+                  _CleanListingMetric(
+                    label: 'Dates',
+                    value: _availabilityCompact(),
+                    icon: Icons.schedule_rounded,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 13),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _openDetails(context),
+                      icon: const Icon(Icons.remove_red_eye_outlined, size: 18),
+                      label: const Text('Details'),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(0, 44),
+                        foregroundColor: AppTheme.ink,
+                        side: const BorderSide(color: AppTheme.outline),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _openRequest(context),
+                      icon: const Icon(Icons.send_rounded, size: 18),
+                      label: const Text('Request'),
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(0, 44),
+                        backgroundColor: AppTheme.orangeDark,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              _ListingTrustPreview(listing: listing),
+              _CompactListingGuidance(listing: listing),
             ],
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _MiniMetaPill(
-                  icon: Icons.pets_rounded,
-                  text: _petsCompact(),
-                  bg: AppTheme.surface,
-                  fg: AppTheme.ink,
-                ),
-                _MiniMetaPill(
-                  icon: Icons.schedule_rounded,
-                  text: _availabilityCompact(),
-                  bg: AppTheme.mint,
-                  fg: const Color(0xFF2F9A6A),
-                ),
-                if (listing.bookedDateKeys.isNotEmpty)
-                  _MiniMetaPill(
-                    icon: Icons.event_busy_rounded,
-                    text: '${listing.bookedDateKeys.length} booked',
-                    bg: AppTheme.sky,
-                    fg: const Color(0xFF4C79C8),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _openDetails(context),
-                    icon: const Icon(Icons.remove_red_eye_outlined, size: 18),
-                    label: const Text('View details'),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(0, 42),
-                      foregroundColor: AppTheme.ink,
-                      side: const BorderSide(color: AppTheme.outline),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _openRequest(context),
-                    icon: const Icon(Icons.send_rounded, size: 18),
-                    label: const Text('Request stay'),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(0, 42),
-                      backgroundColor: AppTheme.orchidDark,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
+}
+
+class _CleanListingMetric extends StatelessWidget {
+  const _CleanListingMetric({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final key = label.trim().toLowerCase();
+    if (key == 'price') {
+      return Semantics(
+        label: '$label: $value',
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: _PricePill(text: value),
+        ),
+      );
+    }
+
+    final fg = key == 'dates' ? _petTrust : _petInfo;
+    final bg = key == 'dates' ? AppTheme.mint : AppTheme.sky;
+
+    return Semantics(
+      label: '$label: $value',
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: _MiniMetaPill(icon: icon, text: value, bg: bg, fg: fg),
+      ),
+    );
+  }
+}
+
+class _CompactListingGuidance extends StatelessWidget {
+  const _CompactListingGuidance({required this.listing});
+
+  final BabysittingListing listing;
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox.shrink();
+  }
+}
+
+class _ListingTrustPreview extends StatelessWidget {
+  const _ListingTrustPreview({required this.listing});
+
+  final BabysittingListing listing;
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox.shrink();
+  }
+}
+
+class _ListingValueBlock extends StatelessWidget {
+  const _ListingValueBlock({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.bg,
+    required this.fg,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color bg;
+  final Color fg;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, size: 17, color: fg),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: AppTheme.muted.withAlpha(210),
+            fontWeight: FontWeight.w800,
+            fontSize: 10.5,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: AppTheme.ink,
+            fontWeight: FontWeight.w900,
+            fontSize: 12.2,
+            height: 1.12,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _titleCase(String input) {
+  final value = input.trim();
+  if (value.isEmpty) return value;
+  return value.substring(0, 1).toUpperCase() + value.substring(1);
 }
 
 class _MiniMetaPill extends StatelessWidget {
@@ -1525,7 +1595,6 @@ class _PricePill extends StatelessWidget {
   }
 }
 
-// ignore: unused_element
 class _ListingInfoWrap extends StatelessWidget {
   const _ListingInfoWrap({required this.listing});
   final BabysittingListing listing;
@@ -1672,80 +1741,39 @@ class _CompactListingMetaCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppTheme.outline),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              color: accent.withAlpha(138),
-              border: Border.all(color: Colors.white.withAlpha(225)),
-            ),
-            alignment: Alignment.center,
-            child: Icon(icon, size: 18, color: AppTheme.ink.withAlpha(220)),
+          _ListingValueBlock(
+            icon: icon,
+            label: label,
+            value: value,
+            bg: accent.withAlpha(138),
+            fg: AppTheme.ink.withAlpha(220),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: AppTheme.muted.withAlpha(214),
-                          fontWeight: FontWeight.w800,
-                          fontSize: 11.3,
-                          height: 1.02,
-                        ),
-                      ),
-                    ),
-                    if (badgeText != null) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: badgeBg,
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: AppTheme.outline),
-                        ),
-                        child: Text(
-                          badgeText!,
-                          style: TextStyle(
-                            color: badgeFg,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 9.8,
-                            height: 1,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+          if (badgeText != null) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: badgeBg,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: AppTheme.outline),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  value,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.ink,
+                child: Text(
+                  badgeText!,
+                  style: TextStyle(
+                    color: badgeFg,
                     fontWeight: FontWeight.w900,
-                    fontSize: 13.6,
-                    height: 1.16,
+                    fontSize: 9.8,
+                    height: 1,
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -1789,7 +1817,6 @@ class _RatingBadge extends StatelessWidget {
   }
 }
 
-// ignore: unused_element
 class _ListingDetailsSheet extends StatelessWidget {
   const _ListingDetailsSheet({required this.listing});
   final BabysittingListing listing;
@@ -2695,13 +2722,13 @@ class _ListingsLaunchCard extends StatelessWidget {
             width: 58,
             height: 58,
             decoration: BoxDecoration(
-              color: AppTheme.mist,
+              color: _petPrimarySoft,
               borderRadius: BorderRadius.circular(22),
             ),
             alignment: Alignment.center,
             child: const Icon(
               Icons.add_home_work_rounded,
-              color: AppTheme.orchidDark,
+              color: _petPrimary,
               size: 26,
             ),
           ),
@@ -2749,7 +2776,7 @@ class _ListingsLaunchCard extends StatelessWidget {
               label: const Text('Create listing'),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(0, 48),
-                backgroundColor: AppTheme.orchidDark,
+                backgroundColor: _petPrimary,
                 foregroundColor: Colors.white,
               ),
             ),
@@ -2778,7 +2805,7 @@ class _LaunchHintChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: AppTheme.orchidDark),
+          Icon(icon, size: 14, color: _petPrimary),
           const SizedBox(width: 6),
           Text(
             text,
@@ -2816,14 +2843,10 @@ class _StatsHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PremiumCardSurface(
-      radius: BorderRadius.circular(26),
+      radius: BorderRadius.circular(24),
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-      gradient: const LinearGradient(
-        colors: [AppTheme.blush, AppTheme.lilac, AppTheme.sky],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
-      shadowOpacity: 0.10,
+      backgroundColor: Colors.white,
+      shadowOpacity: 0.055,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2834,13 +2857,13 @@ class _StatsHero extends StatelessWidget {
                 height: 42,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
-                  color: Colors.white.withAlpha(228),
-                  border: Border.all(color: Colors.white),
+                  color: _petPrimarySoft,
+                  border: Border.all(color: AppTheme.outline.withAlpha(160)),
                 ),
                 alignment: Alignment.center,
                 child: const Icon(
                   Icons.home_work_rounded,
-                  color: AppTheme.orchidDark,
+                  color: _petPrimary,
                   size: 22,
                 ),
               ),
@@ -2879,9 +2902,9 @@ class _StatsHero extends StatelessWidget {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withAlpha(226),
+                    color: AppTheme.bg,
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: Colors.white),
+                    border: Border.all(color: AppTheme.outline),
                   ),
                   child: Text(
                     badge!,
@@ -3015,9 +3038,9 @@ class _MyListingCard extends StatelessWidget {
         : listing.availabilityText.trim();
 
     return PremiumCardSurface(
-      radius: BorderRadius.circular(26),
+      radius: BorderRadius.circular(24),
       padding: EdgeInsets.zero,
-      shadowOpacity: 0.11,
+      shadowOpacity: 0.055,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -3027,12 +3050,8 @@ class _MyListingCard extends StatelessWidget {
               topLeft: Radius.circular(22),
               topRight: Radius.circular(22),
             ),
-            gradient: const LinearGradient(
-              colors: [AppTheme.blush, AppTheme.lilac, AppTheme.sky],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderColor: Colors.transparent,
+            color: Colors.white,
+            borderColor: AppTheme.outline,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -3041,13 +3060,13 @@ class _MyListingCard extends StatelessWidget {
                   height: 42,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(15),
-                    color: Colors.white.withAlpha(228),
-                    border: Border.all(color: Colors.white),
+                    color: _petPrimarySoft,
+                    border: Border.all(color: AppTheme.outline.withAlpha(160)),
                   ),
                   alignment: Alignment.center,
                   child: const Icon(
                     Icons.home_work_rounded,
-                    color: AppTheme.orchidDark,
+                    color: _petPrimary,
                     size: 21,
                   ),
                 ),
@@ -3112,19 +3131,22 @@ class _MyListingCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (listing.description.trim().isNotEmpty) ...[
+                  const SizedBox(height: 7),
                   Text(
-                    listing.description,
+                    listing.description.trim(),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: AppTheme.ink.withAlpha(172),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12.4,
+                      color: AppTheme.muted.withAlpha(230),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12.5,
                       height: 1.28,
                     ),
                   ),
-                  const SizedBox(height: 12),
                 ],
+                const SizedBox(height: 12),
+                _ListingInfoWrap(listing: listing),
+                const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -3178,7 +3200,7 @@ class _MyListingCard extends StatelessWidget {
                       child: ElevatedButton.icon(
                         onPressed: onEdit,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.orchidDark,
+                          backgroundColor: _petPrimary,
                           foregroundColor: Colors.white,
                           minimumSize: const Size(0, 42),
                         ),
@@ -3247,6 +3269,24 @@ class _RequestsTab extends StatefulWidget {
 
 class _RequestsTabState extends State<_RequestsTab> {
   int _segment = 0;
+  String _statusFilter = 'all';
+
+  List<BabysittingRequestModel> _applyStatusFilter(
+    List<BabysittingRequestModel> requests,
+  ) {
+    switch (_statusFilter) {
+      case 'pending':
+        return requests.where((r) => r.isPending).toList();
+      case 'accepted':
+        return requests.where((r) => r.isAccepted).toList();
+      case 'completed':
+        return requests.where((r) => r.isCompleted).toList();
+      case 'closed':
+        return requests.where((r) => r.isDeclined || r.isCanceled).toList();
+      default:
+        return requests;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -3274,7 +3314,8 @@ class _RequestsTabState extends State<_RequestsTab> {
 
             final incoming = inSnap.data ?? const [];
             final outgoing = outSnap.data ?? const [];
-            final visible = _segment == 0 ? incoming : outgoing;
+            final source = _segment == 0 ? incoming : outgoing;
+            final visible = _applyStatusFilter(source);
 
             return ListView(
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 100),
@@ -3282,28 +3323,24 @@ class _RequestsTabState extends State<_RequestsTab> {
                 RequestsHeaderBar(
                   incomingCount: incoming.length,
                   sentCount: outgoing.length,
-                  incomingPending: incoming.where((r) => r.isPending).length,
-                  sentActive: [
-                    ...incoming,
-                    ...outgoing,
-                  ].where((r) => r.isAccepted).length,
-                  completedCount: [
-                    ...incoming,
-                    ...outgoing,
-                  ].where((r) => r.isCompleted).length,
                   segment: _segment,
                   onSegmentChanged: (v) => setState(() => _segment = v),
                 ),
                 const SizedBox(height: 12),
+                RequestsStatusFilterBar(
+                  value: _statusFilter,
+                  allCount: source.length,
+                  pendingCount: source.where((r) => r.isPending).length,
+                  acceptedCount: source.where((r) => r.isAccepted).length,
+                  completedCount: source.where((r) => r.isCompleted).length,
+                  closedCount: source
+                      .where((r) => r.isDeclined || r.isCanceled)
+                      .length,
+                  onChanged: (value) => setState(() => _statusFilter = value),
+                ),
+                const SizedBox(height: 12),
                 if (visible.isEmpty)
-                  _MiniEmpty(
-                    title: _segment == 0
-                        ? 'No incoming requests'
-                        : 'No sent requests',
-                    subtitle: _segment == 0
-                        ? 'When someone requests your listing, it will appear here.'
-                        : 'Requests you send to sitters will appear here.',
-                  )
+                  _MiniEmpty(title: _emptyTitle(), subtitle: _emptySubtitle())
                 else
                   ...List.generate(
                     visible.length,
@@ -3324,6 +3361,22 @@ class _RequestsTabState extends State<_RequestsTab> {
         );
       },
     );
+  }
+
+  String _emptyTitle() {
+    if (_statusFilter != 'all') {
+      return 'No ${_statusFilter == 'closed' ? 'closed' : _statusFilter} requests';
+    }
+    return _segment == 0 ? 'No incoming requests' : 'No sent requests';
+  }
+
+  String _emptySubtitle() {
+    if (_statusFilter != 'all') {
+      return 'Try another filter or check again when request statuses change.';
+    }
+    return _segment == 0
+        ? 'When someone requests your sitter listing, it will appear here.'
+        : 'Requests you send to sitters will appear here.';
   }
 }
 
@@ -3501,7 +3554,7 @@ class _EmptyBrowseState extends StatelessWidget {
     final themed = Theme.of(context).copyWith(
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.orchidDark,
+          backgroundColor: _petPrimary,
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
@@ -3512,7 +3565,7 @@ class _EmptyBrowseState extends StatelessWidget {
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: AppTheme.orchidDark),
+        style: TextButton.styleFrom(foregroundColor: _petPrimary),
       ),
     );
 
@@ -3520,8 +3573,8 @@ class _EmptyBrowseState extends StatelessWidget {
       data: themed,
       child: PremiumEmptyStateCard(
         icon: Icons.travel_explore_rounded,
-        iconColor: const Color(0xFF7C62D7),
-        iconBg: AppTheme.lilac,
+        iconColor: _petPrimary,
+        iconBg: _petPrimarySoft,
         title: title,
         subtitle: subtitle,
         primaryLabel: primaryLabel,

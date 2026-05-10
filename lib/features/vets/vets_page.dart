@@ -10,10 +10,10 @@ class VetsPage extends StatelessWidget {
     return const DirectoryListPage(
       title: 'Vets',
       collectionName: 'vets',
-      icon: Icons.local_hospital_outlined,
-      emptyText: 'No vets available yet.',
+      icon: Icons.local_hospital_rounded,
+      emptyText: 'No vet clinics yet.',
       accentColor: Color(0xFF2FAE79),
-      heroSubtitle: 'Clinics, emergency care, and trusted veterinarians.',
+      heroSubtitle: 'Clinics, emergency care, and trusted veterinary contacts.',
     );
   }
 }

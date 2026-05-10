@@ -7,6 +7,12 @@ import '../messages/chat_page.dart';
 import 'babysitting_repository.dart';
 import 'babysitting_sheets.dart';
 
+const Color _petPrimary = AppTheme.orangeDark;
+const Color _petPrimarySoft = Color(0xFFFFF3EE);
+const Color _petTrust = Color(0xFF2F9A6A);
+const Color _petInfo = Color(0xFF4C79C8);
+const Color _petNeutralChip = Color(0xFFF8F5FA);
+
 String? _requestMomentLabel(DateTime? value) {
   if (value == null) return null;
   final now = DateTime.now();
@@ -27,16 +33,10 @@ class RequestsHeaderBar extends StatelessWidget {
     required this.sentCount,
     required this.segment,
     required this.onSegmentChanged,
-    this.incomingPending = 0,
-    this.sentActive = 0,
-    this.completedCount = 0,
   });
 
   final int incomingCount;
   final int sentCount;
-  final int incomingPending;
-  final int sentActive;
-  final int completedCount;
   final int segment;
   final ValueChanged<int> onSegmentChanged;
 
@@ -58,16 +58,13 @@ class RequestsHeaderBar extends StatelessWidget {
                 height: 40,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [AppTheme.orchidDark, AppTheme.roseDark],
-                  ),
+                  color: _petPrimarySoft,
+                  border: Border.all(color: AppTheme.outline.withAlpha(160)),
                 ),
                 alignment: Alignment.center,
                 child: const Icon(
                   Icons.inbox_rounded,
-                  color: Colors.white,
+                  color: _petPrimary,
                   size: 19,
                 ),
               ),
@@ -127,96 +124,6 @@ class RequestsHeaderBar extends StatelessWidget {
             rightCount: sentCount,
             value: segment,
             onChanged: onSegmentChanged,
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _InlineMetricPill(
-                label: 'Needs reply',
-                value: '$incomingPending',
-                bg: const Color(0xFFFFF3DE),
-                fg: const Color(0xFFDA8A1F),
-                icon: Icons.hourglass_bottom_rounded,
-              ),
-              _InlineMetricPill(
-                label: 'Confirmed',
-                value: '$sentActive',
-                bg: AppTheme.mint,
-                fg: const Color(0xFF2F9A6A),
-                icon: Icons.pets_rounded,
-              ),
-              _InlineMetricPill(
-                label: 'Done',
-                value: '$completedCount',
-                bg: AppTheme.sky,
-                fg: const Color(0xFF4C79C8),
-                icon: Icons.verified_rounded,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InlineMetricPill extends StatelessWidget {
-  const _InlineMetricPill({
-    required this.label,
-    required this.value,
-    required this.bg,
-    required this.fg,
-    required this.icon,
-  });
-
-  final String label;
-  final String value;
-  final Color bg;
-  final Color fg;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppTheme.outline),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 20,
-            height: 20,
-            decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-            alignment: Alignment.center,
-            child: Icon(icon, size: 11.5, color: fg),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: AppTheme.ink.withAlpha(190),
-              fontWeight: FontWeight.w800,
-              fontSize: 10.4,
-              height: 1,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            value,
-            style: TextStyle(
-              color: fg,
-              fontWeight: FontWeight.w900,
-              fontSize: 11.6,
-              height: 1,
-            ),
           ),
         ],
       ),
@@ -306,7 +213,7 @@ class _SegBtn extends StatelessWidget {
                   label,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: selected ? AppTheme.orchidDark : AppTheme.ink,
+                    color: selected ? _petPrimary : AppTheme.ink,
                     fontWeight: FontWeight.w900,
                     fontSize: 12.8,
                     height: 1,
@@ -317,7 +224,7 @@ class _SegBtn extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                 decoration: BoxDecoration(
-                  color: selected ? AppTheme.lilac : AppTheme.bg,
+                  color: selected ? _petPrimarySoft : AppTheme.bg,
                   borderRadius: BorderRadius.circular(999),
                   border: Border.all(color: AppTheme.outline),
                 ),
@@ -325,10 +232,172 @@ class _SegBtn extends StatelessWidget {
                   '$count',
                   style: TextStyle(
                     color: selected
-                        ? AppTheme.orchidDark
+                        ? _petPrimary
                         : AppTheme.ink.withAlpha(190),
                     fontWeight: FontWeight.w900,
                     fontSize: 11.5,
+                    height: 1,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+class RequestsStatusFilterBar extends StatelessWidget {
+  const RequestsStatusFilterBar({
+    super.key,
+    required this.value,
+    required this.allCount,
+    required this.pendingCount,
+    required this.acceptedCount,
+    required this.completedCount,
+    required this.closedCount,
+    required this.onChanged,
+  });
+
+  final String value;
+  final int allCount;
+  final int pendingCount;
+  final int acceptedCount;
+  final int completedCount;
+  final int closedCount;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final filters = <_RequestFilterData>[
+      _RequestFilterData(
+        key: 'all',
+        label: 'All',
+        count: allCount,
+        icon: Icons.list_rounded,
+      ),
+      _RequestFilterData(
+        key: 'pending',
+        label: 'Pending',
+        count: pendingCount,
+        icon: Icons.hourglass_bottom_rounded,
+      ),
+      _RequestFilterData(
+        key: 'accepted',
+        label: 'Confirmed',
+        count: acceptedCount,
+        icon: Icons.check_circle_rounded,
+      ),
+      _RequestFilterData(
+        key: 'completed',
+        label: 'Done',
+        count: completedCount,
+        icon: Icons.verified_rounded,
+      ),
+      _RequestFilterData(
+        key: 'closed',
+        label: 'Closed',
+        count: closedCount,
+        icon: Icons.archive_rounded,
+      ),
+    ];
+
+    return SizedBox(
+      height: 42,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: filters.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final filter = filters[index];
+          final selected = value == filter.key;
+          return _RequestFilterChip(
+            data: filter,
+            selected: selected,
+            onTap: () => onChanged(filter.key),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _RequestFilterData {
+  const _RequestFilterData({
+    required this.key,
+    required this.label,
+    required this.count,
+    required this.icon,
+  });
+
+  final String key;
+  final String label;
+  final int count;
+  final IconData icon;
+}
+
+class _RequestFilterChip extends StatelessWidget {
+  const _RequestFilterChip({
+    required this.data,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _RequestFilterData data;
+  final bool selected;
+  final VoidCallback onTap;
+
+  Color get _fg {
+    if (selected) return AppTheme.orangeDark;
+    return AppTheme.ink.withAlpha(190);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? const Color(0xFFFFF2EC) : Colors.white,
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: selected ? AppTheme.orangeDark.withAlpha(110) : AppTheme.outline,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(data.icon, size: 15, color: _fg),
+              const SizedBox(width: 7),
+              Text(
+                data.label,
+                style: TextStyle(
+                  color: _fg,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 11.8,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(width: 7),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                decoration: BoxDecoration(
+                  color: selected ? Colors.white : AppTheme.bg,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: AppTheme.outline),
+                ),
+                child: Text(
+                  '${data.count}',
+                  style: TextStyle(
+                    color: _fg,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 10.8,
                     height: 1,
                   ),
                 ),
@@ -387,9 +456,9 @@ class RequestsTimelineCard extends StatelessWidget {
         );
       default:
         return const _StatusStyle(
-          bg: AppTheme.mist,
-          fg: AppTheme.orchidDark,
-          accent: AppTheme.orchidDark,
+          bg: _petPrimarySoft,
+          fg: _petPrimary,
+          accent: _petPrimary,
           icon: Icons.hourglass_bottom_rounded,
           label: 'Pending',
         );
@@ -446,9 +515,9 @@ class RequestsTimelineCard extends StatelessWidget {
     final momentLabel = _requestMomentLabel(req.updatedAt ?? req.createdAt);
 
     return PremiumCardSurface(
-      radius: BorderRadius.circular(26),
-      shadowOpacity: 0.075,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      radius: BorderRadius.circular(24),
+      shadowOpacity: 0.055,
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -466,10 +535,11 @@ class RequestsTimelineCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      _peerName(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    UserName(
+                      uid: _peerUid(),
+                      fallback: _peerName().trim().isEmpty
+                          ? 'PetTounsi user'
+                          : _peerName().trim(),
                       style: const TextStyle(
                         color: AppTheme.ink,
                         fontWeight: FontWeight.w900,
@@ -483,7 +553,7 @@ class RequestsTimelineCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: AppTheme.orchidDark.withAlpha(214),
+                        color: _petPrimary.withAlpha(214),
                         fontWeight: FontWeight.w800,
                         fontSize: 11.3,
                         height: 1,
@@ -518,22 +588,22 @@ class RequestsTimelineCard extends StatelessWidget {
               _RequestMetaChip(
                 icon: Icons.calendar_today_rounded,
                 text: req.dateRangeText,
-                bg: AppTheme.sky,
-                fg: const Color(0xFF4C79C8),
+                bg: const Color(0xFFF1F7FF),
+                fg: _petInfo,
               ),
               if (momentLabel != null)
                 _RequestMetaChip(
                   icon: Icons.schedule_rounded,
                   text: momentLabel,
-                  bg: const Color(0xFFF6F1FF),
-                  fg: const Color(0xFF7C62D7),
+                  bg: _petNeutralChip,
+                  fg: AppTheme.ink,
                 ),
               if (req.conversationId.trim().isNotEmpty && !req.isPending)
                 _RequestMetaChip(
                   icon: Icons.chat_bubble_outline_rounded,
                   text: 'Chat ready',
-                  bg: const Color(0xFFEAF7F1),
-                  fg: const Color(0xFF2F9A6A),
+                  bg: const Color(0xFFF3FBF7),
+                  fg: _petTrust,
                 ),
             ],
           ),
@@ -615,11 +685,11 @@ class _RequestStateBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       decoration: BoxDecoration(
-        color: style.bg.withAlpha(62),
+        color: AppTheme.bg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: style.bg.withAlpha(142)),
+        border: Border.all(color: AppTheme.outline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -678,6 +748,7 @@ class _RequestStateBlock extends StatelessWidget {
     );
   }
 }
+
 
 class _StatePanelData {
   const _StatePanelData({required this.title, required this.subtitle});
@@ -1049,9 +1120,59 @@ class _Actions extends StatelessWidget {
       );
     }
 
+    Future<bool> confirmAction({
+      required String title,
+      required String body,
+      required String actionLabel,
+      Color actionColor = AppTheme.orangeDark,
+    }) async {
+      final result = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: Text(title),
+            content: Text(body),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Not now'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: actionColor),
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: Text(actionLabel),
+              ),
+            ],
+          );
+        },
+      );
+
+      return result == true;
+    }
+
+    void showTrustSnack(String message) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+
     Future<void> decline() async {
+      final ok = await confirmAction(
+        title: 'Decline this request?',
+        body:
+            'The pet owner will be notified. Decline only when the dates, price, or care routine cannot work for you.',
+        actionLabel: 'Decline request',
+        actionColor: const Color(0xFFE05555),
+      );
+      if (!ok) return;
+
       try {
         await BabysittingRepository.instance.declineRequest(req);
+        showTrustSnack('Request declined. The owner was notified kindly.');
       } catch (e) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1061,8 +1182,18 @@ class _Actions extends StatelessWidget {
     }
 
     Future<void> accept() async {
+      final ok = await confirmAction(
+        title: 'Accept this stay?',
+        body:
+            'The selected dates will be reserved on your sitter calendar. Use chat next to confirm handoff, routine, emergency contact, and final price.',
+        actionLabel: 'Accept stay',
+        actionColor: const Color(0xFF2F9A6A),
+      );
+      if (!ok) return;
+
       try {
         await BabysittingRepository.instance.acceptRequestAndBlockDates(req);
+        showTrustSnack('Stay accepted. Dates are reserved — confirm final details in chat.');
       } catch (e) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(
@@ -1072,8 +1203,21 @@ class _Actions extends StatelessWidget {
     }
 
     Future<void> cancel() async {
+      final ok = await confirmAction(
+        title: req.isAccepted ? 'Cancel confirmed stay?' : 'Cancel request?',
+        body: req.isAccepted
+            ? 'The sitter will be notified and the reserved dates will be released again.'
+            : 'The sitter will be notified that you no longer need this stay.',
+        actionLabel: req.isAccepted ? 'Cancel stay' : 'Cancel request',
+        actionColor: const Color(0xFFE05555),
+      );
+      if (!ok) return;
+
       try {
         await BabysittingRepository.instance.cancelRequest(req);
+        showTrustSnack(req.isAccepted
+            ? 'Confirmed stay canceled. The sitter was notified and dates were released.'
+            : 'Request canceled. The sitter was notified.');
       } catch (e) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(
@@ -1083,8 +1227,18 @@ class _Actions extends StatelessWidget {
     }
 
     Future<void> complete() async {
+      final ok = await confirmAction(
+        title: 'Mark stay completed?',
+        body:
+            'Only do this after the stay is finished and the pet has been returned safely. The owner will be invited to leave a review.',
+        actionLabel: 'Mark completed',
+        actionColor: const Color(0xFF3357D6),
+      );
+      if (!ok) return;
+
       try {
         await BabysittingRepository.instance.completeRequest(req);
+        showTrustSnack('Stay completed. The owner can now leave a review.');
       } catch (e) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1108,7 +1262,7 @@ class _Actions extends StatelessWidget {
             child: _PrimaryActionButton(
               onPressed: accept,
               icon: Icons.check_rounded,
-              label: 'Accept',
+              label: 'Accept stay',
               background: const Color(0xFF2F9A6A),
             ),
           ),
@@ -1127,6 +1281,36 @@ class _Actions extends StatelessWidget {
     }
 
     if (req.isAccepted) {
+      if (!incoming) {
+        if (canChat) {
+          return Row(
+            children: [
+              Expanded(
+                child: _GhostActionButton(
+                  onPressed: openChat,
+                  icon: Icons.chat_bubble_outline_rounded,
+                  label: 'Message',
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: _PassiveStatusPill(
+                  icon: Icons.verified_rounded,
+                  label: 'Confirmed',
+                ),
+              ),
+            ],
+          );
+        }
+
+        return const _SingleActionRow(
+          child: _PassiveStatusPill(
+            icon: Icons.verified_rounded,
+            label: 'Confirmed',
+          ),
+        );
+      }
+
       if (canChat) {
         return Row(
           children: [
@@ -1134,7 +1318,7 @@ class _Actions extends StatelessWidget {
               child: _GhostActionButton(
                 onPressed: openChat,
                 icon: Icons.chat_bubble_outline_rounded,
-                label: 'Chat',
+                label: 'Message',
               ),
             ),
             const SizedBox(width: 10),
@@ -1142,7 +1326,7 @@ class _Actions extends StatelessWidget {
               child: _PrimaryActionButton(
                 onPressed: complete,
                 icon: Icons.check_rounded,
-                label: 'Complete',
+                label: 'Mark done',
                 background: const Color(0xFF3357D6),
               ),
             ),
@@ -1154,7 +1338,7 @@ class _Actions extends StatelessWidget {
         child: _PrimaryActionButton(
           onPressed: complete,
           icon: Icons.check_rounded,
-          label: 'Complete',
+          label: 'Mark done',
           background: const Color(0xFF3357D6),
         ),
       );
@@ -1168,7 +1352,7 @@ class _Actions extends StatelessWidget {
               child: _GhostActionButton(
                 onPressed: openChat,
                 icon: Icons.chat_bubble_outline_rounded,
-                label: 'Chat',
+                label: 'Message',
               ),
             ),
           if (canChat) const SizedBox(width: 10),
@@ -1212,6 +1396,49 @@ class _Actions extends StatelessWidget {
     }
 
     return const SizedBox.shrink();
+  }
+}
+
+class _PassiveStatusPill extends StatelessWidget {
+  const _PassiveStatusPill({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 42,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE9FFF5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF2F9A6A).withAlpha(90)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 17, color: const Color(0xFF2F9A6A)),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF2F9A6A),
+                fontWeight: FontWeight.w900,
+                fontSize: 12.8,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

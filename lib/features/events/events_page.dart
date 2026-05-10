@@ -8,12 +8,12 @@ class EventsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const DirectoryListPage(
-      title: 'Events',
+      title: 'Pet Events',
       collectionName: 'events',
-      icon: Icons.event_outlined,
-      emptyText: 'No events available yet.',
-      accentColor: Color(0xFFF39A63),
-      heroSubtitle: 'Adoption days, meetups, and pet-friendly activities near you.',
+      icon: Icons.event_rounded,
+      emptyText: 'No pet events yet.',
+      accentColor: Color(0xFF7C62D7),
+      heroSubtitle: 'Adoption days, partner events, campaigns, and pet meetups.',
     );
   }
 }

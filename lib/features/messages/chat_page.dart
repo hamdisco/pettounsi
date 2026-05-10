@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../repositories/block_repository.dart';
-import '../../ui/adaptive_cached_image.dart';
 import '../../repositories/follow_repository.dart';
+import '../../ui/adaptive_cached_image.dart';
 import '../../ui/app_theme.dart';
 import '../../ui/premium_cards.dart';
 import '../../ui/premium_feedback.dart';
@@ -21,6 +21,27 @@ String _chatTimeLabel(DateTime? dt) {
   final h = dt.hour.toString().padLeft(2, '0');
   final m = dt.minute.toString().padLeft(2, '0');
   return '$h:$m';
+}
+
+String _chatDayLabel(DateTime? dt) {
+  if (dt == null) return '';
+
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final day = DateTime(dt.year, dt.month, dt.day);
+  final diff = today.difference(day).inDays;
+
+  if (diff == 0) return 'Today';
+  if (diff == 1) return 'Yesterday';
+
+  final d = dt.day.toString().padLeft(2, '0');
+  final m = dt.month.toString().padLeft(2, '0');
+  return '$d/$m/${dt.year}';
+}
+
+bool _sameDay(DateTime? a, DateTime? b) {
+  if (a == null || b == null) return false;
+  return a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
 class ChatPage extends StatefulWidget {
@@ -40,12 +61,14 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
-  final _t = TextEditingController();
+  final _textController = TextEditingController();
 
   String? _convoId;
   String? _error;
   bool _blockedByMe = false;
   bool _sendingImage = false;
+  bool _sendingText = false;
+  bool _markReadQueued = false;
 
   @override
   void initState() {
@@ -83,9 +106,7 @@ class _ChatPageState extends State<ChatPage> {
       if (existingSnap.exists) {
         if (!mounted) return;
         setState(() => _convoId = existingId);
-        try {
-          await MessagesRepository.instance.markRead(existingId);
-        } catch (_) {}
+        _queueMarkRead();
         return;
       }
 
@@ -106,10 +127,8 @@ class _ChatPageState extends State<ChatPage> {
 
       if (!mounted) return;
       setState(() => _convoId = id);
-      try {
-        await MessagesRepository.instance.markRead(id);
-      } catch (_) {}
-    } catch (e) {
+      _queueMarkRead();
+    } catch (_) {
       if (!mounted) return;
       setState(() => _error = 'Can’t open this chat right now.');
     }
@@ -117,38 +136,69 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   void dispose() {
-    _t.dispose();
+    _textController.dispose();
     super.dispose();
+  }
+
+  void _queueMarkRead() {
+    final id = _convoId;
+    if (id == null || _markReadQueued) return;
+
+    _markReadQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        await MessagesRepository.instance.markRead(id);
+      } catch (_) {
+        // Keep the chat usable even if the read receipt update fails.
+      } finally {
+        _markReadQueued = false;
+      }
+    });
+  }
+
+  void _openProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProfilePage(uid: widget.otherUid),
+      ),
+    );
   }
 
   Future<void> _sendText() async {
     final id = _convoId;
-    if (id == null) return;
+    if (id == null || _sendingText || _blockedByMe) return;
 
-    final text = _t.text.trim();
+    final text = _textController.text.trim();
     if (text.isEmpty) return;
-    _t.clear();
+
+    _textController.clear();
+    setState(() => _sendingText = true);
 
     try {
       await MessagesRepository.instance.sendText(convoId: id, text: text);
     } catch (_) {
       if (!mounted) return;
+      _textController.text = text;
+      _textController.selection = TextSelection.collapsed(offset: text.length);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Message failed. Make sure you follow this user.'),
-        ),
+        const SnackBar(content: Text('Message not sent. Please try again.')),
       );
+    } finally {
+      if (mounted) setState(() => _sendingText = false);
     }
   }
 
   Future<void> _pickAndSendImage() async {
     final id = _convoId;
-    if (id == null) return;
+    if (id == null || _sendingImage || _blockedByMe) return;
 
     final picker = ImagePicker();
     final x = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 85,
+      imageQuality: 82,
+      maxWidth: 1800,
+      maxHeight: 1800,
     );
     if (x == null) return;
 
@@ -158,11 +208,11 @@ class _ChatPageState extends State<ChatPage> {
         convoId: id,
         imageFile: File(x.path),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Photo not sent. Please try again.')),
+      );
     } finally {
       if (mounted) setState(() => _sendingImage = false);
     }
@@ -174,42 +224,22 @@ class _ChatPageState extends State<ChatPage> {
 
     return Scaffold(
       backgroundColor: AppTheme.bg,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         titleSpacing: 0,
-        title: InkWell(
-          borderRadius: BorderRadius.circular(18),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => ProfilePage(uid: widget.otherUid),
-              ),
-            );
-          },
-          child: Row(
-            children: [
-              UserAvatar(
-                uid: widget.otherUid,
-                radius: 18,
-                fallbackName: widget.otherName,
-                fallbackPhotoUrl: widget.otherPhoto,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: UserName(
-                  uid: widget.otherUid,
-                  fallback: widget.otherName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w900,
-                    color: AppTheme.ink,
-                    fontSize: 15,
-                    height: 1,
-                  ),
-                ),
-              ),
-            ],
-          ),
+        title: _ChatAppBarTitle(
+          uid: widget.otherUid,
+          name: widget.otherName,
+          photoUrl: widget.otherPhoto,
+          onTap: _openProfile,
         ),
+        actions: [
+          IconButton(
+            tooltip: 'View profile',
+            onPressed: _openProfile,
+            icon: const Icon(Icons.person_outline_rounded),
+          ),
+        ],
       ),
       body: _error != null
           ? _ChatStateCard(
@@ -227,7 +257,7 @@ class _ChatPageState extends State<ChatPage> {
                       child: Container(
                         decoration: const BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [AppTheme.bg, AppTheme.blush],
+                            colors: [AppTheme.bg, Color(0xFFFFF5F0)],
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                           ),
@@ -235,77 +265,99 @@ class _ChatPageState extends State<ChatPage> {
                         child: StreamBuilder<List<MessageModel>>(
                           stream: MessagesRepository.instance.streamMessages(
                             _convoId!,
-                            limit: 140,
+                            limit: 160,
                           ),
                           builder: (context, snap) {
+                            if (snap.hasError) {
+                              return const _ChatStateCard(
+                                icon: Icons.error_outline_rounded,
+                                title: 'Could not load messages',
+                                subtitle: 'Check your connection and try again.',
+                                compact: true,
+                              );
+                            }
+
                             if (!snap.hasData) {
                               return const _MessagesLoading();
                             }
 
-                            final msgs = snap.data ?? const <MessageModel>[];
+                            final messages = snap.data ?? const <MessageModel>[];
+                            _queueMarkRead();
 
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              MessagesRepository.instance.markRead(_convoId!);
-                            });
-
-                            if (msgs.isEmpty) {
+                            if (messages.isEmpty) {
                               return const _ChatStateCard(
-                                icon: Icons.chat_bubble_outline_rounded,
-                                title: 'No messages yet',
-                                subtitle: 'Send a message.',
+                                icon: Icons.pets_rounded,
+                                title: 'Start the conversation',
+                                subtitle: 'Send a friendly message when you’re ready.',
                                 compact: true,
                               );
                             }
 
                             return ListView.builder(
                               reverse: true,
+                              keyboardDismissBehavior:
+                                  ScrollViewKeyboardDismissBehavior.onDrag,
                               padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-                              itemCount: msgs.length,
-                              itemBuilder: (context, i) {
-                                final m = msgs[i];
-                                final mine = m.senderId == myUid;
+                              itemCount: messages.length,
+                              itemBuilder: (context, index) {
+                                final message = messages[index];
+                                final mine = message.senderId == myUid;
 
-                                final next = (i + 1 < msgs.length)
-                                    ? msgs[i + 1]
+                                final olderMessage = index + 1 < messages.length
+                                    ? messages[index + 1]
                                     : null;
-                                final sameAsNext =
-                                    next != null && next.senderId == m.senderId;
-                                final isGroupTail = !sameAsNext;
+                                final newerMessage = index > 0
+                                    ? messages[index - 1]
+                                    : null;
 
-                                if (m.type == 'image' &&
-                                    (m.imageUrl ?? '').isNotEmpty) {
-                                  return Align(
+                                final sameAsOlder = olderMessage != null &&
+                                    olderMessage.senderId == message.senderId &&
+                                    _sameDay(
+                                      olderMessage.createdAt,
+                                      message.createdAt,
+                                    );
+                                final roundedTail = !sameAsOlder;
+
+                                final showDayLabel = newerMessage == null ||
+                                    !_sameDay(
+                                      newerMessage.createdAt,
+                                      message.createdAt,
+                                    );
+
+                                return _MessageCluster(
+                                  showDayLabel: showDayLabel,
+                                  dayLabel: _chatDayLabel(message.createdAt),
+                                  child: Align(
                                     alignment: mine
                                         ? Alignment.centerRight
                                         : Alignment.centerLeft,
-                                    child: _ImageBubble(
-                                      url: m.imageUrl!,
-                                      mine: mine,
-                                      roundedTail: isGroupTail,
-                                      timeLabel: _chatTimeLabel(m.createdAt),
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => ChatImageViewerPage(
-                                              imageUrl: m.imageUrl!,
-                                            ),
+                                    child: message.type == 'image' &&
+                                            (message.imageUrl ?? '').isNotEmpty
+                                        ? _ImageBubble(
+                                            url: message.imageUrl!,
+                                            mine: mine,
+                                            roundedTail: roundedTail,
+                                            timeLabel:
+                                                _chatTimeLabel(message.createdAt),
+                                            onTap: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      ChatImageViewerPage(
+                                                    imageUrl: message.imageUrl!,
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          )
+                                        : _TextBubble(
+                                            text: message.text,
+                                            mine: mine,
+                                            roundedTail: roundedTail,
+                                            timeLabel:
+                                                _chatTimeLabel(message.createdAt),
                                           ),
-                                        );
-                                      },
-                                    ),
-                                  );
-                                }
-
-                                return Align(
-                                  alignment: mine
-                                      ? Alignment.centerRight
-                                      : Alignment.centerLeft,
-                                  child: _TextBubble(
-                                    text: m.text,
-                                    mine: mine,
-                                    roundedTail: isGroupTail,
-                                    timeLabel: _chatTimeLabel(m.createdAt),
                                   ),
                                 );
                               },
@@ -315,8 +367,9 @@ class _ChatPageState extends State<ChatPage> {
                       ),
                     ),
                     _Composer(
-                      controller: _t,
+                      controller: _textController,
                       sendingImage: _sendingImage,
+                      sendingText: _sendingText,
                       blocked: _blockedByMe,
                       onPickImage: _pickAndSendImage,
                       onSend: _sendText,
@@ -327,12 +380,132 @@ class _ChatPageState extends State<ChatPage> {
   }
 }
 
+class _ChatAppBarTitle extends StatelessWidget {
+  const _ChatAppBarTitle({
+    required this.uid,
+    required this.name,
+    required this.photoUrl,
+    required this.onTap,
+  });
+
+  final String uid;
+  final String name;
+  final String? photoUrl;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: Row(
+        children: [
+          UserAvatar(
+            uid: uid,
+            radius: 18,
+            fallbackName: name,
+            fallbackPhotoUrl: photoUrl,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                UserName(
+                  uid: uid,
+                  fallback: name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.ink,
+                    fontSize: 15,
+                    height: 1,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  'Private chat',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: AppTheme.muted.withAlpha(210),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11.2,
+                    height: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MessageCluster extends StatelessWidget {
+  const _MessageCluster({
+    required this.showDayLabel,
+    required this.dayLabel,
+    required this.child,
+  });
+
+  final bool showDayLabel;
+  final String dayLabel;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (showDayLabel && dayLabel.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _DaySeparator(label: dayLabel),
+          const SizedBox(height: 10),
+        ],
+        child,
+      ],
+    );
+  }
+}
+
+class _DaySeparator extends StatelessWidget {
+  const _DaySeparator({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+        decoration: BoxDecoration(
+          color: Colors.white.withAlpha(230),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: AppTheme.outline),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: AppTheme.muted.withAlpha(220),
+            fontWeight: FontWeight.w900,
+            fontSize: 10.8,
+            height: 1,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _Composer extends StatelessWidget {
   const _Composer({
     required this.controller,
     required this.onSend,
     required this.onPickImage,
     required this.sendingImage,
+    required this.sendingText,
     required this.blocked,
   });
 
@@ -340,28 +513,29 @@ class _Composer extends StatelessWidget {
   final VoidCallback onSend;
   final VoidCallback onPickImage;
   final bool sendingImage;
+  final bool sendingText;
   final bool blocked;
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).viewInsets.bottom;
-
     return SafeArea(
       top: false,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(12, 8, 12, 10 + bottom),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
         child: PremiumCardSurface(
-          radius: BorderRadius.circular(22),
-          padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-          shadowOpacity: 0.10,
+          radius: BorderRadius.circular(24),
+          padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
+          shadowOpacity: 0.08,
           child: Row(
             children: [
               Material(
-                color: AppTheme.sky,
-                borderRadius: BorderRadius.circular(16),
+                color: blocked || sendingImage ? AppTheme.mist : AppTheme.sky,
+                borderRadius: BorderRadius.circular(17),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: (blocked || sendingImage) ? null : onPickImage,
+                  borderRadius: BorderRadius.circular(17),
+                  onTap: (blocked || sendingImage || sendingText)
+                      ? null
+                      : onPickImage,
                   child: SizedBox(
                     width: 44,
                     height: 44,
@@ -372,9 +546,11 @@ class _Composer extends StatelessWidget {
                               height: 18,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Icon(
+                          : Icon(
                               Icons.photo_rounded,
-                              color: Color(0xFF4C79C8),
+                              color: blocked
+                                  ? AppTheme.muted.withAlpha(150)
+                                  : const Color(0xFF4C79C8),
                             ),
                     ),
                   ),
@@ -386,10 +562,11 @@ class _Composer extends StatelessWidget {
                   controller: controller,
                   minLines: 1,
                   maxLines: 4,
-                  enabled: !blocked,
+                  enabled: !blocked && !sendingText,
+                  textCapitalization: TextCapitalization.sentences,
                   textInputAction: TextInputAction.send,
                   onSubmitted: (_) {
-                    if (!blocked) onSend();
+                    if (!blocked && !sendingText) onSend();
                   },
                   decoration: InputDecoration(
                     hintText: blocked ? 'You blocked this user' : 'Message',
@@ -409,29 +586,59 @@ class _Composer extends StatelessWidget {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(18),
-                      borderSide: const BorderSide(color: AppTheme.outline),
+                      borderSide: const BorderSide(color: AppTheme.orange),
                     ),
                   ),
                 ),
               ),
               const SizedBox(width: 10),
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF7C62D7), Color(0xFFC86B9A)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: AppTheme.softShadows(0.10),
-                ),
-                child: IconButton(
-                  onPressed: blocked ? null : onSend,
-                  icon: const Icon(Icons.send_rounded, color: Colors.white),
-                  tooltip: 'Send',
-                ),
+              ValueListenableBuilder<TextEditingValue>(
+                valueListenable: controller,
+                builder: (context, value, _) {
+                  final canSend = !blocked &&
+                      !sendingText &&
+                      value.text.trim().isNotEmpty;
+
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: canSend ? null : AppTheme.mist,
+                      gradient: canSend
+                          ? const LinearGradient(
+                              colors: [AppTheme.orange, AppTheme.orangeDark],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                          : null,
+                      borderRadius: BorderRadius.circular(17),
+                      border: Border.all(
+                        color: canSend ? Colors.transparent : AppTheme.outline,
+                      ),
+                      boxShadow: canSend ? AppTheme.softShadows(0.10) : null,
+                    ),
+                    child: IconButton(
+                      onPressed: canSend ? onSend : null,
+                      icon: sendingText
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Icon(
+                              Icons.send_rounded,
+                              color: canSend
+                                  ? Colors.white
+                                  : AppTheme.muted.withAlpha(150),
+                            ),
+                      tooltip: 'Send',
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -460,27 +667,29 @@ class _TextBubble extends StatelessWidget {
         topLeft: const Radius.circular(18),
         topRight: const Radius.circular(18),
         bottomLeft: const Radius.circular(18),
-        bottomRight: Radius.circular(roundedTail ? 6 : 18),
+        bottomRight: Radius.circular(roundedTail ? 7 : 18),
       );
     }
     return BorderRadius.only(
       topLeft: const Radius.circular(18),
       topRight: const Radius.circular(18),
       bottomRight: const Radius.circular(18),
-      bottomLeft: Radius.circular(roundedTail ? 6 : 18),
+      bottomLeft: Radius.circular(roundedTail ? 7 : 18),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final maxWidth = MediaQuery.of(context).size.width * 0.76;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      constraints: const BoxConstraints(maxWidth: 330),
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      margin: const EdgeInsets.only(bottom: 7),
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 9),
       decoration: BoxDecoration(
         gradient: mine
             ? const LinearGradient(
-                colors: [Color(0xFF7C62D7), Color(0xFFC86B9A)],
+                colors: [AppTheme.orange, AppTheme.orangeDark],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               )
@@ -488,20 +697,19 @@ class _TextBubble extends StatelessWidget {
         color: mine ? null : Colors.white,
         borderRadius: _radius(),
         border: mine ? null : Border.all(color: AppTheme.outline),
-        boxShadow: AppTheme.softShadows(0.06),
+        boxShadow: AppTheme.softShadows(mine ? 0.06 : 0.04),
       ),
       child: Column(
-        crossAxisAlignment: mine
-            ? CrossAxisAlignment.end
-            : CrossAxisAlignment.start,
+        crossAxisAlignment:
+            mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           Text(
             text,
             style: TextStyle(
               color: mine ? Colors.white : AppTheme.ink,
               fontWeight: FontWeight.w700,
-              height: 1.25,
-              fontSize: 13.1,
+              height: 1.28,
+              fontSize: 13.4,
             ),
           ),
           if (timeLabel.isNotEmpty) ...[
@@ -510,10 +718,10 @@ class _TextBubble extends StatelessWidget {
               timeLabel,
               style: TextStyle(
                 color: mine
-                    ? Colors.white.withAlpha(215)
-                    : AppTheme.muted.withAlpha(210),
+                    ? Colors.white.withAlpha(220)
+                    : AppTheme.muted.withAlpha(205),
                 fontWeight: FontWeight.w800,
-                fontSize: 10.2,
+                fontSize: 10.1,
                 height: 1,
               ),
             ),
@@ -545,28 +753,29 @@ class _ImageBubble extends StatelessWidget {
         topLeft: const Radius.circular(18),
         topRight: const Radius.circular(18),
         bottomLeft: const Radius.circular(18),
-        bottomRight: Radius.circular(roundedTail ? 6 : 18),
+        bottomRight: Radius.circular(roundedTail ? 7 : 18),
       );
     }
     return BorderRadius.only(
       topLeft: const Radius.circular(18),
       topRight: const Radius.circular(18),
       bottomRight: const Radius.circular(18),
-      bottomLeft: Radius.circular(roundedTail ? 6 : 18),
+      bottomLeft: Radius.circular(roundedTail ? 7 : 18),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final safeUrl = Uri.encodeFull(url);
+    final maxWidth = MediaQuery.of(context).size.width * 0.68;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      constraints: const BoxConstraints(maxWidth: 280),
+      margin: const EdgeInsets.only(bottom: 7),
+      constraints: BoxConstraints(maxWidth: maxWidth),
       decoration: BoxDecoration(
         borderRadius: _radius(),
         border: mine ? null : Border.all(color: AppTheme.outline),
-        boxShadow: AppTheme.softShadows(0.08),
+        boxShadow: AppTheme.softShadows(0.06),
       ),
       child: ClipRRect(
         borderRadius: _radius(),
@@ -575,12 +784,11 @@ class _ImageBubble extends StatelessWidget {
           child: InkWell(
             onTap: onTap,
             child: Column(
-              crossAxisAlignment: mine
-                  ? CrossAxisAlignment.end
-                  : CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
                 AspectRatio(
-                  aspectRatio: 1.1,
+                  aspectRatio: 1.04,
                   child: AdaptiveCachedImage(
                     imageUrl: safeUrl,
                     fit: BoxFit.cover,
@@ -588,15 +796,15 @@ class _ImageBubble extends StatelessWidget {
                     maxCacheDimension: 720,
                     httpHeaders: const {'User-Agent': 'Mozilla/5.0'},
                     placeholder: Container(
-                      color: AppTheme.lilac,
+                      color: AppTheme.softOrange,
                       alignment: Alignment.center,
                       child: const Icon(
                         Icons.image_outlined,
-                        color: Color(0xFF7C62D7),
+                        color: AppTheme.orangeDark,
                       ),
                     ),
                     errorWidget: Container(
-                      color: AppTheme.lilac,
+                      color: AppTheme.softOrange,
                       alignment: Alignment.center,
                       child: const Icon(
                         Icons.broken_image_rounded,
@@ -613,7 +821,7 @@ class _ImageBubble extends StatelessWidget {
                       style: TextStyle(
                         color: AppTheme.muted.withAlpha(210),
                         fontWeight: FontWeight.w800,
-                        fontSize: 10.2,
+                        fontSize: 10.1,
                         height: 1,
                       ),
                     ),
@@ -657,7 +865,7 @@ class _MessagesLoading extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: PremiumSkeletonCard(
-              height: mine ? 62 : 74,
+              height: mine ? 58 : 72,
               radius: 20,
               padding: const EdgeInsets.all(10),
               child: const SizedBox.expand(),
@@ -689,8 +897,8 @@ class _ChatStateCard extends StatelessWidget {
         padding: const EdgeInsets.all(18),
         child: PremiumEmptyStateCard(
           icon: icon,
-          iconColor: const Color(0xFF7C62D7),
-          iconBg: AppTheme.lilac,
+          iconColor: AppTheme.orangeDark,
+          iconBg: AppTheme.softOrange,
           title: title,
           subtitle: subtitle,
           compact: compact,

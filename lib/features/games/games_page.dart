@@ -1,9 +1,22 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import '../../ui/premium_page_header.dart';
+
 import '../../ui/app_theme.dart';
+import '../../ui/premium_page_header.dart';
+import '../../services/user_identity_service.dart';
 import '../accessories/accessories_page.dart';
+import '../home/create_post_sheet.dart';
+import '../adopt_rescue/adopt_rescue_page.dart';
+import '../map/map_models.dart';
+import '../map/map_page.dart';
+import '../map/pet_reports_page.dart';
+import '../pet_babysitting/pet_babysitting_page.dart';
+import '../vets/vets_page.dart';
+import 'arcade/catch_the_treat_page.dart';
+import 'arcade/pet_memory_page.dart';
+import 'arcade/bubble_paws_page.dart';
+import 'arcade/pet_quiz_page.dart';
 import 'points_history_page.dart';
 import 'points_runtime.dart';
 
@@ -15,42 +28,70 @@ class GamesPage extends StatefulWidget {
 }
 
 class _GamesPageState extends State<GamesPage> {
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+
   late final String? _uid;
   late final Stream<DocumentSnapshot<Map<String, dynamic>>> _userDocStream;
-  late final Stream<QuerySnapshot<Map<String, dynamic>>> _allClaimsStream;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _myClaimsStream;
 
-  static final List<_PointsMission> _missions = [
+  int _tabIndex = 0;
+
+  static const List<_PointsMission> _missions = [
     _PointsMission(
-      id: 'post_report',
-      title: 'Post a street pet report',
-      subtitle: 'Share a lost/found report or helpful post',
-      reward: 15,
-      icon: Icons.campaign_outlined,
+      id: 'lost_pet_report',
+      title: 'Report a missing pet',
+      subtitle: 'Create or update a real lost/found report.',
+      reward: 20,
+      icon: Icons.manage_search_rounded,
+      action: _MissionAction.lostFound,
+      actionLabel: 'Continue',
+      proofHint: '',
     ),
     _PointsMission(
-      id: 'map_help',
-      title: 'Add a map location',
-      subtitle: 'Pin a vet, petshop, or event location',
-      reward: 10,
-      icon: Icons.add_location_alt_outlined,
-    ),
-    _PointsMission(
-      id: 'babysitting_help',
-      title: 'Help with babysitting request',
-      subtitle: 'Accept or complete one babysitting request',
+      id: 'sitter_profile_action',
+      title: 'Improve pet sitting trust',
+      subtitle: 'Create a listing, complete a request, or review a sitter.',
       reward: 30,
-      icon: Icons.volunteer_activism_outlined,
+      icon: Icons.volunteer_activism_rounded,
+      action: _MissionAction.petSitting,
+      actionLabel: 'Continue',
+      proofHint: '',
     ),
     _PointsMission(
-      id: 'helpful_comment',
-      title: 'Comment helpful advice',
-      subtitle: 'Leave a useful comment for the community',
+      id: 'business_recommendation',
+      title: 'Recommend a pet business',
+      subtitle: 'Suggest a vet, shop, groomer, trainer, or shelter.',
+      reward: 10,
+      icon: Icons.storefront_rounded,
+      action: _MissionAction.localServices,
+      actionLabel: 'Continue',
+      proofHint: '',
+    ),
+    _PointsMission(
+      id: 'adoption_rescue_support',
+      title: 'Support adoption or rescue',
+      subtitle: 'Share useful adoption or rescue information.',
+      reward: 15,
+      icon: Icons.pets_rounded,
+      action: _MissionAction.adoptRescue,
+      actionLabel: 'Continue',
+      proofHint: '',
+    ),
+    _PointsMission(
+      id: 'pet_care_tip',
+      title: 'Share a pet care tip',
+      subtitle: 'Post a practical care, food, safety, or vet tip.',
       reward: 5,
-      icon: Icons.chat_bubble_outline,
+      icon: Icons.forum_rounded,
+      action: _MissionAction.communityPost,
+      actionLabel: 'Continue',
+      proofHint: '',
     ),
   ];
-
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  String get _todayKey {
+    final now = DateTime.now();
+    return _dateKey(now);
+  }
 
   @override
   void initState() {
@@ -60,22 +101,16 @@ class _GamesPageState extends State<GamesPage> {
     if (_uid == null || _uid.isEmpty) {
       _userDocStream =
           const Stream<DocumentSnapshot<Map<String, dynamic>>>.empty();
-      _allClaimsStream =
+      _myClaimsStream =
           const Stream<QuerySnapshot<Map<String, dynamic>>>.empty();
       return;
     }
 
     _userDocStream = _db.collection('users').doc(_uid).snapshots();
-    _allClaimsStream = _db
+    _myClaimsStream = _db
         .collection('game_claims')
         .where('uid', isEqualTo: _uid)
         .snapshots();
-  }
-
-  int _tabIndex = 0;
-  String get _todayKey {
-    final now = DateTime.now();
-    return _dateKey(now);
   }
 
   String _dateKey(DateTime dt) {
@@ -119,78 +154,12 @@ class _GamesPageState extends State<GamesPage> {
     return 'New Helper';
   }
 
-  Future<void> _submitMissionClaim(_PointsMission mission) async {
-    final user = FirebaseAuth.instance.currentUser;
-    final uid = user?.uid;
-    if (uid == null || uid.isEmpty) return;
-
-    final displayName = (user?.displayName ?? '').trim();
-
-    final claimId = '${uid}_${_todayKey}_${mission.id}';
-    final claimRef = _db.collection('game_claims').doc(claimId);
-
-    try {
-      await _db.runTransaction((tx) async {
-        final existing = await tx.get(claimRef);
-        if (existing.exists) {
-          final d = existing.data() ?? <String, dynamic>{};
-          final status = (d['status'] ?? 'pending').toString();
-          if (status == 'pending') {
-            throw _ClaimException(
-              'Mission claim already submitted and pending review.',
-            );
-          }
-          if (status == 'approved') {
-            throw _ClaimException('Mission already approved today.');
-          }
-          if (status == 'rejected') {
-            throw _ClaimException(
-              'This mission claim was rejected today. Please contact support if this is a mistake.',
-            );
-          }
-          throw _ClaimException('Mission already claimed today.');
-        }
-
-        tx.set(claimRef, {
-          'uid': uid,
-          'dayKey': _todayKey,
-          'missionId': mission.id,
-          'missionTitle': mission.title,
-          'missionReward': mission.reward,
-          'status': 'pending',
-          'source': 'games_page',
-          if (displayName.isNotEmpty) 'userDisplayName': displayName,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      });
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Claim sent for review (${mission.reward} pts pending approval)',
-          ),
-        ),
-      );
-    } on _ClaimException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.message)));
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not submit claim: $e')));
-    }
-  }
-
   _MissionClaimStatus _parseClaimStatus(String raw) {
-    switch (raw) {
+    switch (raw.trim().toLowerCase()) {
       case 'approved':
         return _MissionClaimStatus.approved;
       case 'rejected':
+      case 'declined':
         return _MissionClaimStatus.rejected;
       case 'pending':
         return _MissionClaimStatus.pending;
@@ -203,8 +172,7 @@ class _GamesPageState extends State<GamesPage> {
     final d = data ?? const <String, dynamic>{};
     return _MissionClaimView(
       status: _parseClaimStatus((d['status'] ?? '').toString()),
-      reviewNote: (d['reviewNote'] ?? '').toString().trim(),
-      reviewedBy: (d['reviewedBy'] ?? '').toString().trim(),
+      reviewNote: (d['reviewNote'] ?? d['ownerNote'] ?? '').toString().trim(),
       sortDate: _readDocDate(d),
     );
   }
@@ -213,6 +181,72 @@ class _GamesPageState extends State<GamesPage> {
     final v = d['updatedAt'] ?? d['createdAt'];
     if (v is Timestamp) return v.toDate();
     return DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  Future<void> _submitMissionClaim(_PointsMission mission) async {
+    final user = FirebaseAuth.instance.currentUser;
+    final uid = user?.uid;
+    if (uid == null || uid.isEmpty) return;
+
+    final identity = await UserIdentityService.instance.getForUid(
+      uid,
+      authUser: user,
+    );
+    final displayName = identity.safeName.trim();
+    final email = identity.email.trim();
+    final claimId = '${uid}_${_todayKey}_${mission.id}';
+    final claimRef = _db.collection('game_claims').doc(claimId);
+
+    try {
+      await _db.runTransaction((tx) async {
+        final existing = await tx.get(claimRef);
+        if (existing.exists) {
+          final d = existing.data() ?? <String, dynamic>{};
+          final status = (d['status'] ?? 'pending').toString().toLowerCase();
+          if (status == 'pending') {
+            throw _ClaimException('This mission is already pending review.');
+          }
+          if (status == 'approved') {
+            throw _ClaimException('This mission is already approved today.');
+          }
+          if (status == 'rejected' || status == 'declined') {
+            throw _ClaimException('This mission was already reviewed today.');
+          }
+          throw _ClaimException('Mission already claimed today.');
+        }
+
+        tx.set(claimRef, {
+          'uid': uid,
+          'dayKey': _todayKey,
+          'missionId': mission.id,
+          'missionTitle': mission.title,
+          'missionReward': mission.reward,
+          'status': 'pending',
+          'source': 'games_page_v2',
+          if (displayName.isNotEmpty) 'userDisplayName': displayName,
+          if (email.isNotEmpty) 'userEmail': email,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('+${mission.reward} pts sent for review')),
+      );
+    } on _ClaimException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not submit this claim. Please try again.'),
+        ),
+      );
+    }
   }
 
   void _openAccessories() {
@@ -227,60 +261,77 @@ class _GamesPageState extends State<GamesPage> {
     ).push(MaterialPageRoute(builder: (_) => const PointsHistoryPage()));
   }
 
+  void _openCatchTheTreat() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const CatchTheTreatPage()));
+  }
+
+  void _openPetMemory() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const PetMemoryPage()));
+  }
+
+  void _openBubblePaws() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const BubblePawsPage()));
+  }
+
+  void _openPetQuiz() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const PetQuizPage()));
+  }
+
+  void _openMissionAction(_PointsMission mission) {
+    switch (mission.action) {
+      case _MissionAction.lostFound:
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const PetReportsPage()));
+        break;
+      case _MissionAction.petSitting:
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const PetBabysittingPage()));
+        break;
+      case _MissionAction.localServices:
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const _LocalServicesPickerPage()),
+        );
+        break;
+      case _MissionAction.adoptRescue:
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const AdoptRescuePage()));
+        break;
+      case _MissionAction.communityPost:
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => const CreatePostSheet(),
+        );
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final uid = _uid;
-    final bool showAppBar = Navigator.of(context).canPop();
+    final showAppBar = Navigator.of(context).canPop();
 
     if (uid == null || uid.isEmpty) {
-      return Scaffold(
-        backgroundColor: AppTheme.bg,
-        appBar: showAppBar
-            ? AppBar(
-                title: const Text('Games'),
-                backgroundColor: AppTheme.bg,
-                foregroundColor: AppTheme.ink,
-                elevation: 0,
-              )
-            : null,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    color: AppTheme.orange.withAlpha(20),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.emoji_events_outlined, size: 34),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Sign in to use points',
-                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Your missions, rewards, and leaderboard rank are linked to your account.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: AppTheme.ink.withAlpha(150)),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
+      return _SignedOutGamesState(showAppBar: showAppBar);
     }
 
     return Scaffold(
       backgroundColor: AppTheme.bg,
       appBar: showAppBar
           ? AppBar(
-              title: const Text('Games'),
+              title: const Text('PetTounsi Points'),
               backgroundColor: AppTheme.bg,
               foregroundColor: AppTheme.ink,
               elevation: 0,
@@ -295,7 +346,7 @@ class _GamesPageState extends State<GamesPage> {
               : 0;
 
           return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: _allClaimsStream,
+            stream: _myClaimsStream,
             builder: (context, claimsSnap) {
               final allClaimDocs =
                   claimsSnap.data?.docs ??
@@ -311,182 +362,58 @@ class _GamesPageState extends State<GamesPage> {
                 syncedPoints: syncedPoints,
                 claimDocs: allClaimDocs,
               );
-              final nextMilestone = _nextMilestone(points);
+              final stats = _GameStats.fromClaims(allClaimDocs, todayDocs);
               final rankTitle = _rankTitleForPoints(points);
-
+              final nextMilestone = _nextMilestone(points);
               final claimsByMission = <String, _MissionClaimView>{};
 
               for (final doc in todayDocs) {
-                final d = doc.data();
-                final missionId = (d['missionId'] ?? '').toString().trim();
+                final data = doc.data();
+                final missionId = (data['missionId'] ?? '').toString().trim();
                 if (missionId.isEmpty) continue;
 
-                final nextView = _claimViewFromDoc(d);
-                final prev = claimsByMission[missionId];
-                if (prev == null || nextView.sortDate.isAfter(prev.sortDate)) {
+                final nextView = _claimViewFromDoc(data);
+                final previous = claimsByMission[missionId];
+                if (previous == null ||
+                    nextView.sortDate.isAfter(previous.sortDate)) {
                   claimsByMission[missionId] = nextView;
                 }
               }
 
-              final pendingTodayPoints = () {
-                var sum = 0;
-                for (final doc in todayDocs) {
-                  final d = doc.data();
-                  if ((d['status'] ?? '').toString().toLowerCase() ==
-                      'pending') {
-                    final r = d['missionReward'];
-                    if (r is num) sum += r.toInt();
-                  }
-                }
-                return sum;
-              }();
-
-              Widget tabContent;
-              if (_tabIndex == 0) {
-                tabContent = Column(
-                  key: const ValueKey('missions'),
-                  children: [
-                    _SectionCard(
-                      title: 'Daily missions',
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.lilac,
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: AppTheme.outline),
-                        ),
-                        child: Text(
-                          _friendlyDate(_todayKey),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 11.5,
-                          ),
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          if (claimsSnap.hasError)
-                            Container(
-                              width: double.infinity,
-                              margin: const EdgeInsets.only(bottom: 10),
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFF6E9),
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
-                                  color: const Color(0xFFFFE1B2),
-                                ),
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Icon(
-                                    Icons.info_outline,
-                                    size: 18,
-                                    color: Color(0xFFB45309),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      'Claim history is temporarily unavailable. Please try again later.',
-                                      style: TextStyle(
-                                        color: AppTheme.ink.withAlpha(160),
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 12.2,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          for (int i = 0; i < _missions.length; i++) ...[
-                            _MissionTile(
-                              mission: _missions[i],
-                              claimView:
-                                  claimsByMission[_missions[i].id] ??
-                                  _MissionClaimView.none,
-                              onClaim: () => _submitMissionClaim(_missions[i]),
-                            ),
-                            if (i != _missions.length - 1)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 8,
-                                ),
-                                child: Divider(
-                                  color: Colors.black.withAlpha(18),
-                                ),
-                              ),
-                          ],
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF8F6FB),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: AppTheme.outline),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.lock_outline,
-                                  size: 18,
-                                  color: AppTheme.ink.withAlpha(160),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Approved mission points are added to your official balance after review.',
-                                    style: TextStyle(
-                                      color: AppTheme.ink.withAlpha(145),
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 12.2,
-                                      height: 1.25,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              } else if (_tabIndex == 1) {
-                tabContent = Column(
-                  key: const ValueKey('rewards'),
-                  children: [
-                    _AccessoriesOnlyCard(
-                      points: points,
-                      onOpenAccessories: _openAccessories,
-                      onOpenHistory: _openPointsHistory,
-                    ),
-                    const SizedBox(height: 12),
-                    _RewardsCard(points: points),
-                  ],
-                );
-              } else {
-                tabContent = Column(
-                  key: const ValueKey('rank'),
-                  children: [_LeaderboardCard(myUid: uid, myPoints: points)],
-                );
-              }
+              final tabContent = switch (_tabIndex) {
+                0 => _MissionsTab(
+                  dateLabel: _friendlyDate(_todayKey),
+                  missions: _missions,
+                  claimsByMission: claimsByMission,
+                  claimsUnavailable: claimsSnap.hasError,
+                  onOpenMission: _openMissionAction,
+                  onClaimMission: _submitMissionClaim,
+                  onOpenCatchTheTreat: _openCatchTheTreat,
+                  onOpenPetMemory: _openPetMemory,
+                  onOpenBubblePaws: _openBubblePaws,
+                  onOpenPetQuiz: _openPetQuiz,
+                ),
+                1 => _RewardsTab(
+                  points: points,
+                  onOpenAccessories: _openAccessories,
+                  onOpenHistory: _openPointsHistory,
+                ),
+                _ => _RankTab(myUid: uid, myPoints: points),
+              };
 
               return ListView(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 22),
                 children: [
                   const _GamesMiniHeader(),
                   const SizedBox(height: 10),
                   _GamesSummaryCard(
                     points: points,
                     rankTitle: rankTitle,
-                    progressToNext: nextMilestone.progress,
-                    nextLabel: nextMilestone.label,
-                    pointsToNext: nextMilestone.pointsLeft,
-                    pendingTodayPoints: pendingTodayPoints,
+                    progress: nextMilestone.progress,
+                    progressSemanticLabel: nextMilestone.pointsLeft <= 0
+                        ? 'Top rank'
+                        : '${nextMilestone.pointsLeft} points to ${nextMilestone.label}',
+                    stats: stats,
                     onOpenHistory: _openPointsHistory,
                     onOpenAccessories: _openAccessories,
                   ),
@@ -517,65 +444,282 @@ class _GamesMiniHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const PremiumPageHeader(
-      icon: Icons.sports_esports_rounded,
-      iconColor: Color(0xFF7C62D7),
-      title: 'Games',
-      subtitle: 'Complete missions and unlock community rewards.',
-      badgeLabel: 'Official points',
-      chips: [
-        PremiumHeaderChip(
-          icon: Icons.task_alt_rounded,
-          label: 'Missions',
-          bg: AppTheme.lilac,
-          fg: Color(0xFF6B56C9),
-        ),
-        PremiumHeaderChip(
-          icon: Icons.card_giftcard_rounded,
-          label: 'Rewards',
-          bg: AppTheme.blush,
-          fg: AppTheme.orangeDark,
-        ),
-        PremiumHeaderChip(
-          icon: Icons.bar_chart_rounded,
-          label: 'Rank',
-          bg: AppTheme.sky,
-          fg: Color(0xFF4C79C8),
-        ),
-      ],
+    return const Text(
+      '     Official Points',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: AppTheme.ink,
+        fontSize: 24,
+        fontWeight: FontWeight.w900,
+        letterSpacing: -0.45,
+      ),
     );
   }
 }
 
-// ignore: unused_element
-class _HeaderPill extends StatelessWidget {
-  const _HeaderPill({required this.icon, required this.label});
+class _SignedOutGamesState extends StatelessWidget {
+  const _SignedOutGamesState({required this.showAppBar});
 
-  final IconData icon;
-  final String label;
+  final bool showAppBar;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withAlpha(210),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppTheme.outline),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: AppTheme.ink.withAlpha(170)),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: AppTheme.ink.withAlpha(180),
-              fontWeight: FontWeight.w900,
-              fontSize: 11.8,
-              height: 1,
+    return Scaffold(
+      backgroundColor: AppTheme.bg,
+      appBar: showAppBar
+          ? AppBar(
+              title: const Text('  Official Points'),
+              backgroundColor: AppTheme.bg,
+              foregroundColor: AppTheme.ink,
+              elevation: 0,
+            )
+          : null,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: AppTheme.outline),
+              boxShadow: AppTheme.softShadows(0.24),
             ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 76,
+                  height: 76,
+                  decoration: BoxDecoration(
+                    color: AppTheme.blush,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppTheme.outline),
+                  ),
+                  child: const Icon(
+                    Icons.emoji_events_outlined,
+                    color: AppTheme.orangeDark,
+                    size: 36,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Sign in to collect points',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppTheme.ink,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 17,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Missions, rewards, and rank are linked to your PetTounsi account.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppTheme.muted,
+                    fontWeight: FontWeight.w700,
+                    height: 1.25,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GamesSummaryCard extends StatelessWidget {
+  const _GamesSummaryCard({
+    required this.points,
+    required this.rankTitle,
+    required this.progress,
+    required this.progressSemanticLabel,
+    required this.stats,
+    required this.onOpenHistory,
+    required this.onOpenAccessories,
+  });
+
+  final int points;
+  final String rankTitle;
+  final double progress;
+  final String progressSemanticLabel;
+  final _GameStats stats;
+  final VoidCallback onOpenHistory;
+  final VoidCallback onOpenAccessories;
+
+  @override
+  Widget build(BuildContext context) {
+    final statsSemantics =
+        '${stats.pendingTotal} pending, ${stats.approvedTotal} approved, '
+        '${stats.todayClaimed} claims today, ${stats.pendingTodayPoints} pending points';
+
+    return Semantics(
+      label: statsSemantics,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppTheme.outline),
+          boxShadow: AppTheme.softShadows(0.12),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: AppTheme.blush,
+                borderRadius: BorderRadius.circular(17),
+                border: Border.all(color: AppTheme.outline),
+              ),
+              child: const Icon(
+                Icons.workspace_premium_rounded,
+                color: AppTheme.orangeDark,
+                size: 25,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$points pts',
+                    style: const TextStyle(
+                      color: AppTheme.ink,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 29,
+                      height: 1,
+                      letterSpacing: -0.55,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    rankTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppTheme.muted,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12.6,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Semantics(
+                    label: progressSemanticLabel,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: LinearProgressIndicator(
+                        minHeight: 7,
+                        value: progress.clamp(0.0, 1.0),
+                        backgroundColor: const Color(0xFFF2EDF5),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          AppTheme.orange,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _MetricChip(
+                        icon: Icons.hourglass_bottom_rounded,
+                        label: '${stats.pendingTotal} pending',
+                        bg: const Color(0xFFFFF7E8),
+                        fg: const Color(0xFFAA6A00),
+                      ),
+                      _MetricChip(
+                        icon: Icons.verified_rounded,
+                        label: '${stats.approvedTotal} approved',
+                        bg: const Color(0xFFEAF8F0),
+                        fg: const Color(0xFF1F8A4C),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              children: [
+                _IconAction(
+                  icon: Icons.receipt_long_outlined,
+                  tooltip: 'History',
+                  onTap: onOpenHistory,
+                ),
+                const SizedBox(height: 8),
+                _IconAction(
+                  icon: Icons.redeem_rounded,
+                  tooltip: 'Rewards',
+                  onTap: onOpenAccessories,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PlayTab extends StatelessWidget {
+  const _PlayTab({
+    required this.onOpenCatchTheTreat,
+    required this.onOpenPetMemory,
+    required this.onOpenBubblePaws,
+    required this.onOpenPetQuiz,
+  });
+
+  final VoidCallback onOpenCatchTheTreat;
+  final VoidCallback onOpenPetMemory;
+  final VoidCallback onOpenBubblePaws;
+  final VoidCallback onOpenPetQuiz;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionCard(
+      title: 'Play',
+      trailing: const _TinyBadge(label: 'Arcade'),
+      child: Column(
+        children: [
+          _ArcadeGameTile(
+            title: 'Catch the Treat',
+            rewardLabel: '+15 pts',
+            icon: Icons.cookie_rounded,
+            colors: const [Color(0xFFFF8A67), Color(0xFFFFC47D)],
+            onTap: onOpenCatchTheTreat,
+          ),
+          const SizedBox(height: 10),
+          _ArcadeGameTile(
+            title: 'Pet Memory',
+            rewardLabel: '+15 pts',
+            icon: Icons.grid_view_rounded,
+            colors: const [Color(0xFF7C62D7), Color(0xFF8FD9FF)],
+            onTap: onOpenPetMemory,
+          ),
+          const SizedBox(height: 10),
+          _ArcadeGameTile(
+            title: 'Bubble Paws',
+            rewardLabel: '+15 pts',
+            icon: Icons.bubble_chart_rounded,
+            colors: const [Color(0xFF10A37F), Color(0xFFB6F3D4)],
+            onTap: onOpenBubblePaws,
+          ),
+          const SizedBox(height: 10),
+          _ArcadeGameTile(
+            title: 'Pet Quiz',
+            rewardLabel: '+15 pts',
+            icon: Icons.quiz_rounded,
+            colors: const [Color(0xFF355C7D), Color(0xFFA6D8FF)],
+            onTap: onOpenPetQuiz,
           ),
         ],
       ),
@@ -583,8 +727,266 @@ class _HeaderPill extends StatelessWidget {
   }
 }
 
-class _AccessoriesOnlyCard extends StatelessWidget {
-  const _AccessoriesOnlyCard({
+class _ArcadeGameTile extends StatelessWidget {
+  const _ArcadeGameTile({
+    required this.title,
+    required this.rewardLabel,
+    required this.icon,
+    required this.colors,
+    required this.onTap,
+  });
+
+  final String title;
+  final String rewardLabel;
+  final IconData icon;
+  final List<Color> colors;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(26),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(26),
+        child: Ink(
+          height: 138,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: colors,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: Colors.white.withAlpha(230)),
+            boxShadow: AppTheme.softShadows(0.18),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(26),
+            child: Stack(
+              children: [
+                Positioned(
+                  right: -22,
+                  top: -22,
+                  child: _ArcadeBubble(size: 96, opacity: 0.18),
+                ),
+                Positioned(
+                  right: 50,
+                  bottom: -32,
+                  child: _ArcadeBubble(size: 82, opacity: 0.12),
+                ),
+                Positioned(
+                  left: 18,
+                  top: 18,
+                  child: Container(
+                    width: 58,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withAlpha(235),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Icon(icon, color: colors.first, size: 30),
+                  ),
+                ),
+                Positioned(
+                  left: 18,
+                  right: 86,
+                  bottom: 18,
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 22,
+                      letterSpacing: -0.35,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 14,
+                  top: 14,
+                  child: Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withAlpha(240),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.play_arrow_rounded,
+                      color: colors.first,
+                      size: 28,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 14,
+                  bottom: 16,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 11,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      rewardLabel,
+                      style: TextStyle(
+                        color: colors.first,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12.2,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ArcadeBubble extends StatelessWidget {
+  const _ArcadeBubble({required this.size, required this.opacity});
+
+  final double size;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white.withAlpha((255 * opacity).round()),
+      ),
+    );
+  }
+}
+
+class _MissionsTab extends StatelessWidget {
+  const _MissionsTab({
+    required this.dateLabel,
+    required this.missions,
+    required this.claimsByMission,
+    required this.claimsUnavailable,
+    required this.onOpenMission,
+    required this.onClaimMission,
+    required this.onOpenCatchTheTreat,
+    required this.onOpenPetMemory,
+    required this.onOpenBubblePaws,
+    required this.onOpenPetQuiz,
+  });
+
+  final String dateLabel;
+  final List<_PointsMission> missions;
+  final Map<String, _MissionClaimView> claimsByMission;
+  final bool claimsUnavailable;
+  final ValueChanged<_PointsMission> onOpenMission;
+  final ValueChanged<_PointsMission> onClaimMission;
+  final VoidCallback onOpenCatchTheTreat;
+  final VoidCallback onOpenPetMemory;
+  final VoidCallback onOpenBubblePaws;
+  final VoidCallback onOpenPetQuiz;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey('missions'),
+      children: [
+        _SectionCard(
+          title: 'Missions',
+          trailing: _TinyBadge(label: dateLabel),
+          child: Column(
+            children: [
+              if (claimsUnavailable) ...[
+                const _InfoBox(
+                  icon: Icons.wifi_off_rounded,
+                  message: 'Mission status could not refresh.',
+                  tone: _InfoTone.warning,
+                ),
+                const SizedBox(height: 8),
+              ],
+              for (int i = 0; i < missions.length; i++) ...[
+                _MissionTile(
+                  mission: missions[i],
+                  claimView:
+                      claimsByMission[missions[i].id] ?? _MissionClaimView.none,
+                  onOpen: () => onOpenMission(missions[i]),
+                  onClaim: () => onClaimMission(missions[i]),
+                ),
+                if (i != missions.length - 1) const SizedBox(height: 8),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        _PlayTab(
+          onOpenCatchTheTreat: onOpenCatchTheTreat,
+          onOpenPetMemory: onOpenPetMemory,
+          onOpenBubblePaws: onOpenBubblePaws,
+          onOpenPetQuiz: onOpenPetQuiz,
+        ),
+      ],
+    );
+  }
+}
+
+class _RewardsTab extends StatelessWidget {
+  const _RewardsTab({
+    required this.points,
+    required this.onOpenAccessories,
+    required this.onOpenHistory,
+  });
+
+  final int points;
+  final VoidCallback onOpenAccessories;
+  final VoidCallback onOpenHistory;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey('rewards'),
+      children: [
+        _RewardsWalletCard(
+          points: points,
+          onOpenAccessories: onOpenAccessories,
+          onOpenHistory: onOpenHistory,
+        ),
+        const SizedBox(height: 12),
+        _RewardsCard(points: points),
+        const SizedBox(height: 12),
+        const _PartnerRewardsPreviewCard(),
+      ],
+    );
+  }
+}
+
+class _RankTab extends StatelessWidget {
+  const _RankTab({required this.myUid, required this.myPoints});
+
+  final String myUid;
+  final int myPoints;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey('rank'),
+      children: [_LeaderboardCard(myUid: myUid, myPoints: myPoints)],
+    );
+  }
+}
+
+class _RewardsWalletCard extends StatelessWidget {
+  const _RewardsWalletCard({
     required this.points,
     required this.onOpenAccessories,
     required this.onOpenHistory,
@@ -597,31 +999,75 @@ class _AccessoriesOnlyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFEFF),
-        borderRadius: BorderRadius.circular(22),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppTheme.outline),
-        boxShadow: AppTheme.softShadows(0.45),
+        boxShadow: AppTheme.softShadows(0.20),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 360;
+          final leading = Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: AppTheme.blush,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppTheme.outline),
+                ),
+                child: const Icon(
+                  Icons.wallet_giftcard_rounded,
+                  color: AppTheme.orangeDark,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Reward wallet',
+                      style: TextStyle(
+                        color: AppTheme.ink,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$points official points available for approved rewards.',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.muted,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+
           final actions = Wrap(
             alignment: WrapAlignment.end,
             crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 6,
-            runSpacing: 6,
+            spacing: 7,
+            runSpacing: 7,
             children: [
               ElevatedButton.icon(
                 onPressed: onOpenAccessories,
-                icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                label: const Text('Open'),
+                icon: const Icon(Icons.redeem_rounded, size: 18),
+                label: const Text('Open rewards'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.orange,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
+                    horizontal: 13,
                     vertical: 10,
                   ),
                   minimumSize: const Size(0, 0),
@@ -652,446 +1098,122 @@ class _AccessoriesOnlyCard extends StatelessWidget {
             ],
           );
 
-          return compact
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _walletLeading(points),
-                    const SizedBox(height: 10),
-                    Align(alignment: Alignment.centerRight, child: actions),
-                  ],
-                )
-              : Row(
-                  children: [
-                    Expanded(child: _walletLeading(points)),
-                    const SizedBox(width: 8),
-                    actions,
-                  ],
-                );
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                leading,
+                const SizedBox(height: 12),
+                Align(alignment: Alignment.centerRight, child: actions),
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              Expanded(child: leading),
+              const SizedBox(width: 10),
+              actions,
+            ],
+          );
         },
       ),
     );
   }
-
-  Widget _walletLeading(int points) {
-    return Row(
-      children: [
-        Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            color: AppTheme.blush,
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: AppTheme.outline),
-          ),
-          child: const Icon(
-            Icons.wallet_giftcard_rounded,
-            color: AppTheme.orangeDark,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Rewards',
-                style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.ink,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '$points official pts · browse rewards',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: AppTheme.muted,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12.3,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 }
 
-// ignore: unused_element
-class _GamesTitleRow extends StatelessWidget {
-  const _GamesTitleRow({required this.points});
-
-  final int points;
+class _PartnerRewardsPreviewCard extends StatelessWidget {
+  const _PartnerRewardsPreviewCard();
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: AppTheme.blush,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppTheme.outline),
+    return _SectionCard(
+      title: 'Coming reward ideas',
+      trailing: const _TinyBadge(label: 'V2.1'),
+      child: Column(
+        children: const [
+          _PreviewRewardTile(
+            icon: Icons.local_hospital_rounded,
+            title: 'Vet checkup offers',
+            subtitle: 'Discounts from trusted local clinics.',
           ),
-          child: const Icon(
-            Icons.emoji_events_rounded,
-            size: 18,
-            color: AppTheme.orangeDark,
+          SizedBox(height: 9),
+          _PreviewRewardTile(
+            icon: Icons.storefront_rounded,
+            title: 'Shop partner deals',
+            subtitle: 'Food, accessories, grooming, and care bundles.',
           ),
-        ),
-        const SizedBox(width: 10),
-        const Text(
-          'Games',
-          style: TextStyle(
-            color: AppTheme.ink,
-            fontWeight: FontWeight.w900,
-            fontSize: 18,
+          SizedBox(height: 9),
+          _PreviewRewardTile(
+            icon: Icons.volunteer_activism_rounded,
+            title: 'Rescue support rewards',
+            subtitle: 'Use points to support community rescue campaigns.',
           ),
-        ),
-        const Spacer(),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: AppTheme.outline),
-            boxShadow: AppTheme.softShadows(0.18),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.local_fire_department_rounded,
-                size: 16,
-                color: AppTheme.orangeDark,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '$points pts',
-                style: const TextStyle(
-                  color: AppTheme.ink,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 12.2,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
-class _GamesSummaryCard extends StatelessWidget {
-  const _GamesSummaryCard({
-    required this.points,
-    required this.rankTitle,
-    required this.progressToNext,
-    required this.nextLabel,
-    required this.pointsToNext,
-    required this.pendingTodayPoints,
-    required this.onOpenHistory,
-    required this.onOpenAccessories,
+class _PreviewRewardTile extends StatelessWidget {
+  const _PreviewRewardTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
   });
 
-  final int points;
-  final String rankTitle;
-  final double progressToNext;
-  final String nextLabel;
-  final int pointsToNext;
-  final int pendingTodayPoints;
-  final VoidCallback onOpenHistory;
-  final VoidCallback onOpenAccessories;
+  final IconData icon;
+  final String title;
+  final String subtitle;
 
   @override
   Widget build(BuildContext context) {
-    final chips = <Widget>[];
-
-    if (pendingTodayPoints > 0) {
-      chips.add(
-        _PillChip(
-          icon: Icons.hourglass_top_rounded,
-          label: '+$pendingTodayPoints pending review',
-          bg: const Color(0xFFFFF6E6),
-          fg: const Color(0xFFB66B12),
-          border: const Color(0xFFF7DEB6),
-        ),
-      );
-    }
-
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(26),
+        color: const Color(0xFFFFFEFF),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppTheme.outline),
-        boxShadow: AppTheme.softShadows(0.26),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFFF3EE), Color(0xFFFFFBFD)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(22),
-                    border: Border.all(color: AppTheme.outline),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 54,
-                        height: 54,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(18),
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFFFB79E), AppTheme.orange],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                        ),
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          Icons.emoji_events_rounded,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Official points',
-                              style: TextStyle(
-                                color: AppTheme.ink.withAlpha(155),
-                                fontWeight: FontWeight.w800,
-                                fontSize: 12.2,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '$points pts',
-                              style: const TextStyle(
-                                color: AppTheme.ink,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 30,
-                                height: 1,
-                                letterSpacing: -0.6,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(color: AppTheme.outline),
-                              ),
-                              child: Text(
-                                rankTitle,
-                                style: TextStyle(
-                                  color: AppTheme.ink.withAlpha(210),
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 11.6,
-                                  height: 1,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Column(
-                children: [
-                  _IconAction(
-                    icon: Icons.receipt_long_outlined,
-                    tooltip: 'History',
-                    onTap: onOpenHistory,
-                  ),
-                  const SizedBox(height: 8),
-                  _IconAction(
-                    icon: Icons.redeem_outlined,
-                    tooltip: 'Accessories',
-                    onTap: onOpenAccessories,
-                  ),
-                ],
-              ),
-            ],
-          ),
-          if (chips.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Wrap(spacing: 8, runSpacing: 8, children: chips),
-          ],
-          const SizedBox(height: 12),
           Container(
-            padding: const EdgeInsets.all(12),
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
-              color: const Color(0xFFFFFBFD),
-              borderRadius: BorderRadius.circular(18),
+              color: AppTheme.mint,
+              borderRadius: BorderRadius.circular(13),
               border: Border.all(color: AppTheme.outline),
             ),
+            child: Icon(icon, color: const Color(0xFF2F8F62), size: 20),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.trending_up_rounded,
-                      size: 18,
-                      color: AppTheme.orangeDark,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      pointsToNext <= 0 ? 'Top rank reached' : 'Next milestone',
-                      style: const TextStyle(
-                        color: AppTheme.ink,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Stack(
-                  children: [
-                    Container(
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF3EAF6),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                    FractionallySizedBox(
-                      widthFactor: progressToNext.clamp(0.0, 1.0),
-                      child: Container(
-                        height: 10,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [AppTheme.orange, AppTheme.orangeDark],
-                          ),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
                 Text(
-                  pointsToNext <= 0
-                      ? 'You already reached the highest current rank.'
-                      : '$pointsToNext points to $nextLabel',
-                  style: TextStyle(
-                    color: AppTheme.ink.withAlpha(160),
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12.1,
+                  title,
+                  style: const TextStyle(
+                    color: AppTheme.ink,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13.2,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: AppTheme.muted,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                    height: 1.18,
                   ),
                 ),
               ],
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _PillChip extends StatelessWidget {
-  const _PillChip({
-    required this.icon,
-    required this.label,
-    required this.bg,
-    required this.fg,
-    required this.border,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color bg;
-  final Color fg;
-  final Color border;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: fg),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: fg,
-              fontWeight: FontWeight.w900,
-              fontSize: 11.5,
-              height: 1,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _IconAction extends StatelessWidget {
-  const _IconAction({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: const Color(0xFFFFFBFD),
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          child: Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.outline),
-            ),
-            child: Icon(icon, color: AppTheme.orangeDark, size: 21),
-          ),
-        ),
       ),
     );
   }
@@ -1129,7 +1251,7 @@ class _GamesTabs extends StatelessWidget {
           ),
           _GamesTabItem(
             selected: index == 2,
-            icon: Icons.bar_chart_rounded,
+            icon: Icons.leaderboard_rounded,
             label: 'Rank',
             onTap: () => onChanged(2),
           ),
@@ -1155,7 +1277,7 @@ class _GamesTabItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textColor = selected ? Colors.white : AppTheme.ink.withAlpha(180);
-    final iconColor = selected ? Colors.white : AppTheme.orchidDark;
+    final iconColor = selected ? Colors.white : AppTheme.orangeDark;
 
     return Expanded(
       child: Material(
@@ -1172,18 +1294,17 @@ class _GamesTabItem extends StatelessWidget {
               borderRadius: BorderRadius.circular(17),
               gradient: selected
                   ? const LinearGradient(
-                      colors: [AppTheme.orchidDark, AppTheme.roseDark],
+                      colors: [AppTheme.orange, AppTheme.orangeDark],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     )
                   : null,
-              color: selected ? null : Colors.transparent,
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(icon, size: 18, color: iconColor),
-                const SizedBox(width: 8),
+                const SizedBox(width: 7),
                 Flexible(
                   child: Text(
                     label,
@@ -1191,7 +1312,7 @@ class _GamesTabItem extends StatelessWidget {
                     style: TextStyle(
                       color: textColor,
                       fontWeight: FontWeight.w900,
-                      fontSize: 12.2,
+                      fontSize: 11.4,
                       height: 1,
                     ),
                   ),
@@ -1200,224 +1321,6 @@ class _GamesTabItem extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ignore: unused_element
-class _PendingApprovedCreditsCard extends StatelessWidget {
-  const _PendingApprovedCreditsCard({required this.points});
-
-  final int points;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFBF4),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFF2DEC1)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFF2DEC1)),
-            ),
-            child: const Icon(
-              Icons.auto_awesome_rounded,
-              size: 16,
-              color: AppTheme.orangeDark,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '$points approved points are already included in your official total.',
-              style: TextStyle(
-                color: AppTheme.ink.withAlpha(185),
-                fontWeight: FontWeight.w700,
-                fontSize: 12,
-                height: 1.22,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ignore: unused_element
-class _PointsHeroCard extends StatelessWidget {
-  const _PointsHeroCard({
-    required this.points,
-    required this.rankTitle,
-    required this.progressToNext,
-    required this.nextLabel,
-    required this.pointsToNext,
-  });
-
-  final int points;
-  final String rankTitle;
-  final double progressToNext;
-  final String nextLabel;
-  final int pointsToNext;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFFFDED5), Color(0xFFFFEAE2), Color(0xFFF2ECFF)],
-        ),
-        border: Border.all(color: AppTheme.outline),
-        boxShadow: AppTheme.softShadows(0.65),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(220),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppTheme.outline),
-                ),
-                child: const Icon(
-                  Icons.emoji_events_rounded,
-                  color: AppTheme.orangeDark,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Wallet Points',
-                      style: TextStyle(
-                        color: AppTheme.muted,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
-                    ),
-                    Text(
-                      '$points',
-                      style: const TextStyle(
-                        color: AppTheme.ink,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 30,
-                        height: 1.0,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(210),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: AppTheme.outline),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(
-                      Icons.local_fire_department_rounded,
-                      color: AppTheme.orangeDark,
-                      size: 16,
-                    ),
-                    SizedBox(width: 6),
-                    Text(
-                      'Daily',
-                      style: TextStyle(
-                        color: AppTheme.ink,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withAlpha(180),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.outline),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  rankTitle,
-                  style: const TextStyle(
-                    color: AppTheme.ink,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 15,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Stack(
-                  children: [
-                    Container(
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: AppTheme.lilac,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                    FractionallySizedBox(
-                      widthFactor: progressToNext.clamp(0.0, 1.0),
-                      child: Container(
-                        height: 10,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [AppTheme.orange, Color(0xFFFFBAA4)],
-                          ),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  pointsToNext <= 0
-                      ? 'Top rank reached 🎉'
-                      : '$pointsToNext points to $nextLabel',
-                  style: const TextStyle(
-                    color: AppTheme.muted,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1470,210 +1373,202 @@ class _MissionTile extends StatelessWidget {
   const _MissionTile({
     required this.mission,
     required this.claimView,
+    required this.onOpen,
     required this.onClaim,
   });
 
   final _PointsMission mission;
   final _MissionClaimView claimView;
+  final VoidCallback onOpen;
   final VoidCallback onClaim;
 
   @override
   Widget build(BuildContext context) {
     final status = claimView.status;
     final locked = status != _MissionClaimStatus.none;
+    final colors = _missionColors(status);
 
-    IconData icon = mission.icon;
-    Color iconBg = AppTheme.butter;
-    Color iconColor = const Color(0xFFC97A11);
-    Color tileBg = const Color(0xFFFFFEFF);
-
-    switch (status) {
-      case _MissionClaimStatus.pending:
-        icon = Icons.hourglass_top_rounded;
-        iconBg = const Color(0xFFFFF5E6);
-        iconColor = const Color(0xFFD97706);
-        tileBg = const Color(0xFFFFFCF6);
-        break;
-      case _MissionClaimStatus.approved:
-        icon = Icons.check_circle;
-        iconBg = const Color(0xFFEAFBF3);
-        iconColor = const Color(0xFF1F9D55);
-        tileBg = const Color(0xFFFCFFFD);
-        break;
-      case _MissionClaimStatus.rejected:
-        icon = Icons.cancel_outlined;
-        iconBg = const Color(0xFFFFECEC);
-        iconColor = const Color(0xFFDC2626);
-        tileBg = const Color(0xFFFFFCFC);
-        break;
-      case _MissionClaimStatus.none:
-        break;
-    }
-
-    final action = locked
-        ? _ClaimStateButton(status: status)
-        : ElevatedButton(
-            onPressed: onClaim,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.orange,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              minimumSize: const Size(0, 0),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-            child: const Text('Claim'),
-          );
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final narrow = constraints.maxWidth < 325;
-
-        final content = Expanded(
-          child: Column(
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.tileBg,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                mission.title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.ink,
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: colors.iconBg,
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: AppTheme.outline),
                 ),
+                child: Icon(colors.icon, color: colors.iconColor, size: 22),
               ),
-              const SizedBox(height: 2),
-              Text(
-                mission.subtitle,
-                style: const TextStyle(
-                  color: AppTheme.muted,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12.5,
-                ),
-              ),
-              if (claimView.reviewNote.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: status == _MissionClaimStatus.rejected
-                        ? const Color(0xFFFFF1F1)
-                        : const Color(0xFFF8F6FB),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: status == _MissionClaimStatus.rejected
-                          ? const Color(0xFFFECACA)
-                          : AppTheme.outline,
-                    ),
-                  ),
-                  child: Text(
-                    claimView.reviewNote,
-                    style: const TextStyle(
-                      color: AppTheme.muted,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 11.6,
-                    ),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.blush,
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: AppTheme.outline),
-                    ),
-                    child: Text(
-                      '+${mission.reward} points',
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      mission.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: AppTheme.orangeDark,
                         fontWeight: FontWeight.w900,
-                        fontSize: 11.5,
+                        color: AppTheme.ink,
+                        fontSize: 14.5,
+                        height: 1.05,
                       ),
                     ),
+                    const SizedBox(height: 5),
+                    Text(
+                      mission.subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.muted,
+                        fontSize: 12.2,
+                        height: 1.22,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              _TinyBadge(label: '+${mission.reward} pts'),
+            ],
+          ),
+          const SizedBox(height: 11),
+          Row(children: [_StatusChip.forStatus(status), const Spacer()]),
+          const SizedBox(height: 11),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onOpen,
+                  icon: Icon(
+                    mission.action == _MissionAction.communityPost
+                        ? Icons.edit_note_rounded
+                        : Icons.open_in_new_rounded,
+                    size: 17,
                   ),
-                  if (status == _MissionClaimStatus.pending)
-                    const _StatusChip(
-                      text: 'Pending review',
-                      fg: Color(0xFFB45309),
-                      bg: Color(0xFFFFF7E8),
-                      border: Color(0xFFFDE0B2),
+                  label: Text(mission.actionLabel),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.ink,
+                    side: const BorderSide(color: AppTheme.outline),
+                    minimumSize: const Size(0, 44),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                  if (status == _MissionClaimStatus.approved)
-                    const _StatusChip(
-                      text: 'Approved',
-                      fg: Color(0xFF15803D),
-                      bg: Color(0xFFEFF8F2),
-                      border: Color(0xFFCBEBD7),
-                    ),
-                  if (status == _MissionClaimStatus.rejected)
-                    const _StatusChip(
-                      text: 'Rejected',
-                      fg: Color(0xFFB91C1C),
-                      bg: Color(0xFFFFEEEE),
-                      border: Color(0xFFFECACA),
-                    ),
-                ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: locked
+                    ? _ClaimStateButton(status: status)
+                    : _SmallClaimButton(onTap: onClaim),
               ),
             ],
           ),
-        );
-
-        final leading = Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: iconBg,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppTheme.outline),
-          ),
-          child: Icon(icon, color: iconColor, size: 21),
-        );
-
-        return Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: tileBg,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppTheme.outline),
-          ),
-          child: narrow
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [leading, const SizedBox(width: 10), content],
-                    ),
-                    const SizedBox(height: 8),
-                    Align(alignment: Alignment.centerRight, child: action),
-                  ],
-                )
-              : Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    leading,
-                    const SizedBox(width: 10),
-                    content,
-                    const SizedBox(width: 8),
-                    action,
-                  ],
-                ),
-        );
-      },
+        ],
+      ),
     );
   }
+
+  _MissionVisuals _missionColors(_MissionClaimStatus status) {
+    switch (status) {
+      case _MissionClaimStatus.pending:
+        return const _MissionVisuals(
+          icon: Icons.hourglass_top_rounded,
+          iconBg: Color(0xFFFFF5E6),
+          iconColor: Color(0xFFD97706),
+          tileBg: Color(0xFFFFFCF6),
+          border: Color(0xFFFDE0B2),
+        );
+      case _MissionClaimStatus.approved:
+        return const _MissionVisuals(
+          icon: Icons.check_circle_rounded,
+          iconBg: Color(0xFFEAFBF3),
+          iconColor: Color(0xFF15803D),
+          tileBg: Color(0xFFFCFFFD),
+          border: Color(0xFFCBEBD7),
+        );
+      case _MissionClaimStatus.rejected:
+        return const _MissionVisuals(
+          icon: Icons.cancel_outlined,
+          iconBg: Color(0xFFFFECEC),
+          iconColor: Color(0xFFDC2626),
+          tileBg: Color(0xFFFFFCFC),
+          border: Color(0xFFFECACA),
+        );
+      case _MissionClaimStatus.none:
+        return _MissionVisuals(
+          icon: mission.icon,
+          iconBg: AppTheme.butter,
+          iconColor: const Color(0xFFC97A11),
+          tileBg: Colors.white,
+          border: AppTheme.outline,
+        );
+    }
+  }
+}
+
+class _SmallClaimButton extends StatelessWidget {
+  const _SmallClaimButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 13),
+        decoration: BoxDecoration(
+          color: AppTheme.orangeDark,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Center(
+          child: Text(
+            'Claim points',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 12.1,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MissionVisuals {
+  const _MissionVisuals({
+    required this.icon,
+    required this.iconBg,
+    required this.iconColor,
+    required this.tileBg,
+    required this.border,
+  });
+
+  final IconData icon;
+  final Color iconBg;
+  final Color iconColor;
+  final Color tileBg;
+  final Color border;
 }
 
 class _StatusChip extends StatelessWidget {
@@ -1683,6 +1578,39 @@ class _StatusChip extends StatelessWidget {
     required this.bg,
     required this.border,
   });
+
+  factory _StatusChip.forStatus(_MissionClaimStatus status) {
+    switch (status) {
+      case _MissionClaimStatus.pending:
+        return const _StatusChip(
+          text: 'Pending review',
+          fg: Color(0xFFB45309),
+          bg: Color(0xFFFFF7E8),
+          border: Color(0xFFFDE0B2),
+        );
+      case _MissionClaimStatus.approved:
+        return const _StatusChip(
+          text: 'Approved',
+          fg: Color(0xFF15803D),
+          bg: Color(0xFFEFF8F2),
+          border: Color(0xFFCBEBD7),
+        );
+      case _MissionClaimStatus.rejected:
+        return const _StatusChip(
+          text: 'Reviewed',
+          fg: Color(0xFFB91C1C),
+          bg: Color(0xFFFFEEEE),
+          border: Color(0xFFFECACA),
+        );
+      case _MissionClaimStatus.none:
+        return const _StatusChip(
+          text: 'Available',
+          fg: AppTheme.muted,
+          bg: Color(0xFFF8F5FA),
+          border: AppTheme.outline,
+        );
+    }
+  }
 
   final String text;
   final Color fg;
@@ -1736,7 +1664,7 @@ class _ClaimStateButton extends StatelessWidget {
         border = const Color(0xFFCBEBD7);
         break;
       case _MissionClaimStatus.rejected:
-        label = 'Rejected';
+        label = 'Reviewed';
         fg = const Color(0xFFB91C1C);
         bg = const Color(0xFFFFEEEE);
         border = const Color(0xFFFECACA);
@@ -1750,7 +1678,8 @@ class _ClaimStateButton extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(14),
@@ -1772,7 +1701,7 @@ class _RewardsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rewards = <_RewardTier>[
-      const _RewardTier(100, 'Starter Badge', Icons.pets_outlined),
+      const _RewardTier(100, 'Starter Helper', Icons.pets_outlined),
       const _RewardTier(300, 'Trusted Helper', Icons.favorite_outline),
       const _RewardTier(700, 'Rescue Star', Icons.star_outline),
       const _RewardTier(
@@ -1785,23 +1714,8 @@ class _RewardsCard extends StatelessWidget {
     final unlockedCount = rewards.where((r) => points >= r.points).length;
 
     return _SectionCard(
-      title: 'Rewards & Badges',
-      trailing: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: AppTheme.lilac,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: AppTheme.outline),
-        ),
-        child: Text(
-          '$unlockedCount/${rewards.length}',
-          style: const TextStyle(
-            color: AppTheme.muted,
-            fontWeight: FontWeight.w900,
-            fontSize: 11.5,
-          ),
-        ),
-      ),
+      title: 'Community badges',
+      trailing: _TinyBadge(label: '$unlockedCount/${rewards.length}'),
       child: Column(
         children: [
           for (int i = 0; i < rewards.length; i++) ...[
@@ -1809,11 +1723,7 @@ class _RewardsCard extends StatelessWidget {
               tier: rewards[i],
               unlocked: points >= rewards[i].points,
             ),
-            if (i != rewards.length - 1)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Divider(color: Colors.black.withAlpha(14)),
-              ),
+            if (i != rewards.length - 1) const SizedBox(height: 9),
           ],
         ],
       ),
@@ -1830,7 +1740,7 @@ class _RewardTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(9),
       decoration: BoxDecoration(
         color: unlocked ? const Color(0xFFFFFEFF) : const Color(0xFFFCFBFE),
         borderRadius: BorderRadius.circular(16),
@@ -1877,26 +1787,7 @@ class _RewardTile extends StatelessWidget {
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            decoration: BoxDecoration(
-              color: unlocked
-                  ? const Color(0xFFEAFBF3)
-                  : const Color(0xFFF4F2F7),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: unlocked ? const Color(0xFFCBEBD7) : AppTheme.outline,
-              ),
-            ),
-            child: Text(
-              unlocked ? 'Unlocked' : 'Locked',
-              style: TextStyle(
-                color: unlocked ? const Color(0xFF15803D) : AppTheme.muted,
-                fontWeight: FontWeight.w900,
-                fontSize: 11.5,
-              ),
-            ),
-          ),
+          _TinyBadge(label: unlocked ? 'Unlocked' : 'Locked'),
         ],
       ),
     );
@@ -1921,29 +1812,16 @@ class _LeaderboardCard extends StatelessWidget {
         .snapshots();
 
     return _SectionCard(
-      title: 'Leaderboard',
-      trailing: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: AppTheme.sky,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: AppTheme.outline),
-        ),
-        child: const Text(
-          'Top 20',
-          style: TextStyle(
-            color: AppTheme.muted,
-            fontWeight: FontWeight.w900,
-            fontSize: 11.2,
-          ),
-        ),
-      ),
+      title: 'Community leaderboard',
+      trailing: const _TinyBadge(label: 'Top 20'),
       child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: claimsStream,
         builder: (context, claimsSnap) {
           if (claimsSnap.hasError) {
-            return const _LeaderboardErrorBox(
+            return const _InfoBox(
+              icon: Icons.info_outline_rounded,
               message: 'Could not load approved claims yet. Please try again.',
+              tone: _InfoTone.warning,
             );
           }
 
@@ -1968,20 +1846,11 @@ class _LeaderboardCard extends StatelessWidget {
 
           final ranked = totals.entries.where((e) => e.value > 0).toList();
           if (ranked.isEmpty) {
-            return Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF9F4F0),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppTheme.outline),
-              ),
-              child: Text(
-                'No approved points yet.',
-                style: TextStyle(
-                  color: AppTheme.ink.withAlpha(150),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+            return const _InfoBox(
+              icon: Icons.emoji_events_outlined,
+              message:
+                  'No approved points yet. Complete useful missions to appear here.',
+              tone: _InfoTone.neutral,
             );
           }
 
@@ -1989,9 +1858,11 @@ class _LeaderboardCard extends StatelessWidget {
             stream: usersStream,
             builder: (context, usersSnap) {
               if (usersSnap.hasError) {
-                return const _LeaderboardErrorBox(
+                return const _InfoBox(
+                  icon: Icons.info_outline_rounded,
                   message:
                       'Could not load player details yet. Please try again.',
+                  tone: _InfoTone.warning,
                 );
               }
 
@@ -2031,55 +1902,13 @@ class _LeaderboardCard extends StatelessWidget {
                       userData: usersByUid[topEntries[i].key],
                       myPoints: myPoints,
                     ),
-                    if (i != topEntries.length - 1)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Divider(color: Colors.black.withAlpha(14)),
-                      ),
+                    if (i != topEntries.length - 1) const SizedBox(height: 8),
                   ],
-                  const SizedBox(height: 10),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Rank updates from approved mission claims.',
-                      style: TextStyle(
-                        color: AppTheme.muted,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 11.6,
-                        height: 1.25,
-                      ),
-                    ),
-                  ),
                 ],
               );
             },
           );
         },
-      ),
-    );
-  }
-}
-
-class _LeaderboardErrorBox extends StatelessWidget {
-  const _LeaderboardErrorBox({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF5F5),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFFFD9D9)),
-      ),
-      child: Text(
-        message,
-        style: TextStyle(
-          color: AppTheme.ink.withAlpha(150),
-          fontWeight: FontWeight.w600,
-        ),
       ),
     );
   }
@@ -2095,7 +1924,7 @@ String _leaderboardDisplayName(
   if (displayName.isNotEmpty) return displayName;
   final username = (d['username'] ?? '').toString().trim();
   if (username.isNotEmpty) return username;
-  return uid == myUid ? 'You' : 'User';
+  return uid == myUid ? 'You' : 'Pettounsi member';
 }
 
 class _LeaderboardRow extends StatelessWidget {
@@ -2123,23 +1952,21 @@ class _LeaderboardRow extends StatelessWidget {
     final isMe = uid == myUid;
     final shownPoints = isMe ? myPoints : points;
 
-    Color rankBg;
-    if (rank == 1) {
-      rankBg = const Color(0xFFFFF0C2);
-    } else if (rank == 2) {
-      rankBg = const Color(0xFFEFEFEF);
-    } else if (rank == 3) {
-      rankBg = const Color(0xFFFFE2C7);
-    } else {
-      rankBg = const Color(0xFFF3ECE7);
-    }
+    final rankBg = switch (rank) {
+      1 => const Color(0xFFFFF0C2),
+      2 => const Color(0xFFEFEFEF),
+      3 => const Color(0xFFFFE2C7),
+      _ => const Color(0xFFF3ECE7),
+    };
 
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: isMe ? AppTheme.blush : Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
-        border: isMe ? Border.all(color: AppTheme.outline) : null,
+        color: isMe ? AppTheme.blush : const Color(0xFFFFFEFF),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isMe ? AppTheme.orange.withAlpha(90) : AppTheme.outline,
+        ),
       ),
       child: Row(
         children: [
@@ -2161,10 +1988,10 @@ class _LeaderboardRow extends StatelessWidget {
           CircleAvatar(
             radius: 18,
             backgroundColor: AppTheme.lilac,
-            backgroundImage: (photo.isNotEmpty) ? NetworkImage(photo) : null,
-            child: (photo.isEmpty)
+            backgroundImage: photo.isNotEmpty ? NetworkImage(photo) : null,
+            child: photo.isEmpty
                 ? Text(
-                    displayName.isEmpty ? 'U' : displayName[0].toUpperCase(),
+                    displayName.isEmpty ? 'P' : displayName[0].toUpperCase(),
                     style: const TextStyle(
                       fontWeight: FontWeight.w900,
                       color: AppTheme.ink,
@@ -2189,42 +2016,19 @@ class _LeaderboardRow extends StatelessWidget {
                 ),
                 if (isMe) ...[
                   const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.softOrange,
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: AppTheme.outline),
-                    ),
-                    child: const Text(
-                      'You',
-                      style: TextStyle(
-                        color: AppTheme.orangeDark,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 10.8,
-                      ),
-                    ),
-                  ),
+                  const _TinyBadge(label: 'You'),
                 ],
               ],
             ),
           ),
           const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '$shownPoints',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 15,
-                  color: AppTheme.ink,
-                ),
-              ),
-            ],
+          Text(
+            '$shownPoints pts',
+            style: const TextStyle(
+              fontWeight: FontWeight.w900,
+              fontSize: 13.4,
+              color: AppTheme.ink,
+            ),
           ),
         ],
       ),
@@ -2232,25 +2036,316 @@ class _LeaderboardRow extends StatelessWidget {
   }
 }
 
+class _LocalServicesPickerPage extends StatelessWidget {
+  const _LocalServicesPickerPage();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.bg,
+      appBar: AppBar(title: const Text('Local pet services')),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
+        children: [
+          const PremiumPageHeader(
+            icon: Icons.storefront_rounded,
+            iconColor: AppTheme.orangeDark,
+            title: 'Find useful places',
+            subtitle:
+                'Open vets, map pins, or nearby shops before submitting a service-tip mission.',
+            badgeLabel: 'Service tip',
+          ),
+          const SizedBox(height: 12),
+          _ServiceActionTile(
+            icon: Icons.local_hospital_rounded,
+            title: 'Vets',
+            subtitle: 'Browse clinics and animal doctors.',
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const VetsPage())),
+          ),
+          const SizedBox(height: 10),
+          _ServiceActionTile(
+            icon: Icons.map_rounded,
+            title: 'Map discovery',
+            subtitle:
+                'Explore vets, pet shops, events, reports, and nearby pins.',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const MapPage(
+                  initialFilter: MapPinType.petshop,
+                  standalone: true,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ServiceActionTile extends StatelessWidget {
+  const _ServiceActionTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppTheme.outline),
+            boxShadow: AppTheme.softShadows(0.12),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppTheme.blush,
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: AppTheme.outline),
+                ),
+                child: Icon(icon, color: AppTheme.orangeDark),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: AppTheme.ink,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: AppTheme.muted,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoBox extends StatelessWidget {
+  const _InfoBox({
+    required this.icon,
+    required this.message,
+    required this.tone,
+  });
+
+  final IconData icon;
+  final String message;
+  final _InfoTone tone;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = switch (tone) {
+      _InfoTone.warning => (
+        const Color(0xFFFFF6E9),
+        const Color(0xFFB45309),
+        const Color(0xFFFFE1B2),
+      ),
+      _InfoTone.neutral => (
+        const Color(0xFFF8F6FB),
+        AppTheme.ink.withAlpha(160),
+        AppTheme.outline,
+      ),
+    };
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: colors.$1,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: colors.$3),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: colors.$2),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: AppTheme.ink.withAlpha(165),
+                fontWeight: FontWeight.w800,
+                fontSize: 12.2,
+                height: 1.25,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricChip extends StatelessWidget {
+  const _MetricChip({
+    required this.icon,
+    required this.label,
+    required this.bg,
+    required this.fg,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color bg;
+  final Color fg;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppTheme.outline),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: fg),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: fg,
+              fontWeight: FontWeight.w900,
+              fontSize: 11.5,
+              height: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TinyBadge extends StatelessWidget {
+  const _TinyBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withAlpha(220),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppTheme.outline),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: AppTheme.ink.withAlpha(190),
+          fontWeight: FontWeight.w900,
+          fontSize: 11.2,
+          height: 1,
+        ),
+      ),
+    );
+  }
+}
+
+class _IconAction extends StatelessWidget {
+  const _IconAction({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: const Color(0xFFFFFBFD),
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppTheme.outline),
+            ),
+            child: Icon(icon, color: AppTheme.orangeDark, size: 21),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+enum _InfoTone { warning, neutral }
+
 enum _MissionClaimStatus { none, pending, approved, rejected }
+
+enum _MissionAction {
+  lostFound,
+  petSitting,
+  localServices,
+  adoptRescue,
+  communityPost,
+}
 
 class _MissionClaimView {
   const _MissionClaimView({
     required this.status,
     required this.reviewNote,
-    required this.reviewedBy,
     required this.sortDate,
   });
 
   final _MissionClaimStatus status;
   final String reviewNote;
-  final String reviewedBy;
   final DateTime sortDate;
 
   static final none = _MissionClaimView(
     status: _MissionClaimStatus.none,
     reviewNote: '',
-    reviewedBy: '',
     sortDate: DateTime.fromMillisecondsSinceEpoch(0),
   );
 }
@@ -2262,6 +2357,9 @@ class _PointsMission {
     required this.subtitle,
     required this.reward,
     required this.icon,
+    required this.action,
+    required this.actionLabel,
+    required this.proofHint,
   });
 
   final String id;
@@ -2269,6 +2367,9 @@ class _PointsMission {
   final String subtitle;
   final int reward;
   final IconData icon;
+  final _MissionAction action;
+  final String actionLabel;
+  final String proofHint;
 }
 
 class _RewardTier {
@@ -2277,6 +2378,52 @@ class _RewardTier {
   final int points;
   final String label;
   final IconData icon;
+}
+
+class _GameStats {
+  const _GameStats({
+    required this.pendingTotal,
+    required this.approvedTotal,
+    required this.todayClaimed,
+    required this.pendingTodayPoints,
+  });
+
+  final int pendingTotal;
+  final int approvedTotal;
+  final int todayClaimed;
+  final int pendingTodayPoints;
+
+  factory _GameStats.fromClaims(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> allDocs,
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> todayDocs,
+  ) {
+    var pendingTotal = 0;
+    var approvedTotal = 0;
+    var pendingTodayPoints = 0;
+
+    for (final doc in allDocs) {
+      final data = doc.data();
+      final status = (data['status'] ?? '').toString().trim().toLowerCase();
+      if (status == 'pending') pendingTotal++;
+      if (status == 'approved') approvedTotal++;
+    }
+
+    for (final doc in todayDocs) {
+      final data = doc.data();
+      final status = (data['status'] ?? '').toString().trim().toLowerCase();
+      if (status == 'pending') {
+        final reward = data['missionReward'];
+        if (reward is num) pendingTodayPoints += reward.toInt();
+      }
+    }
+
+    return _GameStats(
+      pendingTotal: pendingTotal,
+      approvedTotal: approvedTotal,
+      todayClaimed: todayDocs.length,
+      pendingTodayPoints: pendingTodayPoints,
+    );
+  }
 }
 
 class _MilestoneProgress {
@@ -2322,6 +2469,7 @@ _MilestoneProgress _nextMilestone(int points) {
 
 class _MilestoneThreshold {
   const _MilestoneThreshold(this.target, this.label);
+
   final int target;
   final String label;
 }

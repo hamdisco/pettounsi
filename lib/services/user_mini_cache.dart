@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'user_identity_service.dart';
+
 class UserMini {
   const UserMini({
     required this.uid,
@@ -31,6 +33,7 @@ class UserMiniCache {
   static final instance = UserMiniCache._();
 
   final _db = FirebaseFirestore.instance;
+  final _identity = UserIdentityService.instance;
 
   final Map<String, Stream<UserMini?>> _streams = {};
   final Map<String, UserMini?> _last = {};
@@ -46,16 +49,10 @@ class UserMiniCache {
         final d = snap.data();
         if (d == null) return null;
 
-        final rawName = (d['username'] ?? d['displayName'] ?? '') as dynamic;
-        final rawPhoto = (d['photoUrl'] ?? '') as dynamic;
-
-        final name = (rawName is String ? rawName : '').trim();
-        final photoUrl = (rawPhoto is String ? rawPhoto : '').trim();
-
         final mini = UserMini(
           uid: id,
-          name: name,
-          photoUrl: photoUrl,
+          name: _identity.displayNameFromData(d),
+          photoUrl: _identity.photoUrlFromData(d),
         );
 
         _last[id] = mini;
@@ -75,13 +72,10 @@ class UserMiniCache {
     final d = doc.data();
     if (d == null) return null;
 
-    final rawName = (d['username'] ?? d['displayName'] ?? '') as dynamic;
-    final rawPhoto = (d['photoUrl'] ?? '') as dynamic;
-
     final mini = UserMini(
       uid: id,
-      name: (rawName is String ? rawName : '').trim(),
-      photoUrl: (rawPhoto is String ? rawPhoto : '').trim(),
+      name: _identity.displayNameFromData(d),
+      photoUrl: _identity.photoUrlFromData(d),
     );
     _last[id] = mini;
     return mini;

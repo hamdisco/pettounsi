@@ -391,10 +391,8 @@ class _AdoptRescueCard extends StatelessWidget {
                 UserAvatar(
                   uid: post.authorId,
                   radius: 20,
-                  fallbackName: post.authorName,
-                  fallbackPhotoUrl: (post.authorPhotoUrl ?? '').isEmpty
-                      ? null
-                      : _safeUrl(post.authorPhotoUrl!),
+                  fallbackName: 'Pettounsi user',
+                  fallbackPhotoUrl: null,
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -409,7 +407,7 @@ class _AdoptRescueCard extends StatelessWidget {
                     children: [
                       UserName(
                         uid: post.authorId,
-                        fallback: post.authorName,
+                        fallback: 'Pettounsi user',
                         style: const TextStyle(
                           color: AppTheme.ink,
                           fontWeight: FontWeight.w900,

@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/points_runtime.dart';
+import '../../services/user_identity_service.dart';
 import '../../ui/adaptive_cached_image.dart';
 import '../../ui/app_theme.dart';
 import '../../ui/premium_cards.dart';
@@ -85,6 +86,12 @@ class _AccessoriesPageState extends State<AccessoriesPage> {
     setState(() => _busy = true);
     try {
       final user = FirebaseAuth.instance.currentUser;
+      final identity = user == null
+          ? null
+          : await UserIdentityService.instance.getForUid(
+              user.uid,
+              authUser: user,
+            );
       final q = await _db
           .collection('accessory_redemptions')
           .where('uid', isEqualTo: uid)
@@ -110,8 +117,8 @@ class _AccessoriesPageState extends State<AccessoriesPage> {
         'source': 'games_points',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-        'userDisplayName': user?.displayName,
-        'userEmail': user?.email,
+        'userDisplayName': identity?.safeName,
+        'userEmail': identity?.email ?? user?.email,
       });
 
       _toast('Redemption request sent ✅ It will appear below.');
@@ -653,7 +660,7 @@ class _AccessoriesRedeemRulesCard extends StatelessWidget {
           _RuleLine('Official points can be used here.'),
           _RuleLine('Sending a request does not deduct points immediately.'),
           _RuleLine('Open requests temporarily reserve the required points.'),
-          _RuleLine('Pettounsi Team reviews redemption.'),
+          _RuleLine('PetTounsi Team reviews redemption.'),
         ],
       ),
     );

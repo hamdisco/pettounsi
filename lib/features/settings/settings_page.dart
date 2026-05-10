@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../ui/app_theme.dart';
-import '../../ui/premium_settings.dart';
+import '../../ui/user_avatar.dart';
 import 'about_page.dart';
 import 'account_settings_page.dart';
 import 'blocked_users_page.dart';
@@ -20,49 +20,40 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    final name = (user?.displayName ?? 'Pettounsi').trim();
-    final email = (user?.email ?? '').trim();
-    final photo = (user?.photoURL ?? '').trim();
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     return Scaffold(
       backgroundColor: AppTheme.bg,
       appBar: AppBar(
-        title: const Text("Settings"),
+        title: const Text('Settings'),
         backgroundColor: AppTheme.bg,
+        foregroundColor: AppTheme.ink,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 22),
         children: [
-          _HeaderCard(
-            name: name.isEmpty ? "Pettounsi" : name,
-            email: email,
-            photoUrl: photo,
-            onAccount: () => _push(context, const AccountSettingsPage()),
+          _AccountHeader(
+            uid: uid,
+            onEdit: () => _push(context, const AccountSettingsPage()),
           ),
-          const SizedBox(height: 12),
-
-          _Section(
-            title: "Account",
-            subtitle: "Profile & security",
-            icon: Icons.person_rounded,
-            iconBg: AppTheme.lilac,
-            iconFg: const Color(0xFF7C62D7),
+          const SizedBox(height: 14),
+          _SettingsGroup(
+            title: 'Account',
             children: [
-              _Tile(
-                title: "Edit profile",
-                subtitle: "Name, bio, phone, and photo",
-                icon: Icons.edit_rounded,
-                tint: const Color(0xFF7C62D7),
-                bg: AppTheme.lilac,
+              _SettingsTile(
+                title: 'Edit profile',
+                subtitle: 'Name, photo, bio and phone',
+                icon: Icons.person_rounded,
+                tint: AppTheme.orangeDark,
+                bg: AppTheme.blush,
                 onTap: () => _push(context, const AccountSettingsPage()),
               ),
-              _Tile(
-                title: "Security",
-                subtitle: "Password and sign-in settings",
+              _SettingsTile(
+                title: 'Security',
+                subtitle: 'Password and sign-in',
                 icon: Icons.lock_rounded,
                 tint: const Color(0xFF2F9A6A),
                 bg: AppTheme.mint,
@@ -70,27 +61,21 @@ class SettingsPage extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 12),
-
-          _Section(
-            title: "Privacy & safety",
-            subtitle: "Control what others can see",
-            icon: Icons.shield_rounded,
-            iconBg: AppTheme.mint,
-            iconFg: const Color(0xFF2F9A6A),
+          _SettingsGroup(
+            title: 'Privacy',
             children: [
-              _Tile(
-                title: "Privacy",
-                subtitle: "Manage phone visibility",
-                icon: Icons.lock_rounded,
+              _SettingsTile(
+                title: 'Privacy settings',
+                subtitle: 'Phone visibility',
+                icon: Icons.shield_rounded,
                 tint: const Color(0xFF2F9A6A),
                 bg: AppTheme.mint,
                 onTap: () => _push(context, const PrivacySettingsPage()),
               ),
-              _Tile(
-                title: "Blocked users",
-                subtitle: "Review and manage blocked accounts",
+              _SettingsTile(
+                title: 'Blocked users',
+                subtitle: 'Manage blocked accounts',
                 icon: Icons.block_rounded,
                 tint: const Color(0xFFE05555),
                 bg: const Color(0xFFFFEBEB),
@@ -98,35 +83,29 @@ class SettingsPage extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 12),
-
-          _Section(
-            title: "App",
-            subtitle: "Support, legal, and app information",
-            icon: Icons.info_rounded,
-            iconBg: AppTheme.sky,
-            iconFg: const Color(0xFF4C79C8),
+          _SettingsGroup(
+            title: 'App',
             children: [
-              _Tile(
-                title: "Support & contact",
-                subtitle: "Get help, review privacy links, and manage requests",
+              _SettingsTile(
+                title: 'Support',
+                subtitle: 'Contact and account requests',
                 icon: Icons.support_agent_rounded,
                 tint: const Color(0xFF4C79C8),
                 bg: AppTheme.sky,
                 onTap: () => _push(context, const SupportPage()),
               ),
-              _Tile(
-                title: "Terms & privacy",
-                subtitle: "Read community rules and privacy information",
+              _SettingsTile(
+                title: 'Terms & privacy',
+                subtitle: 'Rules and policies',
                 icon: Icons.article_rounded,
                 tint: const Color(0xFF2F9A6A),
                 bg: AppTheme.mint,
                 onTap: () => _push(context, const LegalPage()),
               ),
-              _Tile(
-                title: "About",
-                subtitle: "App details and quick links",
+              _SettingsTile(
+                title: 'About PetTounsi',
+                subtitle: 'Version and app details',
                 icon: Icons.pets_rounded,
                 tint: const Color(0xFF7C62D7),
                 bg: AppTheme.lilac,
@@ -140,85 +119,117 @@ class SettingsPage extends StatelessWidget {
   }
 }
 
-class _HeaderCard extends StatelessWidget {
-  const _HeaderCard({
-    required this.name,
-    required this.email,
-    required this.photoUrl,
-    required this.onAccount,
-  });
+class _AccountHeader extends StatelessWidget {
+  const _AccountHeader({required this.uid, required this.onEdit});
 
-  final String name;
-  final String email;
-  final String photoUrl;
-  final VoidCallback onAccount;
+  final String uid;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
-    return PremiumSettingsHero(
-      leading: Container(
-        width: 52,
-        height: 52,
-        padding: const EdgeInsets.all(2),
-        decoration: BoxDecoration(
-          color: Colors.white.withAlpha(230),
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white),
-        ),
-        child: CircleAvatar(
-          backgroundColor: AppTheme.lilac,
-          backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
-          child: photoUrl.isEmpty
-              ? Text(
-                  name.isEmpty ? 'P' : name[0].toUpperCase(),
+    final email = FirebaseAuth.instance.currentUser?.email ?? '';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppTheme.outline),
+        boxShadow: AppTheme.softShadows(0.12),
+      ),
+      child: Row(
+        children: [
+          UserAvatar(uid: uid, radius: 28, fallbackName: 'PetTounsi user'),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                UserName(
+                  uid: uid,
+                  fallback: 'PetTounsi user',
                   style: const TextStyle(
                     color: AppTheme.ink,
                     fontWeight: FontWeight.w900,
+                    fontSize: 16.5,
                   ),
-                )
-              : null,
-        ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  email.isEmpty ? 'Signed in' : email,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.muted,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: onEdit,
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.orangeDark,
+              backgroundColor: AppTheme.blush,
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(999),
+                side: const BorderSide(color: AppTheme.outline),
+              ),
+            ),
+            child: const Text(
+              'Edit',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ),
+        ],
       ),
-      title: name.isEmpty ? "Pettounsi" : name,
-      subtitle: email.isNotEmpty ? email : 'Signed in',
-      trailing: _PillButton(label: "Account", onTap: onAccount),
     );
   }
 }
 
-class _Section extends StatelessWidget {
-  const _Section({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.iconBg,
-    required this.iconFg,
-    required this.children,
-  });
+class _SettingsGroup extends StatelessWidget {
+  const _SettingsGroup({required this.title, required this.children});
 
   final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color iconBg;
-  final Color iconFg;
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    return PremiumSettingsSectionCard(
-      title: title,
-      subtitle: subtitle,
-      icon: icon,
-      iconBg: iconBg,
-      iconFg: iconFg,
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
-      children: children,
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppTheme.outline),
+        boxShadow: AppTheme.softShadows(0.10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 2, bottom: 10),
+            child: Text(
+              title,
+              style: const TextStyle(
+                color: AppTheme.ink,
+                fontWeight: FontWeight.w900,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          ...children,
+        ],
+      ),
     );
   }
 }
 
-class _Tile extends StatelessWidget {
-  const _Tile({
+class _SettingsTile extends StatelessWidget {
+  const _SettingsTile({
     required this.title,
     required this.subtitle,
     required this.icon,
@@ -236,24 +247,64 @@ class _Tile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PremiumSettingsNavTile(
-      title: title,
-      subtitle: subtitle,
-      icon: icon,
-      tint: tint,
-      bg: bg,
-      onTap: onTap,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: AppTheme.mist,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppTheme.outline),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: bg,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.white),
+                  ),
+                  child: Icon(icon, color: tint, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: AppTheme.ink,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 13.8,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppTheme.muted,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
-  }
-}
-
-class _PillButton extends StatelessWidget {
-  const _PillButton({required this.label, required this.onTap});
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return PremiumSettingsPillButton(label: label, onTap: onTap);
   }
 }

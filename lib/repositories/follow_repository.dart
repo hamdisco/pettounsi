@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../services/user_identity_service.dart';
+
 class FollowRepository {
   FollowRepository._();
   static final FollowRepository instance = FollowRepository._();
@@ -19,24 +21,13 @@ class FollowRepository {
   ) => _db.collection('follows').doc(target).collection('followers').doc(me);
 
   Future<Map<String, String>> _resolveMyMeta(User user) async {
-    try {
-      final snap = await _db.collection('users').doc(user.uid).get();
-      final d = snap.data() ?? {};
-      final name = (d['username'] ?? user.displayName ?? 'User').toString().trim();
-      final photo = (d['photoUrl'] ?? user.photoURL ?? '').toString().trim();
-      return {
-        'name': name.isEmpty ? 'User' : name,
-        'photo': photo,
-      };
-    } catch (_) {
-      final name = (user.displayName ?? 'User').toString().trim();
-      final photo = (user.photoURL ?? '').toString().trim();
-      return {
-        'name': name.isEmpty ? 'User' : name,
-        'photo': photo,
-      };
-    }
+    final identity = await UserIdentityService.instance.getForUid(
+      user.uid,
+      authUser: user,
+    );
+    return identity.toMeta();
   }
+
 
   Stream<Set<String>> streamMyFollowingUids() {
     final me = _auth.currentUser;
