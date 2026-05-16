@@ -11,9 +11,9 @@ class EventsPage extends StatelessWidget {
       title: 'Pet Events',
       collectionName: 'events',
       icon: Icons.event_rounded,
-      emptyText: 'No pet events yet.',
+      emptyText: 'No upcoming pet events yet.',
       accentColor: Color(0xFF7C62D7),
-      heroSubtitle: 'Adoption days, partner events, campaigns, and pet meetups.',
+      heroSubtitle: 'Adoption days, meetups, and local pet activities.',
     );
   }
 }

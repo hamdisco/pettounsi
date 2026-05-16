@@ -11,9 +11,9 @@ class PetshopsPage extends StatelessWidget {
       title: 'Pet Shops',
       collectionName: 'petshops',
       icon: Icons.storefront_rounded,
-      emptyText: 'No pet shops yet.',
+      emptyText: 'No pet shops listed yet.',
       accentColor: Color(0xFFE86C4F),
-      heroSubtitle: 'Food, accessories, grooming, and trusted local pet stores.',
+      heroSubtitle: 'Food, accessories, grooming, offers, WhatsApp, and directions.',
     );
   }
 }

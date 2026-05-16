@@ -9,8 +9,6 @@ import '../../ui/app_theme.dart';
 import '../../ui/user_avatar.dart';
 import '../adopt_rescue/adopt_rescue_page.dart';
 import '../map/pet_reports_page.dart';
-import '../pet_babysitting/babysitting_repository.dart';
-import '../pet_babysitting/listing_details_page.dart';
 import '../pet_babysitting/pet_babysitting_page.dart';
 import '../vets/vets_page.dart';
 import '../profile/profile_page.dart';
@@ -61,8 +59,6 @@ class HomePage extends StatelessWidget {
                   _ComposerCard(onTap: () => _openCreatePost(context)),
                   const SizedBox(height: 12),
                   const _QuickActionsStrip(),
-                  const SizedBox(height: 18),
-                  const _SitterSuggestionsStrip(),
                   if (snap.hasData && posts.isNotEmpty) ...[
                     const SizedBox(height: 18),
                     _FollowSuggestions(posts: posts),
@@ -424,234 +420,6 @@ class _ActionCard extends StatelessWidget {
   }
 }
 
-class _SitterSuggestionsStrip extends StatelessWidget {
-  const _SitterSuggestionsStrip();
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<List<BabysittingListing>>(
-      stream: BabysittingRepository.instance.streamActiveListings(limit: 8),
-      builder: (context, snap) {
-        if (!snap.hasData) {
-          return const _SitterSuggestionsSkeleton();
-        }
-
-        final listings = (snap.data ?? const <BabysittingListing>[])
-            .where((listing) => listing.isActive)
-            .toList();
-
-        if (listings.isEmpty) return const SizedBox.shrink();
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _SectionHeader(
-              title: 'Available sitters',
-              actionLabel: 'See all',
-              onActionTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const PetBabysittingPage()),
-              ),
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              height: 122,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                itemCount: listings.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (context, index) {
-                  return _SitterSuggestionCard(listing: listings[index]);
-                },
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _SitterSuggestionCard extends StatelessWidget {
-  const _SitterSuggestionCard({required this.listing});
-
-  final BabysittingListing listing;
-
-  @override
-  Widget build(BuildContext context) {
-    final location = [
-      listing.city.trim(),
-      listing.governorate.trim(),
-    ].where((value) => value.isNotEmpty).join(', ');
-    final pets = listing.petTypes
-        .where((value) => value.trim().isNotEmpty)
-        .take(2)
-        .join(' • ');
-    final price = listing.priceText.trim().isEmpty
-        ? 'Price on request'
-        : listing.priceText.trim();
-
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(22),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(22),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ListingDetailsPage(listing: listing),
-          ),
-        ),
-        child: Container(
-          width: 292,
-          padding: const EdgeInsets.all(13),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: AppTheme.outline.withAlpha(210)),
-          ),
-          child: Row(
-            children: [
-              UserAvatar(
-                uid: listing.authorId,
-                radius: 25,
-                fallbackName: listing.authorName.trim().isEmpty
-                    ? listing.title
-                    : listing.authorName,
-                fallbackPhotoUrl: listing.authorPhotoUrl.trim().isEmpty
-                    ? null
-                    : listing.authorPhotoUrl.trim(),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    UserName(
-                      uid: listing.authorId,
-                      fallback: listing.authorName.trim().isEmpty
-                          ? listing.title
-                          : listing.authorName,
-                      maxLines: 1,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                        color: AppTheme.ink,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      location.isEmpty ? 'Tunisia' : location,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12.2,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.muted,
-                      ),
-                    ),
-                    const SizedBox(height: 9),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            pets.isEmpty ? 'Pets welcome' : pets,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 12.3,
-                              fontWeight: FontWeight.w800,
-                              color: AppTheme.ink,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFEEE8),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            price,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 11.6,
-                              fontWeight: FontWeight.w900,
-                              color: AppTheme.orangeDark,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SitterSuggestionsSkeleton extends StatelessWidget {
-  const _SitterSuggestionsSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _SectionHeader(title: 'Available sitters'),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 122,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: 2,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (context, index) => Container(
-              width: 292,
-              padding: const EdgeInsets.all(13),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: AppTheme.outline.withAlpha(150)),
-              ),
-              child: const Row(
-                children: [
-                  _SkeletonDot(size: 50),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _SkeletonLine(widthFactor: 0.54, height: 12),
-                        SizedBox(height: 9),
-                        _SkeletonLine(widthFactor: 0.42, height: 10),
-                        SizedBox(height: 12),
-                        _SkeletonLine(widthFactor: 0.72, height: 10),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _FollowSuggestions extends StatelessWidget {
   const _FollowSuggestions({required this.posts});
 
@@ -664,70 +432,260 @@ class _FollowSuggestions extends StatelessWidget {
 
     return StreamBuilder<Set<String>>(
       stream: FollowRepository.instance.streamMyFollowingUids(),
-      builder: (context, snap) {
-        final following = snap.data ?? const <String>{};
-        final seen = <String>{};
-        final suggestions = <PostModel>[];
+      builder: (context, followingSnap) {
+        final following = followingSnap.data ?? const <String>{};
 
-        for (final post in posts) {
-          if (post.authorId == me) continue;
-          if (following.contains(post.authorId)) continue;
-          if (!seen.add(post.authorId)) continue;
-          suggestions.add(post);
-          if (suggestions.length >= 6) break;
-        }
+        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .doc(me)
+              .snapshots(),
+          builder: (context, profileSnap) {
+            final profile =
+                profileSnap.data?.data() ?? const <String, dynamic>{};
+            final myCity = _profileText(profile, const [
+              'city',
+              'locationCity',
+              'homeCity',
+            ]);
+            final myRegion = _profileText(profile, const [
+              'governorate',
+              'region',
+              'state',
+              'locationRegion',
+            ]);
 
-        if (suggestions.isEmpty) return const SizedBox.shrink();
+            final suggestions = _rankCandidates(
+              posts: posts,
+              me: me,
+              following: following,
+              myCity: myCity,
+              myRegion: myRegion,
+            );
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const _SectionHeader(title: 'People to follow'),
-            const SizedBox(height: 10),
-            SizedBox(
-              height: 104,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: suggestions.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (context, index) {
-                  return _FollowSuggestionCard(post: suggestions[index]);
-                },
-              ),
-            ),
-          ],
+            if (suggestions.isEmpty) return const SizedBox.shrink();
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _SectionHeader(
+                  title: 'People to follow',
+                  actionLabel: 'Suggested for you',
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 124,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: suggestions.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 10),
+                    itemBuilder: (context, index) {
+                      return _FollowSuggestionCard(
+                        candidate: suggestions[index],
+                        myFollowing: following,
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
   }
+
+  static List<_FollowCandidate> _rankCandidates({
+    required List<PostModel> posts,
+    required String me,
+    required Set<String> following,
+    required String myCity,
+    required String myRegion,
+  }) {
+    final byAuthor = <String, _FollowCandidate>{};
+    final now = DateTime.now();
+    final dayKey = _dayKey(now);
+
+    for (final post in posts) {
+      final authorId = post.authorId.trim();
+      if (authorId.isEmpty || authorId == me) continue;
+      if (following.contains(authorId)) continue;
+
+      final existing = byAuthor[authorId];
+      final activity = post.activityAt;
+      final locationMatch = _matchesLocation(post, myCity, myRegion);
+
+      if (existing == null) {
+        byAuthor[authorId] = _FollowCandidate(
+          uid: authorId,
+          samplePost: post,
+          postCount: 1,
+          engagement: post.likeCount + post.commentCount,
+          locationMatch: locationMatch,
+          latestActivity: activity,
+          dailyScore: _dailyScore('$me|$dayKey|$authorId'),
+        );
+      } else {
+        existing.postCount += 1;
+        existing.engagement += post.likeCount + post.commentCount;
+        existing.locationMatch = existing.locationMatch || locationMatch;
+        if (_isAfter(activity, existing.latestActivity)) {
+          existing.latestActivity = activity;
+          existing.samplePost = post;
+        }
+      }
+    }
+
+    final candidates = byAuthor.values.toList();
+    for (final candidate in candidates) {
+      candidate.score = _candidateScore(candidate, now);
+      candidate.reason = _candidateReason(candidate);
+    }
+
+    candidates.sort((a, b) {
+      final byScore = b.score.compareTo(a.score);
+      if (byScore != 0) return byScore;
+      return b.uid.compareTo(a.uid);
+    });
+
+    return candidates.take(8).toList(growable: false);
+  }
+
+  static String _profileText(Map<String, dynamic> data, List<String> keys) {
+    for (final key in keys) {
+      final value = data[key];
+      if (value is String && value.trim().isNotEmpty) {
+        return value.trim().toLowerCase();
+      }
+    }
+    return '';
+  }
+
+  static bool _matchesLocation(PostModel post, String myCity, String myRegion) {
+    if (myCity.isEmpty && myRegion.isEmpty) return false;
+    final postCity = post.city.trim().toLowerCase();
+    final postRegion = post.region.trim().toLowerCase();
+    final postLocation = post.locationText.trim().toLowerCase();
+    return (myCity.isNotEmpty &&
+            (postCity == myCity || postLocation.contains(myCity))) ||
+        (myRegion.isNotEmpty &&
+            (postRegion == myRegion || postLocation.contains(myRegion)));
+  }
+
+  static bool _isAfter(DateTime? a, DateTime? b) {
+    if (a == null) return false;
+    if (b == null) return true;
+    return a.isAfter(b);
+  }
+
+  static int _candidateScore(_FollowCandidate candidate, DateTime now) {
+    final activity = candidate.latestActivity;
+    var recency = 8;
+    if (activity != null) {
+      final hours = now.difference(activity).inHours;
+      if (hours <= 24) {
+        recency = 58;
+      } else if (hours <= 72) {
+        recency = 44;
+      } else if (hours <= 168) {
+        recency = 32;
+      } else if (hours <= 336) {
+        recency = 18;
+      }
+    }
+
+    final engagement = candidate.engagement.clamp(0, 40).toInt();
+    final activityDepth = (candidate.postCount * 7).clamp(0, 28).toInt();
+    final localBoost = candidate.locationMatch ? 34 : 0;
+
+    return recency +
+        engagement +
+        activityDepth +
+        localBoost +
+        candidate.dailyScore;
+  }
+
+  static String _candidateReason(_FollowCandidate candidate) {
+    if (candidate.locationMatch) return 'Near your area';
+    if (candidate.postCount >= 2) return 'Shared community';
+    return 'Suggested profile';
+  }
+
+  static int _dailyScore(String input) {
+    var hash = 0;
+    for (final unit in input.codeUnits) {
+      hash = 0x1fffffff & (hash * 31 + unit);
+    }
+    return hash % 36;
+  }
+
+  static String _dayKey(DateTime value) {
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    return '${value.year}-$month-$day';
+  }
+}
+
+class _FollowCandidate {
+  _FollowCandidate({
+    required this.uid,
+    required this.samplePost,
+    required this.postCount,
+    required this.engagement,
+    required this.locationMatch,
+    required this.latestActivity,
+    required this.dailyScore,
+  });
+
+  final String uid;
+  PostModel samplePost;
+  int postCount;
+  int engagement;
+  bool locationMatch;
+  DateTime? latestActivity;
+  final int dailyScore;
+  int score = 0;
+  String reason = 'Fresh pick';
 }
 
 class _FollowSuggestionCard extends StatelessWidget {
-  const _FollowSuggestionCard({required this.post});
+  const _FollowSuggestionCard({
+    required this.candidate,
+    required this.myFollowing,
+  });
 
-  final PostModel post;
+  final _FollowCandidate candidate;
+  final Set<String> myFollowing;
 
   @override
   Widget build(BuildContext context) {
+    final post = candidate.samplePost;
     return Container(
-      width: 228,
+      width: 242,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: AppTheme.outline.withAlpha(210)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(10),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
         children: [
           UserAvatar(
-            uid: post.authorId,
-            radius: 23,
+            uid: candidate.uid,
+            radius: 24,
             fallbackName: 'PetTounsi user',
             fallbackPhotoUrl: null,
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => ProfilePage(uid: post.authorId),
+                builder: (_) => ProfilePage(uid: candidate.uid),
               ),
             ),
           ),
@@ -738,7 +696,7 @@ class _FollowSuggestionCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 UserName(
-                  uid: post.authorId,
+                  uid: candidate.uid,
                   fallback: 'PetTounsi user',
                   maxLines: 1,
                   style: const TextStyle(
@@ -747,10 +705,62 @@ class _FollowSuggestionCard extends StatelessWidget {
                     color: AppTheme.ink,
                   ),
                 ),
+                const SizedBox(height: 5),
+                StreamBuilder<_FollowSocialStats>(
+                  stream: _socialStatsStream(candidate.uid, myFollowing),
+                  builder: (context, snap) {
+                    final stats = snap.data;
+                    final headline = _socialHeadline(stats, candidate);
+                    final details = _socialDetails(post, stats, candidate);
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              (stats?.mutualFollowers ?? 0) > 0
+                                  ? Icons.group_rounded
+                                  : candidate.locationMatch
+                                  ? Icons.place_rounded
+                                  : Icons.person_add_alt_1_rounded,
+                              size: 13,
+                              color: AppTheme.orangeDark,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                headline,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11.4,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.muted,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          details,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11.2,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.muted.withAlpha(210),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
                 const SizedBox(height: 9),
                 StreamBuilder<bool>(
                   stream: FollowRepository.instance.streamIsFollowing(
-                    post.authorId,
+                    candidate.uid,
                   ),
                   builder: (context, snap) {
                     final isFollowing = snap.data ?? false;
@@ -761,7 +771,7 @@ class _FollowSuggestionCard extends StatelessWidget {
                           : () async {
                               try {
                                 await FollowRepository.instance.follow(
-                                  targetUid: post.authorId,
+                                  targetUid: candidate.uid,
                                 );
                               } catch (_) {
                                 if (!context.mounted) return;
@@ -804,12 +814,77 @@ class _FollowSuggestionCard extends StatelessWidget {
       ),
     );
   }
+
+  static Stream<_FollowSocialStats> _socialStatsStream(
+    String uid,
+    Set<String> myFollowing,
+  ) {
+    return FirebaseFirestore.instance
+        .collection('follows')
+        .doc(uid)
+        .collection('followers')
+        .snapshots()
+        .map((snap) {
+          var mutual = 0;
+          for (final doc in snap.docs) {
+            if (myFollowing.contains(doc.id)) mutual += 1;
+          }
+          return _FollowSocialStats(
+            followers: snap.size,
+            mutualFollowers: mutual,
+          );
+        });
+  }
+
+  static String _socialHeadline(
+    _FollowSocialStats? stats,
+    _FollowCandidate candidate,
+  ) {
+    if (stats == null) return candidate.reason;
+    if (stats.mutualFollowers > 0) {
+      return '${stats.mutualFollowers} mutual ${stats.mutualFollowers == 1 ? 'follower' : 'followers'}';
+    }
+    if (stats.followers > 0) {
+      return '${stats.followers} ${stats.followers == 1 ? 'follower' : 'followers'}';
+    }
+    return candidate.reason;
+  }
+
+  static String _socialDetails(
+    PostModel post,
+    _FollowSocialStats? stats,
+    _FollowCandidate candidate,
+  ) {
+    final location = post.city.trim().isNotEmpty
+        ? post.city.trim()
+        : post.locationText.trim();
+    final parts = <String>[
+      if ((stats?.mutualFollowers ?? 0) > 0 && (stats?.followers ?? 0) > 0)
+        '${stats!.followers} total followers',
+      if ((stats?.mutualFollowers ?? 0) == 0 && candidate.postCount > 1)
+        '${candidate.postCount} recent posts',
+      if (location.isNotEmpty) location,
+    ];
+    if (parts.isEmpty) return 'Suggested from the community';
+    return parts.take(2).join(' • ');
+  }
+}
+
+class _FollowSocialStats {
+  const _FollowSocialStats({
+    required this.followers,
+    required this.mutualFollowers,
+  });
+
+  final int followers;
+  final int mutualFollowers;
 }
 
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({
     required this.title,
     this.actionLabel,
+    // ignore: unused_element_parameter
     this.onActionTap,
   });
 
@@ -866,7 +941,7 @@ class _EmptyCommunityState extends StatelessWidget {
     return _NoticeCard(
       icon: Icons.forum_rounded,
       title: 'No posts yet',
-      subtitle: 'Be the first to share something with the community.',
+      subtitle: 'Be the first to post today.',
       action: 'Create post',
       onTap: onCreatePost,
     );
@@ -881,7 +956,7 @@ class _FeedErrorState extends StatelessWidget {
     return const _StaticNoticeCard(
       icon: Icons.wifi_off_rounded,
       title: 'Could not load posts',
-      subtitle: 'Check your connection and pull down to refresh.',
+      subtitle: 'Check your connection and refresh.',
     );
   }
 }

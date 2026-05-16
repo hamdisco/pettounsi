@@ -50,7 +50,7 @@ class _GamesPageState extends State<GamesPage> {
     _PointsMission(
       id: 'sitter_profile_action',
       title: 'Improve pet sitting trust',
-      subtitle: 'Create a listing, complete a request, or review a sitter.',
+      subtitle: 'Create a listing, complete a request, or leave a review.',
       reward: 30,
       icon: Icons.volunteer_activism_rounded,
       action: _MissionAction.petSitting,
@@ -60,7 +60,7 @@ class _GamesPageState extends State<GamesPage> {
     _PointsMission(
       id: 'business_recommendation',
       title: 'Recommend a pet business',
-      subtitle: 'Suggest a vet, shop, groomer, trainer, or shelter.',
+      subtitle: 'Suggest a useful local pet place.',
       reward: 10,
       icon: Icons.storefront_rounded,
       action: _MissionAction.localServices,
@@ -70,7 +70,7 @@ class _GamesPageState extends State<GamesPage> {
     _PointsMission(
       id: 'adoption_rescue_support',
       title: 'Support adoption or rescue',
-      subtitle: 'Share useful adoption or rescue information.',
+      subtitle: 'Share helpful adoption or rescue info.',
       reward: 15,
       icon: Icons.pets_rounded,
       action: _MissionAction.adoptRescue,
@@ -80,7 +80,7 @@ class _GamesPageState extends State<GamesPage> {
     _PointsMission(
       id: 'pet_care_tip',
       title: 'Share a pet care tip',
-      subtitle: 'Post a practical care, food, safety, or vet tip.',
+      subtitle: 'Post a useful care or safety tip.',
       reward: 5,
       icon: Icons.forum_rounded,
       action: _MissionAction.communityPost,
@@ -366,11 +366,18 @@ class _GamesPageState extends State<GamesPage> {
               final rankTitle = _rankTitleForPoints(points);
               final nextMilestone = _nextMilestone(points);
               final claimsByMission = <String, _MissionClaimView>{};
+              final arcadePlayedToday = <String>{};
 
               for (final doc in todayDocs) {
                 final data = doc.data();
                 final missionId = (data['missionId'] ?? '').toString().trim();
                 if (missionId.isEmpty) continue;
+                final status = (data['status'] ?? '').toString().trim().toLowerCase();
+                final source = (data['source'] ?? '').toString().trim();
+                if (status == 'approved' &&
+                    (source == 'arcade_game_v3_auto' || missionId.startsWith('arcade_'))) {
+                  arcadePlayedToday.add(missionId.replaceFirst('arcade_', ''));
+                }
 
                 final nextView = _claimViewFromDoc(data);
                 final previous = claimsByMission[missionId];
@@ -392,6 +399,7 @@ class _GamesPageState extends State<GamesPage> {
                   onOpenPetMemory: _openPetMemory,
                   onOpenBubblePaws: _openBubblePaws,
                   onOpenPetQuiz: _openPetQuiz,
+                  arcadePlayedToday: arcadePlayedToday,
                 ),
                 1 => _RewardsTab(
                   points: points,
@@ -555,7 +563,7 @@ class _GamesSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final statsSemantics =
         '${stats.pendingTotal} pending, ${stats.approvedTotal} approved, '
-        '${stats.todayClaimed} claims today, ${stats.pendingTodayPoints} pending points';
+        '${stats.todayClaimed} claims today, ${stats.pendingTodayPoints} pending mission points';
 
     return Semantics(
       label: statsSemantics,
@@ -676,12 +684,14 @@ class _PlayTab extends StatelessWidget {
     required this.onOpenPetMemory,
     required this.onOpenBubblePaws,
     required this.onOpenPetQuiz,
+    required this.playedTodayGameIds,
   });
 
   final VoidCallback onOpenCatchTheTreat;
   final VoidCallback onOpenPetMemory;
   final VoidCallback onOpenBubblePaws;
   final VoidCallback onOpenPetQuiz;
+  final Set<String> playedTodayGameIds;
 
   @override
   Widget build(BuildContext context) {
@@ -692,7 +702,8 @@ class _PlayTab extends StatelessWidget {
         children: [
           _ArcadeGameTile(
             title: 'Catch the Treat',
-            rewardLabel: '+15 pts',
+            rewardLabel: '+1 point',
+            playedToday: playedTodayGameIds.contains('catch_treat'),
             icon: Icons.cookie_rounded,
             colors: const [Color(0xFFFF8A67), Color(0xFFFFC47D)],
             onTap: onOpenCatchTheTreat,
@@ -700,23 +711,26 @@ class _PlayTab extends StatelessWidget {
           const SizedBox(height: 10),
           _ArcadeGameTile(
             title: 'Pet Memory',
-            rewardLabel: '+15 pts',
+            rewardLabel: '+1 point',
+            playedToday: playedTodayGameIds.contains('pet_memory'),
             icon: Icons.grid_view_rounded,
             colors: const [Color(0xFF7C62D7), Color(0xFF8FD9FF)],
             onTap: onOpenPetMemory,
           ),
           const SizedBox(height: 10),
           _ArcadeGameTile(
-            title: 'Bubble Paws',
-            rewardLabel: '+15 pts',
-            icon: Icons.bubble_chart_rounded,
-            colors: const [Color(0xFF10A37F), Color(0xFFB6F3D4)],
+            title: 'Paw Maze',
+            rewardLabel: '+1 point',
+            playedToday: playedTodayGameIds.contains('bubble_paws'),
+            icon: Icons.travel_explore_rounded,
+            colors: const [Color(0xFF2E7D5B), Color(0xFF9CCC65)],
             onTap: onOpenBubblePaws,
           ),
           const SizedBox(height: 10),
           _ArcadeGameTile(
             title: 'Pet Quiz',
-            rewardLabel: '+15 pts',
+            rewardLabel: '+1 point',
+            playedToday: playedTodayGameIds.contains('pet_quiz'),
             icon: Icons.quiz_rounded,
             colors: const [Color(0xFF355C7D), Color(0xFFA6D8FF)],
             onTap: onOpenPetQuiz,
@@ -731,6 +745,7 @@ class _ArcadeGameTile extends StatelessWidget {
   const _ArcadeGameTile({
     required this.title,
     required this.rewardLabel,
+    required this.playedToday,
     required this.icon,
     required this.colors,
     required this.onTap,
@@ -738,6 +753,7 @@ class _ArcadeGameTile extends StatelessWidget {
 
   final String title;
   final String rewardLabel;
+  final bool playedToday;
   final IconData icon;
   final List<Color> colors;
   final VoidCallback onTap;
@@ -748,7 +764,11 @@ class _ArcadeGameTile extends StatelessWidget {
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(26),
       child: InkWell(
-        onTap: onTap,
+        onTap: playedToday
+            ? () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('This game already counted today. Come back tomorrow.')),
+                )
+            : onTap,
         borderRadius: BorderRadius.circular(26),
         child: Ink(
           height: 138,
@@ -816,7 +836,7 @@ class _ArcadeGameTile extends StatelessWidget {
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      Icons.play_arrow_rounded,
+                      playedToday ? Icons.check_rounded : Icons.play_arrow_rounded,
                       color: colors.first,
                       size: 28,
                     ),
@@ -835,7 +855,7 @@ class _ArcadeGameTile extends StatelessWidget {
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
-                      rewardLabel,
+                      playedToday ? 'Played today' : rewardLabel,
                       style: TextStyle(
                         color: colors.first,
                         fontWeight: FontWeight.w900,
@@ -884,6 +904,7 @@ class _MissionsTab extends StatelessWidget {
     required this.onOpenPetMemory,
     required this.onOpenBubblePaws,
     required this.onOpenPetQuiz,
+    required this.arcadePlayedToday,
   });
 
   final String dateLabel;
@@ -896,6 +917,7 @@ class _MissionsTab extends StatelessWidget {
   final VoidCallback onOpenPetMemory;
   final VoidCallback onOpenBubblePaws;
   final VoidCallback onOpenPetQuiz;
+  final Set<String> arcadePlayedToday;
 
   @override
   Widget build(BuildContext context) {
@@ -934,6 +956,7 @@ class _MissionsTab extends StatelessWidget {
           onOpenPetMemory: onOpenPetMemory,
           onOpenBubblePaws: onOpenBubblePaws,
           onOpenPetQuiz: onOpenPetQuiz,
+          playedTodayGameIds: arcadePlayedToday,
         ),
       ],
     );
@@ -1141,13 +1164,13 @@ class _PartnerRewardsPreviewCard extends StatelessWidget {
           _PreviewRewardTile(
             icon: Icons.storefront_rounded,
             title: 'Shop partner deals',
-            subtitle: 'Food, accessories, grooming, and care bundles.',
+            subtitle: 'Food, grooming, and accessories.',
           ),
           SizedBox(height: 9),
           _PreviewRewardTile(
             icon: Icons.volunteer_activism_rounded,
             title: 'Rescue support rewards',
-            subtitle: 'Use points to support community rescue campaigns.',
+            subtitle: 'Support future rescue campaigns.',
           ),
         ],
       ),
@@ -2051,8 +2074,7 @@ class _LocalServicesPickerPage extends StatelessWidget {
             icon: Icons.storefront_rounded,
             iconColor: AppTheme.orangeDark,
             title: 'Find useful places',
-            subtitle:
-                'Open vets, map pins, or nearby shops before submitting a service-tip mission.',
+            subtitle: 'Open a local service before submitting this mission.',
             badgeLabel: 'Service tip',
           ),
           const SizedBox(height: 12),
@@ -2068,8 +2090,7 @@ class _LocalServicesPickerPage extends StatelessWidget {
           _ServiceActionTile(
             icon: Icons.map_rounded,
             title: 'Map discovery',
-            subtitle:
-                'Explore vets, pet shops, events, reports, and nearby pins.',
+            subtitle: 'Open vets, shops, events, and reports.',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => const MapPage(

@@ -133,7 +133,7 @@ class PodcastHeroHeader extends StatelessWidget {
                           ),
                           _MiniPill(
                             icon: Icons.auto_awesome_rounded,
-                            label: 'Premium UI',
+                            label: 'Polished',
                           ),
                           _MiniPill(
                             icon: Icons.bookmark_added_rounded,

@@ -115,6 +115,7 @@ class _PetMemoryPageState extends State<PetMemoryPage> {
       if (_matched.length == _cards.length) {
         _finished = true;
         _timer?.cancel();
+        Future<void>.microtask(_claimPoints);
       }
     });
   }
@@ -135,7 +136,7 @@ class _PetMemoryPageState extends State<PetMemoryPage> {
     if (!mounted) return;
     setState(() {
       _claiming = false;
-      _claimed = result.success;
+      _claimed = result.success || result.collectedToday;
     });
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.message)));
   }
@@ -361,8 +362,8 @@ class _MemoryActionPanel extends StatelessWidget {
         children: [
           Text(
             finished
-                ? 'Completed: $score score · ${reward > 0 ? '+$reward pts available' : 'play again for points'}'
-                : 'Start by flipping any card. Finish the board to unlock points.',
+                ? 'Completed: $score score · ${reward > 0 ? '+1 point added' : 'play again for a point'}'
+                : 'Start by flipping any card. Finish the board to add today’s point.',
             textAlign: TextAlign.center,
             style: const TextStyle(color: AppTheme.ink, fontWeight: FontWeight.w800),
           ),
@@ -383,7 +384,7 @@ class _MemoryActionPanel extends StatelessWidget {
                   icon: claiming
                       ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                       : Icon(claimed ? Icons.check_circle_rounded : Icons.emoji_events_rounded),
-                  label: Text(claimed ? 'Submitted' : 'Claim'),
+                  label: Text(claiming ? 'Adding...' : claimed ? 'Added today' : 'Auto reward'),
                 ),
               ),
             ],

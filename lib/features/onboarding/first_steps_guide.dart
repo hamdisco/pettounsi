@@ -22,7 +22,7 @@ class _FirstStepsGuidePageState extends State<FirstStepsGuidePage> {
       eyebrow: 'Community',
       title: 'Follow what matters first',
       subtitle:
-          'Discover pet posts, reactions, comments, and everyday community activity from Home.',
+          'See posts, comments, and daily community activity from Home.',
       bullets: ['Browse new posts', 'React and comment', 'Follow pet profiles'],
     ),
     _GuidePageData(
@@ -385,7 +385,7 @@ class _GuideBulletCard extends StatelessWidget {
               ),
             ),
           ),
-          Icon(Icons.chevron_right_rounded, color: data.accent, size: 20),
+          Icon(Icons.arrow_forward_rounded, color: data.accent, size: 20),
         ],
       ),
     );

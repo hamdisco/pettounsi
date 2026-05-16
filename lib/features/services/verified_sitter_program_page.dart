@@ -29,11 +29,26 @@ class _VerifiedSitterProgramPageState extends State<VerifiedSitterProgramPage> {
   bool _identityReady = false;
   bool _submitting = false;
 
-  static const _plans = <String, String>{
-    'starter': 'Starter',
-    'verified': 'Verified sitter',
-    'pro_visibility': 'Pro visibility',
+  static const _plans = <String, _SitterPlan>{
+    'starter': _SitterPlan(
+      title: 'Free listing',
+      price: '0 TND / month',
+      summary: 'Create a normal sitter listing and collect real reviews first.',
+    ),
+    'verified': _SitterPlan(
+      title: 'Verified sitter',
+      price: '9 TND / month',
+      summary:
+          'For sitters ready for profile review and stronger trust signals.',
+    ),
+    'pro_visibility': _SitterPlan(
+      title: 'Pro visibility',
+      price: '19 TND / month',
+      summary:
+          'For active sitters who want better visibility after quality review.',
+    ),
   };
+
   @override
   void initState() {
     super.initState();
@@ -104,6 +119,8 @@ class _VerifiedSitterProgramPageState extends State<VerifiedSitterProgramPage> {
             'weeklyCapacity': _capacity.text.trim(),
             'priceRange': _priceRange.text.trim(),
             'planInterest': _plan,
+            'planTitle': _plans[_plan]?.title,
+            'planFee': _plans[_plan]?.price,
             'identityReady': _identityReady,
             'notes': _notes.text.trim(),
             'status': 'pending',
@@ -150,6 +167,8 @@ class _VerifiedSitterProgramPageState extends State<VerifiedSitterProgramPage> {
 
   @override
   Widget build(BuildContext context) {
+    final selectedPlan = _plans[_plan]!;
+
     return Scaffold(
       backgroundColor: AppTheme.bg,
       appBar: AppBar(title: const Text('Verified sitter')),
@@ -161,6 +180,8 @@ class _VerifiedSitterProgramPageState extends State<VerifiedSitterProgramPage> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
             children: [
               _SitterIntro(onListings: _openListings),
+              const SizedBox(height: 14),
+              _SitterPlanSummary(plan: selectedPlan),
               const SizedBox(height: 14),
               const _TierCard(),
               const SizedBox(height: 14),
@@ -249,7 +270,10 @@ class _VerifiedSitterProgramPageState extends State<VerifiedSitterProgramPage> {
                         .map(
                           (e) => DropdownMenuItem(
                             value: e.key,
-                            child: Text(e.value),
+                            child: Text(
+                              '${e.value.title} · ${e.value.price}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         )
                         .toList(),
@@ -356,7 +380,7 @@ class _SitterIntro extends StatelessWidget {
                     ),
                     SizedBox(height: 7),
                     Text(
-                      'For sitters who want trust badges, stronger visibility, and subscription tiers based on activity.',
+                      'Clear monthly options for sitters who want profile review and stronger visibility.',
                       style: TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
@@ -369,11 +393,94 @@ class _SitterIntro extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          OutlinedButton.icon(
-            onPressed: onListings,
-            icon: const Icon(Icons.pets_rounded, size: 18),
-            label: const Text('Open pet sitting'),
+        ],
+      ),
+    );
+  }
+}
+
+class _SitterPlan {
+  const _SitterPlan({
+    required this.title,
+    required this.price,
+    required this.summary,
+  });
+
+  final String title;
+  final String price;
+  final String summary;
+}
+
+class _SitterPlanSummary extends StatelessWidget {
+  const _SitterPlanSummary({required this.plan});
+
+  final _SitterPlan plan;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: AppTheme.outline),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppTheme.softOrange,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: const Icon(
+              Icons.payments_rounded,
+              color: AppTheme.orangeDark,
+              size: 21,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        plan.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: AppTheme.ink,
+                          height: 1.05,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      plan.price,
+                      style: const TextStyle(
+                        fontSize: 12.8,
+                        fontWeight: FontWeight.w900,
+                        color: AppTheme.orangeDark,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  plan.summary,
+                  style: const TextStyle(
+                    fontSize: 12.8,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.muted,
+                    height: 1.28,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -396,7 +503,7 @@ class _TierCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Subscription logic',
+            'Program rules',
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w900,
@@ -404,9 +511,12 @@ class _TierCard extends StatelessWidget {
             ),
           ),
           SizedBox(height: 12),
-          _WhiteBullet(text: 'Free listing first'),
-          _WhiteBullet(text: 'Verification after profile quality review'),
-          _WhiteBullet(text: 'Pro visibility unlocked by activity and reviews'),
+          _WhiteBullet(text: 'Free listing remains available'),
+          _WhiteBullet(text: 'Paid plans start only after review/approval'),
+          _WhiteBullet(
+            text:
+                'Pro visibility depends on activity, reviews, and care quality',
+          ),
         ],
       ),
     );

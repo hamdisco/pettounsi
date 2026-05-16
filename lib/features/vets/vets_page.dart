@@ -11,9 +11,9 @@ class VetsPage extends StatelessWidget {
       title: 'Vets',
       collectionName: 'vets',
       icon: Icons.local_hospital_rounded,
-      emptyText: 'No vet clinics yet.',
+      emptyText: 'No vet clinics listed yet.',
       accentColor: Color(0xFF2FAE79),
-      heroSubtitle: 'Clinics, emergency care, and trusted veterinary contacts.',
+      heroSubtitle: 'Clinics, emergency contacts, opening hours, calls, and directions.',
     );
   }
 }

@@ -8,17 +8,20 @@ class ArcadeClaimResult {
     required this.success,
     required this.message,
     required this.reward,
+    this.collectedToday = false,
   });
 
   final bool success;
   final String message;
   final int reward;
+  final bool collectedToday;
 }
 
 class ArcadeClaimService {
   ArcadeClaimService._();
 
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
+  static const int dailyGameReward = 1;
 
   static String todayKey([DateTime? value]) {
     final now = value ?? DateTime.now();
@@ -26,14 +29,30 @@ class ArcadeClaimService {
     return '${now.year}-${two(now.month)}-${two(now.day)}';
   }
 
-  static int catchTreatReward(int score) {
-    if (score >= 420) return 15;
-    if (score >= 280) return 12;
-    if (score >= 170) return 8;
-    if (score >= 80) return 5;
-    if (score >= 30) return 2;
-    return 0;
+  static String safeGameId(String gameId) {
+    return gameId.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9_]+'), '_');
   }
+
+  static String claimIdForGame({
+    required String uid,
+    required String gameId,
+    String? dayKey,
+  }) {
+    final safeId = safeGameId(gameId);
+    return '${uid}_${dayKey ?? todayKey()}_arcade_$safeId';
+  }
+
+  static Future<bool> hasCollectedToday(String gameId) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) return false;
+    final claim = await _db
+        .collection('game_claims')
+        .doc(claimIdForGame(uid: uid, gameId: gameId))
+        .get();
+    return claim.exists;
+  }
+
+  static int catchTreatReward(int score) => score > 0 ? dailyGameReward : 0;
 
   static int petMemoryScore({required int moves, required int seconds}) {
     final raw = 1000 - (moves * 32) - (seconds * 7);
@@ -42,35 +61,14 @@ class ArcadeClaimService {
     return raw;
   }
 
-  static int petMemoryReward(int score) {
-    if (score >= 820) return 15;
-    if (score >= 650) return 12;
-    if (score >= 480) return 8;
-    if (score >= 300) return 5;
-    if (score >= 120) return 2;
-    return 0;
-  }
+  static int petMemoryReward(int score) => score > 0 ? dailyGameReward : 0;
 
-  static int bubblePawsReward(int score) {
-    if (score >= 360) return 15;
-    if (score >= 280) return 12;
-    if (score >= 190) return 8;
-    if (score >= 100) return 5;
-    if (score >= 40) return 2;
-    return 0;
-  }
+  static int bubblePawsReward(int score) => score > 0 ? dailyGameReward : 0;
 
   // Kept for compatibility if an older Paw Dash file is still present under lib/.
   static int pawDashReward(int score) => bubblePawsReward(score);
 
-  static int petQuizReward(int correctAnswers) {
-    if (correctAnswers >= 5) return 15;
-    if (correctAnswers >= 4) return 12;
-    if (correctAnswers >= 3) return 8;
-    if (correctAnswers >= 2) return 5;
-    if (correctAnswers >= 1) return 2;
-    return 0;
-  }
+  static int petQuizReward(int correctAnswers) => correctAnswers > 0 ? dailyGameReward : 0;
 
   static Future<ArcadeClaimResult> submitArcadeClaim({
     required String gameId,
@@ -93,45 +91,42 @@ class ArcadeClaimService {
     if (reward <= 0) {
       return const ArcadeClaimResult(
         success: false,
-        message: 'Play again to reach the minimum score for points.',
+        message: 'Finish the round with a score to collect today\'s point.',
         reward: 0,
       );
     }
 
-    final safeGameId = gameId.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9_]+'), '_');
+    final safeId = safeGameId(gameId);
     final dayKey = todayKey();
-    final claimRef = _db.collection('game_claims').doc('${uid}_${dayKey}_arcade_$safeGameId');
+    final claimRef = _db.collection('game_claims').doc(
+          claimIdForGame(uid: uid, gameId: safeId, dayKey: dayKey),
+        );
     final identity = await UserIdentityService.instance.getForUid(
       uid,
       authUser: user,
     );
     final displayName = identity.safeName;
     final email = identity.email.trim();
-    final title = _trimTitle('$gameTitle · $score score');
+    final title = _trimTitle('$gameTitle · one play today');
 
     try {
       await _db.runTransaction((tx) async {
         final existing = await tx.get(claimRef);
         if (existing.exists) {
-          final status = (existing.data()?['status'] ?? 'pending').toString().toLowerCase();
-          if (status == 'approved') {
-            throw const _ArcadeClaimException('Points for this game are already approved today.');
-          }
-          if (status == 'pending') {
-            throw const _ArcadeClaimException('Your points for this game are already pending review today.');
-          }
-          throw const _ArcadeClaimException('This game was already claimed today.');
+          throw const _ArcadeClaimException(
+            'This game already counted today. Come back tomorrow.',
+          );
         }
 
         tx.set(claimRef, {
           'uid': uid,
           'dayKey': dayKey,
-          'missionId': 'arcade_$safeGameId',
+          'missionId': 'arcade_$safeId',
           'missionTitle': title,
-          'missionReward': reward,
-          'status': 'pending',
-          'source': 'arcade_game_v1',
-          'gameId': safeGameId,
+          'missionReward': dailyGameReward,
+          'status': 'approved',
+          'source': 'arcade_game_v3_auto',
+          'gameId': safeId,
           'score': score,
           'durationSeconds': durationSeconds,
           'gameResult': _trimResult(resultLabel),
@@ -142,18 +137,24 @@ class ArcadeClaimService {
         });
       });
 
-      return ArcadeClaimResult(
+      return const ArcadeClaimResult(
         success: true,
-        message: '+$reward pts sent for review.',
-        reward: reward,
+        message: '+1 point added automatically.',
+        reward: dailyGameReward,
+        collectedToday: true,
       );
     } on _ArcadeClaimException catch (e) {
-      return ArcadeClaimResult(success: false, message: e.message, reward: reward);
-    } catch (_) {
       return ArcadeClaimResult(
         success: false,
-        message: 'Could not submit points. Please try again.',
-        reward: reward,
+        message: e.message,
+        reward: dailyGameReward,
+        collectedToday: true,
+      );
+    } catch (_) {
+      return const ArcadeClaimResult(
+        success: false,
+        message: 'Could not add the point. Please try again.',
+        reward: dailyGameReward,
       );
     }
   }

@@ -1,6 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/date_formatters.dart';
 import '../../repositories/block_repository.dart';
 import '../../ui/adaptive_cached_image.dart';
@@ -813,13 +813,24 @@ class _LikeUserTile extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      'Liked this post',
-                      style: TextStyle(
-                        color: AppTheme.muted.withAlpha(210),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12.1,
-                      ),
+                    StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: FirebaseFirestore.instance
+                          .collection('follows')
+                          .doc(uid)
+                          .collection('followers')
+                          .snapshots(),
+                      builder: (context, snap) {
+                        final count = snap.data?.size ?? 0;
+
+                        return Text(
+                          '$count ${count == 1 ? 'follower' : 'followers'}',
+                          style: TextStyle(
+                            color: AppTheme.muted.withAlpha(210),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12.1,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

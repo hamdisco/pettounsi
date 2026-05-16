@@ -381,6 +381,7 @@ class DirectoryItemCard extends StatelessWidget {
     required this.onDirections,
     required this.onCall,
     required this.onSource,
+    required this.onWhatsApp,
   });
 
   final DirectoryItem item;
@@ -390,6 +391,7 @@ class DirectoryItemCard extends StatelessWidget {
   final VoidCallback? onDirections;
   final VoidCallback? onCall;
   final VoidCallback? onSource;
+  final VoidCallback? onWhatsApp;
 
   @override
   Widget build(BuildContext context) {
@@ -409,11 +411,13 @@ class DirectoryItemCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _DirectoryAvatar(
-                  item: item,
-                  accent: accent,
-                  icon: leadingIcon,
-                ),
+                item.isEvent
+                    ? _EventDateAvatar(item: item, accent: accent)
+                    : _DirectoryAvatar(
+                        item: item,
+                        accent: accent,
+                        icon: leadingIcon,
+                      ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -436,10 +440,17 @@ class DirectoryItemCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          if (item.isFeatured)
+                          if (item.isEvent)
+                            _SmallBadge(
+                              label: item.eventStatusLabel,
+                              accent: accent,
+                            )
+                          else if (item.isFeatured)
                             _SmallBadge(label: 'Featured', accent: accent)
                           else if (item.hasPartnerLabel)
                             _SmallBadge(label: 'Partner', accent: accent),
+                          if (item.isEmergency)
+                            _SmallBadge(label: 'Emergency', accent: accent),
                         ],
                       ),
                       const SizedBox(height: 6),
@@ -452,8 +463,8 @@ class DirectoryItemCard extends StatelessWidget {
                             icon: item.isEvent
                                 ? Icons.event_available_rounded
                                 : Icons.business_rounded,
-                            text: item.isEvent && item.dateLabel.isNotEmpty
-                                ? item.dateLabel
+                            text: item.isEvent
+                                ? item.eventTimeLabel
                                 : item.category,
                           ),
                           if (location.isNotEmpty)
@@ -463,6 +474,11 @@ class DirectoryItemCard extends StatelessWidget {
                               icon: Icons.near_me_outlined,
                               text: _formatKm(item.distanceKm!),
                             ),
+                          if (!item.isEvent && item.hasServices)
+                            _MiniMeta(
+                              icon: Icons.check_circle_outline_rounded,
+                              text: item.servicesText!,
+                            ),
                         ],
                       ),
                     ],
@@ -470,23 +486,48 @@ class DirectoryItemCard extends StatelessWidget {
                 ),
               ],
             ),
-            if ((item.offerText ?? '').trim().isNotEmpty) ...[
+            if (item.isEvent) ...[
               const SizedBox(height: 12),
-              _OfferStrip(text: item.offerText!, accent: accent),
+              _EventClarityStrip(item: item, accent: accent),
+            ] else ...[
+              if ((item.openingHours ?? '').trim().isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _PartnerClarityStrip(
+                  icon: Icons.schedule_rounded,
+                  text: item.openingHours!,
+                  accent: accent,
+                ),
+              ],
+              if ((item.offerText ?? '').trim().isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _OfferStrip(text: item.offerText!, accent: accent),
+              ],
             ],
             const SizedBox(height: 13),
             Row(
               children: [
                 Expanded(
                   child: _CardButton(
-                    label: 'Details',
-                    icon: Icons.info_outline_rounded,
+                    label: item.isEvent ? 'Event info' : 'Details',
+                    icon: item.isEvent
+                        ? Icons.event_note_rounded
+                        : Icons.info_outline_rounded,
                     onTap: onTap,
                     accent: accent,
                   ),
                 ),
                 const SizedBox(width: 8),
-                if (onCall != null) ...[
+                if (onWhatsApp != null) ...[
+                  Expanded(
+                    child: _CardButton(
+                      label: 'WhatsApp',
+                      icon: Icons.chat_bubble_outline_rounded,
+                      onTap: onWhatsApp!,
+                      accent: accent,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ] else if (onCall != null) ...[
                   Expanded(
                     child: _CardButton(
                       label: 'Call',
@@ -543,6 +584,7 @@ class DirectoryDetailsSheet extends StatelessWidget {
     required this.onDirections,
     required this.onCall,
     required this.onSource,
+    required this.onWhatsApp,
   });
 
   final DirectoryItem item;
@@ -551,6 +593,7 @@ class DirectoryDetailsSheet extends StatelessWidget {
   final VoidCallback? onDirections;
   final VoidCallback? onCall;
   final VoidCallback? onSource;
+  final VoidCallback? onWhatsApp;
 
   @override
   Widget build(BuildContext context) {
@@ -561,7 +604,13 @@ class DirectoryDetailsSheet extends StatelessWidget {
       iconColor: accent,
       iconBg: Color.lerp(accent, Colors.white, 0.88)!,
       title: item.name,
-      subtitle: item.isEvent ? 'Event information' : item.category,
+      subtitle: item.isEvent
+          ? 'Event information'
+          : (item.collectionName == 'vets'
+                ? 'Clinic profile'
+                : (item.collectionName == 'petshops'
+                      ? 'Shop profile'
+                      : item.category)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -574,6 +623,13 @@ class DirectoryDetailsSheet extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
+          if (item.isEvent) ...[
+            _EventClarityStrip(item: item, accent: accent),
+            const SizedBox(height: 12),
+          ] else ...[
+            _PartnerProfileStrip(item: item, accent: accent),
+            const SizedBox(height: 12),
+          ],
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -584,9 +640,21 @@ class DirectoryDetailsSheet extends StatelessWidget {
               if (item.isFeatured) _SmallBadge(label: 'Featured', accent: accent),
               if (!item.isFeatured && item.hasPartnerLabel)
                 _SmallBadge(label: 'Partner', accent: accent),
+              if (item.isEmergency) _SmallBadge(label: 'Emergency', accent: accent),
             ],
           ),
           const SizedBox(height: 12),
+          if (item.isEvent && item.eventTimeLabel.trim().isNotEmpty) ...[
+            PremiumSheetInfoCard(
+              icon: Icons.event_available_rounded,
+              iconBg: Color.lerp(accent, Colors.white, 0.90)!,
+              iconFg: accent,
+              title: item.eventStatusLabel,
+              subtitle: item.eventTimeLabel,
+              compact: true,
+            ),
+            const SizedBox(height: 10),
+          ],
           if (location.isNotEmpty)
             PremiumSheetInfoCard(
               icon: Icons.place_outlined,
@@ -618,14 +686,36 @@ class DirectoryDetailsSheet extends StatelessWidget {
               compact: true,
             ),
           ],
+          if (item.hasWhatsapp) ...[
+            const SizedBox(height: 10),
+            PremiumSheetInfoCard(
+              icon: Icons.chat_bubble_outline_rounded,
+              iconBg: AppTheme.mint,
+              iconFg: const Color(0xFF2F9A6A),
+              title: 'WhatsApp',
+              subtitle: item.whatsapp!,
+              compact: true,
+            ),
+          ],
           if ((item.openingHours ?? '').trim().isNotEmpty) ...[
             const SizedBox(height: 10),
             PremiumSheetInfoCard(
               icon: Icons.schedule_rounded,
               iconBg: AppTheme.butter,
               iconFg: const Color(0xFFB87900),
-              title: item.isEvent ? 'Schedule' : 'Hours',
+              title: item.isEvent ? 'Schedule note' : 'Hours',
               subtitle: item.openingHours!,
+              compact: true,
+            ),
+          ],
+          if (!item.isEvent && (item.servicesText ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            PremiumSheetInfoCard(
+              icon: Icons.check_circle_outline_rounded,
+              iconBg: Color.lerp(accent, Colors.white, 0.90)!,
+              iconFg: accent,
+              title: item.collectionName == 'petshops' ? 'Products & services' : 'Clinic services',
+              subtitle: item.servicesText!,
               compact: true,
             ),
           ],
@@ -652,18 +742,29 @@ class DirectoryDetailsSheet extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: _BigActionButton(
-                  label: 'Call',
-                  icon: Icons.call_outlined,
+                  label: item.hasWhatsapp ? 'WhatsApp' : 'Call',
+                  icon: item.hasWhatsapp
+                      ? Icons.chat_bubble_outline_rounded
+                      : Icons.call_outlined,
                   accent: accent,
-                  onTap: onCall,
+                  onTap: item.hasWhatsapp ? onWhatsApp : onCall,
                 ),
               ),
             ],
           ),
+          if (item.hasWhatsapp && onCall != null) ...[
+            const SizedBox(height: 10),
+            _BigActionButton(
+              label: 'Call',
+              icon: Icons.call_outlined,
+              accent: accent,
+              onTap: onCall,
+            ),
+          ],
           if (onSource != null) ...[
             const SizedBox(height: 10),
             _BigActionButton(
-              label: 'Website / source',
+              label: item.isEvent ? 'Event source' : 'Website / source',
               icon: Icons.open_in_new_rounded,
               accent: accent,
               onTap: onSource,
@@ -767,6 +868,283 @@ class _DirectoryPhotoFallback extends StatelessWidget {
     return Container(
       color: Color.lerp(accent, Colors.white, 0.86),
       child: Center(child: Icon(icon, color: accent, size: 24)),
+    );
+  }
+}
+
+class _EventDateAvatar extends StatelessWidget {
+  const _EventDateAvatar({required this.item, required this.accent});
+
+  final DirectoryItem item;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final startsAt = item.startsAt;
+    final day = startsAt == null ? '—' : '${startsAt.day}';
+    final month = startsAt == null ? 'Date' : _eventMonth(startsAt.month);
+
+    return Container(
+      width: 62,
+      height: 62,
+      decoration: BoxDecoration(
+        color: Color.lerp(accent, Colors.white, 0.88),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Color.lerp(accent, Colors.white, 0.70)!),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            month,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: accent,
+              fontWeight: FontWeight.w900,
+              fontSize: 10.5,
+              height: 1,
+              letterSpacing: 0.2,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            day,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppTheme.ink,
+              fontWeight: FontWeight.w900,
+              fontSize: 22,
+              height: 0.9,
+              letterSpacing: -0.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _eventMonth(int month) {
+    const months = <String>[
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    if (month < 1 || month > months.length) return 'Date';
+    return months[month - 1];
+  }
+}
+
+class _EventClarityStrip extends StatelessWidget {
+  const _EventClarityStrip({required this.item, required this.accent});
+
+  final DirectoryItem item;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final location = DirectoryItemCard.locationLine(item);
+    final subtitle = item.isEventPast
+        ? 'This event has already passed.'
+        : (location.isNotEmpty
+              ? 'Check details and location before going.'
+              : 'Check details before going.');
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+      decoration: BoxDecoration(
+        color: Color.lerp(accent, Colors.white, 0.93),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Color.lerp(accent, Colors.white, 0.74)!),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(color: AppTheme.outline),
+            ),
+            child: Icon(_eventStatusIcon(item), color: accent, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.eventStatusLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.ink,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12.8,
+                    height: 1.05,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.muted,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11.4,
+                    height: 1.14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static IconData _eventStatusIcon(DirectoryItem item) {
+    if (item.isEventPast) return Icons.history_rounded;
+    if (item.isEventToday) return Icons.today_rounded;
+    return Icons.event_available_rounded;
+  }
+}
+
+
+
+class _PartnerProfileStrip extends StatelessWidget {
+  const _PartnerProfileStrip({required this.item, required this.accent});
+
+  final DirectoryItem item;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = item.collectionName == 'vets'
+        ? (item.isEmergency ? 'Clinic contact ready' : 'Clinic profile')
+        : (item.collectionName == 'petshops'
+              ? 'Shop profile'
+              : 'Partner profile');
+    final subtitle = item.hasPhone || item.hasWhatsapp
+        ? 'Use call, WhatsApp, or directions before visiting.'
+        : 'Check details and location before visiting.';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+      decoration: BoxDecoration(
+        color: Color.lerp(accent, Colors.white, 0.93),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Color.lerp(accent, Colors.white, 0.74)!),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(color: AppTheme.outline),
+            ),
+            child: Icon(
+              item.collectionName == 'vets'
+                  ? Icons.medical_services_rounded
+                  : Icons.storefront_rounded,
+              color: accent,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.ink,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12.8,
+                    height: 1.05,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.muted,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11.4,
+                    height: 1.14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PartnerClarityStrip extends StatelessWidget {
+  const _PartnerClarityStrip({
+    required this.icon,
+    required this.text,
+    required this.accent,
+  });
+
+  final IconData icon;
+  final String text;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Color.lerp(accent, Colors.white, 0.94),
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: Color.lerp(accent, Colors.white, 0.78)!),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: AppTheme.ink.withAlpha(195),
+                fontWeight: FontWeight.w800,
+                fontSize: 12.1,
+                height: 1.15,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

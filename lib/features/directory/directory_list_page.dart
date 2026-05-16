@@ -73,22 +73,22 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
 
     switch (widget.collectionName) {
       case 'vets':
-        return 'Clinics, emergency care, and trusted veterinary contacts.';
+        return 'Clinics, emergency contacts, and directions.';
       case 'events':
-        return 'Adoption days, campaigns, and pet-friendly events.';
+        return 'Meetups, adoption days, and local pet activities.';
       case 'petshops':
-        return 'Food, accessories, grooming, and trusted local pet stores.';
+        return 'Food, grooming, accessories, and local pet stores.';
       default:
-        return 'Find trusted places and partners near you.';
+        return 'Find useful pet places near you.';
     }
   }
 
   String get _searchHint {
     switch (widget.collectionName) {
       case 'vets':
-        return 'Search clinic, city, or phone';
+        return 'Search clinic, city, service, or phone';
       case 'petshops':
-        return 'Search shop, city, or service';
+        return 'Search shop, product, service, or city';
       case 'events':
         return 'Search event, city, or organizer';
       default:
@@ -99,9 +99,9 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
   String get _partnerTitle {
     switch (widget.collectionName) {
       case 'vets':
-        return 'Clinic partner program';
+        return 'Own a vet clinic?';
       case 'petshops':
-        return 'Shop partner program';
+        return 'Own a pet shop?';
       case 'events':
         return 'Promote a pet event';
       default:
@@ -112,13 +112,13 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
   String get _partnerSubtitle {
     switch (widget.collectionName) {
       case 'vets':
-        return 'Featured placement for clinics and local visibility.';
+        return 'Add hours, services, phone, and directions.';
       case 'petshops':
-        return 'Show offers, products, and directions to pet owners.';
+        return 'Show products, WhatsApp, offers, and directions.';
       case 'events':
-        return 'Share adoption days, campaigns, and partner activities.';
+        return 'Submit adoption days, meetups, and campaigns.';
       default:
-        return 'Apply for partner visibility inside PetTounsi.';
+        return 'Apply for a clean local listing.';
     }
   }
 
@@ -138,9 +138,9 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
   String get _partnerPlan {
     switch (widget.collectionName) {
       case 'vets':
-        return 'vet_care_plan';
+        return 'free_listing';
       case 'petshops':
-        return 'shop_growth';
+        return 'free_listing';
       case 'events':
         return 'partner_offers';
       default:
@@ -158,8 +158,13 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
         item.city.toLowerCase().contains(q) ||
         item.governorate.toLowerCase().contains(q) ||
         (item.phone ?? '').toLowerCase().contains(q) ||
+        (item.whatsapp ?? '').toLowerCase().contains(q) ||
         (item.notes ?? '').toLowerCase().contains(q) ||
+        item.dateLabel.toLowerCase().contains(q) ||
+        item.eventStatusLabel.toLowerCase().contains(q) ||
+        item.eventTimeLabel.toLowerCase().contains(q) ||
         (item.openingHours ?? '').toLowerCase().contains(q) ||
+        (item.servicesText ?? '').toLowerCase().contains(q) ||
         (item.offerText ?? '').toLowerCase().contains(q);
   }
 
@@ -234,6 +239,36 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Could not open dialer')));
+    }
+  }
+
+  Future<void> _openWhatsApp(String? phone) async {
+    final raw = (phone ?? '').trim();
+    if (raw.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No WhatsApp number available')),
+      );
+      return;
+    }
+
+    var digits = raw.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (digits.startsWith('+')) digits = digits.substring(1);
+    if (digits.length == 8) digits = '216$digits';
+
+    final uri = Uri.parse('https://wa.me/$digits');
+    try {
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open WhatsApp')),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open WhatsApp')),
+      );
     }
   }
 
@@ -415,6 +450,9 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
         onDirections: item.hasCoords ? () => _openDirections(item) : null,
         onCall: item.hasPhone ? () => _callPhone(item.phone) : null,
         onSource: item.hasSource ? () => _openSource(item.sourceUrl) : null,
+        onWhatsApp: item.hasWhatsapp
+            ? () => _openWhatsApp(item.whatsapp)
+            : null,
       ),
     );
   }
@@ -483,11 +521,13 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
             DirectoryPartnerBand(
               title: _partnerTitle,
               subtitle: _partnerSubtitle,
-              ctaLabel: _isEvents ? 'Submit event' : 'Become partner',
+              ctaLabel: _isEvents
+                  ? 'Submit event'
+                  : (_isVets ? 'Add clinic' : (_isPetshops ? 'Add shop' : 'Apply')),
               icon: _isEvents
                   ? Icons.campaign_rounded
                   : (_isVets
-                        ? Icons.verified_rounded
+                        ? Icons.local_hospital_rounded
                         : (_isPetshops
                               ? Icons.storefront_rounded
                               : Icons.workspace_premium_rounded)),
@@ -647,9 +687,9 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
                 title: q.isEmpty ? widget.emptyText : 'No results for "$q"',
                 subtitle: q.isEmpty
                     ? (_nearMe
-                          ? 'No nearby partners were found around your current location.'
-                          : 'New partners can apply from this page.')
-                    : 'Try another keyword, city, category, or phone.',
+                          ? 'No nearby results found.'
+                          : 'New listings will appear here.')
+                    : 'Try another keyword or city.',
                 accent: accent,
               ),
             ]);
@@ -675,6 +715,9 @@ class _DirectoryListPageState extends State<DirectoryListPage> {
                 onCall: item.hasPhone ? () => _callPhone(item.phone) : null,
                 onSource: item.hasSource
                     ? () => _openSource(item.sourceUrl)
+                    : null,
+                onWhatsApp: item.hasWhatsapp
+                    ? () => _openWhatsApp(item.whatsapp)
                     : null,
               ),
           ];

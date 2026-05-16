@@ -27,6 +27,65 @@ class MessagesRepository {
   CollectionReference<Map<String, dynamic>> messagesRef(String convoId) =>
       convoRef(convoId).collection('messages');
 
+  String? _otherParticipantUid(Map<String, dynamic> convoData, String myUid) {
+    final participants = (convoData['participants'] is List)
+        ? (convoData['participants'] as List).whereType<String>().toList()
+        : <String>[];
+    if (participants.length != 2 || !participants.contains(myUid)) return null;
+    return participants.firstWhere((uid) => uid != myUid);
+  }
+
+  String _notificationPreview(String text, {required bool isImage}) {
+    final clean = text.trim();
+    final preview = clean.isEmpty && isImage ? 'Photo' : clean;
+    if (preview.length <= 120) return preview;
+    return '${preview.substring(0, 117)}...';
+  }
+
+  Future<String?> _addMessageNotificationToBatch({
+    required WriteBatch batch,
+    required String convoId,
+    required String messagePreview,
+    required bool isImage,
+  }) async {
+    final me = _auth.currentUser;
+    if (me == null) return null;
+
+    final convoSnap = await convoRef(convoId).get();
+    final convoData = convoSnap.data();
+    if (convoData == null) return null;
+
+    final otherUid = _otherParticipantUid(convoData, me.uid);
+    if (otherUid == null || otherUid == me.uid) return null;
+
+    final myIdentity = await UserIdentityService.instance.getForUid(
+      me.uid,
+      authUser: me,
+    );
+    final preview = _notificationPreview(messagePreview, isImage: isImage);
+    final notificationRef = _db
+        .collection('notifications')
+        .doc(otherUid)
+        .collection('items')
+        .doc();
+
+    batch.set(notificationRef, {
+      'type': 'message',
+      'toUid': otherUid,
+      'actorUid': me.uid,
+      'actorName': myIdentity.safeName,
+      'actorPhotoUrl': myIdentity.photoUrl,
+      'conversationId': convoId,
+      'messagePreview': preview,
+      'notificationTitle': '${myIdentity.safeName} sent you a message',
+      'notificationBody': preview,
+      'read': false,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    return otherUid;
+  }
+
   Stream<List<ConversationModel>> streamMyConversations({int limit = 50}) {
     final me = _auth.currentUser;
     if (me == null) return const Stream.empty();
@@ -163,6 +222,13 @@ class MessagesRepository {
       'lastReadAt.${me.uid}': FieldValue.serverTimestamp(),
     });
 
+    await _addMessageNotificationToBatch(
+      batch: batch,
+      convoId: convoId,
+      messagePreview: t,
+      isImage: false,
+    );
+
     await batch.commit();
   }
 
@@ -196,6 +262,13 @@ class MessagesRepository {
       'updatedAt': FieldValue.serverTimestamp(),
       'lastReadAt.${me.uid}': FieldValue.serverTimestamp(),
     });
+
+    await _addMessageNotificationToBatch(
+      batch: batch,
+      convoId: convoId,
+      messagePreview: 'Photo',
+      isImage: true,
+    );
 
     await batch.commit();
   }

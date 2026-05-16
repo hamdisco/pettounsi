@@ -107,10 +107,11 @@ class _CatchTheTreatPageState extends State<CatchTheTreatPage> {
     _timer?.cancel();
     _running = false;
     _finished = true;
+    Future<void>.microtask(_claimPoints);
   }
 
   Future<void> _claimPoints() async {
-    if (_claiming || _claimed) return;
+    if (_claiming || _claimed || !_finished) return;
     setState(() => _claiming = true);
 
     final result = await ArcadeClaimService.submitArcadeClaim(
@@ -125,7 +126,7 @@ class _CatchTheTreatPageState extends State<CatchTheTreatPage> {
     if (!mounted) return;
     setState(() {
       _claiming = false;
-      _claimed = result.success;
+      _claimed = result.success || result.collectedToday;
     });
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.message)));
   }
@@ -228,7 +229,12 @@ class _CatchTreatPainter extends CustomPainter {
     );
 
     for (final item in items) {
-      _drawEmoji(canvas, item.bad ? '🧅' : '🦴', Offset(item.x * size.width, item.y * size.height), item.bad ? 24 : 27);
+      _drawEmoji(
+      canvas,
+      item.bad ? '🧅' : '🦴',
+      Offset(item.x * size.width, item.y * size.height),
+      item.bad ? 24 : 27,
+    );
     }
 
     final bowlX = playerX * size.width;
@@ -248,7 +254,7 @@ class _CatchTreatPainter extends CustomPainter {
     if (!running && !finished) {
       _drawCenterLabel(canvas, size, 'Tap Start', 'Drag or tap to move the bowl');
     } else if (finished) {
-      _drawCenterLabel(canvas, size, 'Game finished', 'Claim your daily arcade points');
+      _drawCenterLabel(canvas, size, 'Game finished', 'Today’s point is added automatically');
     }
   }
 
@@ -388,7 +394,15 @@ class _MiniScore extends StatelessWidget {
         children: [
           Text(label, style: const TextStyle(color: AppTheme.muted, fontWeight: FontWeight.w800, fontSize: 11)),
           const SizedBox(height: 3),
-          Text(value.isEmpty ? '—' : value, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppTheme.ink, fontWeight: FontWeight.w900)),
+          Text(
+              value.isEmpty ? '—' : value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppTheme.ink,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
         ],
       ),
     );
@@ -431,8 +445,8 @@ class _GameActionPanel extends StatelessWidget {
         children: [
           Text(
             finished
-                ? 'Final score: $score · ${reward > 0 ? '+$reward pts available' : 'no points this round'}'
-                : 'Daily arcade points are reviewed before they become official.',
+                ? 'Final score: $score · ${reward > 0 ? '+1 point added' : 'no point this round'}'
+                : 'Each arcade game can count once per day.',
             style: const TextStyle(color: AppTheme.ink, fontWeight: FontWeight.w800),
             textAlign: TextAlign.center,
           ),
@@ -453,7 +467,7 @@ class _GameActionPanel extends StatelessWidget {
                   icon: claiming
                       ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                       : Icon(claimed ? Icons.check_circle_rounded : Icons.emoji_events_rounded),
-                  label: Text(claimed ? 'Submitted' : 'Claim'),
+                  label: Text(claimed ? 'Added today' : 'Adding...'),
                 ),
               ),
             ],

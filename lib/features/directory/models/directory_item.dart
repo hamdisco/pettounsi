@@ -11,6 +11,7 @@ class DirectoryItem {
   final String city;
   final String governorate;
   final String? phone;
+  final String? whatsapp;
   final String? sourceUrl;
   final String? notes;
   final String? photoUrl;
@@ -22,11 +23,14 @@ class DirectoryItem {
   final String category;
   final String? openingHours;
   final String? offerText;
+  final String? servicesText;
   final String? partnerTier;
+  final bool isEmergency;
   final bool isFeatured;
 
   /// Mainly for events (optional)
   final DateTime? startsAt;
+  final DateTime? endsAt;
   final String dateLabel;
 
   /// Optional, computed at runtime.
@@ -40,6 +44,7 @@ class DirectoryItem {
     required this.city,
     required this.governorate,
     required this.phone,
+    required this.whatsapp,
     required this.sourceUrl,
     required this.notes,
     required this.photoUrl,
@@ -49,20 +54,55 @@ class DirectoryItem {
     required this.category,
     required this.openingHours,
     required this.offerText,
+    required this.servicesText,
     required this.partnerTier,
+    required this.isEmergency,
     required this.isFeatured,
     required this.startsAt,
+    required this.endsAt,
     required this.dateLabel,
     this.distanceKm,
   });
 
   bool get hasCoords => lat != null && lng != null;
   bool get hasPhone => (phone ?? '').trim().isNotEmpty;
+  bool get hasWhatsapp => (whatsapp ?? '').trim().isNotEmpty;
   bool get hasPhoto => (photoUrl ?? '').trim().isNotEmpty;
   bool get hasSource => (sourceUrl ?? '').trim().isNotEmpty;
   bool get hasOffer => (offerText ?? '').trim().isNotEmpty;
+  bool get hasServices => (servicesText ?? '').trim().isNotEmpty;
   bool get hasPartnerLabel => isFeatured || (partnerTier ?? '').trim().isNotEmpty;
-  bool get isEvent => dateLabel.trim().isNotEmpty || startsAt != null;
+  bool get isEvent => collectionName == 'events' || dateLabel.trim().isNotEmpty || startsAt != null;
+
+  bool get isEventToday {
+    if (!isEvent || startsAt == null) return false;
+    return AppDateFmt.sameDay(startsAt, DateTime.now());
+  }
+
+  bool get isEventPast {
+    if (!isEvent) return false;
+    final marker = endsAt ?? startsAt;
+    if (marker == null) return false;
+    return marker.isBefore(DateTime.now().subtract(const Duration(hours: 2)));
+  }
+
+  String get eventStatusLabel {
+    if (!isEvent) return '';
+    if (isEventPast) return 'Past';
+    if (isEventToday) return 'Today';
+    return 'Upcoming';
+  }
+
+  String get eventTimeLabel {
+    if (!isEvent) return '';
+    if (startsAt == null) return dateLabel;
+    final date = dateLabel.trim().isNotEmpty ? dateLabel : AppDateFmt.dMy(startsAt);
+    final startTime = AppDateFmt.hm(startsAt);
+    final endTime = endsAt == null ? '' : AppDateFmt.hm(endsAt);
+    if (startTime == '00:00' && endTime.isEmpty) return date;
+    if (endTime.isNotEmpty && endTime != startTime) return '$date • $startTime - $endTime';
+    return '$date • $startTime';
+  }
 
   DirectoryItem withDistanceKm(double? km) {
     return DirectoryItem(
@@ -73,6 +113,7 @@ class DirectoryItem {
       city: city,
       governorate: governorate,
       phone: phone,
+      whatsapp: whatsapp,
       sourceUrl: sourceUrl,
       notes: notes,
       photoUrl: photoUrl,
@@ -82,9 +123,12 @@ class DirectoryItem {
       category: category,
       openingHours: openingHours,
       offerText: offerText,
+      servicesText: servicesText,
       partnerTier: partnerTier,
+      isEmergency: isEmergency,
       isFeatured: isFeatured,
       startsAt: startsAt,
+      endsAt: endsAt,
       dateLabel: dateLabel,
       distanceKm: km,
     );
@@ -108,6 +152,12 @@ class DirectoryItem {
     final city = _firstString(m, ['city']);
     final governorate = _firstString(m, ['governorate', 'state']);
     final phone = _firstString(m, ['phone', 'phoneNumber', 'tel']);
+    final whatsapp = _firstString(m, [
+      'whatsapp',
+      'whatsApp',
+      'whatsappNumber',
+      'whatsAppNumber',
+    ]);
     final sourceUrl = _firstString(m, ['sourceUrl', 'website', 'url']);
 
     final notes = _firstString(
@@ -138,12 +188,21 @@ class DirectoryItem {
       'dealText',
       'promotionText',
     ]);
+    final servicesText = _firstString(m, [
+      'servicesText',
+      'services',
+      'specialties',
+      'products',
+      'productCategories',
+    ]);
     final partnerTier = _firstString(m, [
       'partnerTier',
       'partnerPlan',
       'plan',
       'badge',
     ]);
+    final isEmergency = _asBool(m['isEmergency'] ?? m['emergency'] ?? m['emergencyVet']);
+
     final isFeatured = _asBool(m['isFeatured'] ?? m['featured']) ||
         partnerTier.toLowerCase().contains('featured') ||
         partnerTier.toLowerCase().contains('premium');
@@ -151,6 +210,7 @@ class DirectoryItem {
     final isActive = (m['isActive'] is bool) ? (m['isActive'] as bool) : true;
 
     final startsAt = _readEventStart(m, collectionName);
+    final endsAt = _readEventEnd(m, collectionName);
     final dateLabel = _buildEventDateLabel(m, collectionName, startsAt);
 
     return DirectoryItem(
@@ -161,6 +221,7 @@ class DirectoryItem {
       city: city,
       governorate: governorate,
       phone: phone.isEmpty ? null : phone,
+      whatsapp: whatsapp.isEmpty ? null : whatsapp,
       sourceUrl: sourceUrl.isEmpty ? null : sourceUrl,
       notes: notes.isEmpty ? null : notes,
       photoUrl: photoUrl.isEmpty ? null : photoUrl,
@@ -170,9 +231,12 @@ class DirectoryItem {
       category: category,
       openingHours: openingHours.isEmpty ? null : openingHours,
       offerText: offerText.isEmpty ? null : offerText,
+      servicesText: servicesText.isEmpty ? null : servicesText,
       partnerTier: partnerTier.isEmpty ? null : partnerTier,
+      isEmergency: isEmergency,
       isFeatured: isFeatured,
       startsAt: startsAt,
+      endsAt: endsAt,
       dateLabel: dateLabel,
     );
   }
@@ -186,6 +250,15 @@ class DirectoryItem {
     return _asDateTime(
       m['startAt'] ?? m['dateAt'] ?? m['startsAt'] ?? m['createdAt'],
     );
+  }
+
+  static DateTime? _readEventEnd(
+    Map<String, dynamic> m,
+    String collectionName,
+  ) {
+    if (collectionName != 'events') return null;
+
+    return _asDateTime(m['endAt'] ?? m['endsAt'] ?? m['finishAt']);
   }
 
   static String _buildEventDateLabel(
@@ -226,7 +299,9 @@ class DirectoryItem {
     for (final k in keys) {
       final v = m[k];
       if (v == null) continue;
-      final s = v.toString().trim();
+      final s = v is Iterable
+          ? v.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).join(' · ')
+          : v.toString().trim();
       if (s.isNotEmpty) return s;
     }
     return fallback;

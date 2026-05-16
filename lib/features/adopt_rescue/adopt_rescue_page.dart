@@ -62,19 +62,19 @@ class _AdoptRescuePageState extends State<AdoptRescuePage> {
                 icon: Icons.favorite_rounded,
                 iconColor: const Color(0xFFD94F70),
                 title: 'Adopt & Rescue',
-                subtitle: 'Give a pet a home or help a stray in need',
+                subtitle: 'Adoption and rescue posts from the community',
                 chips: [
                   const PremiumHeaderChip(
-                    icon: Icons.verified_user_rounded,
-                    label: 'Safe rehoming',
+                    icon: Icons.favorite_rounded,
+                    label: 'Adopt',
                     bg: Color(0xFFFFE8EC),
                     fg: Color(0xFFD94F70),
                   ),
                   const PremiumHeaderChip(
-                    icon: Icons.volunteer_activism_rounded,
-                    label: 'Community',
-                    bg: AppTheme.mint,
-                    fg: Color(0xFF26A06F),
+                    icon: Icons.campaign_rounded,
+                    label: 'Rescue',
+                    bg: Color(0xFFFFECE7),
+                    fg: Color(0xFFE86C4F),
                   ),
                 ],
               ),
@@ -301,8 +301,7 @@ class _AdoptRescueFeedState extends State<_AdoptRescueFeed> {
             : widget.filter == _kAdopt
                 ? 'No adoption posts yet'
                 : 'No posts yet',
-        subtitle: 'Be the first to share an adoption or rescue post.\n'
-            'When creating a post, select the "Adopt" or "Rescue" type.',
+        subtitle: 'Adoption and rescue posts will appear here.',
       );
     }
 
@@ -347,6 +346,15 @@ class _AdoptRescueCard extends StatelessWidget {
   IconData get _typeIcon =>
       _isRescue ? Icons.campaign_rounded : Icons.favorite_rounded;
 
+  String get _locationLine {
+    final parts = <String>[
+      if (post.city.trim().isNotEmpty) post.city.trim(),
+      if (post.region.trim().isNotEmpty) post.region.trim(),
+    ];
+    if (parts.isNotEmpty) return parts.join(' • ');
+    return post.locationText.trim();
+  }
+
   String _safeUrl(String raw) {
     var url = raw.trim();
     if (url.isEmpty) return '';
@@ -360,7 +368,7 @@ class _AdoptRescueCard extends StatelessWidget {
         if (!(rest.startsWith('f_') ||
             rest.startsWith('q_') ||
             rest.startsWith('c_'))) {
-          url = '${split[0]}/image/upload/f_jpg,q_auto,w_800/$rest';
+          url = '${split[0]}/image/upload/f_jpg,q_auto,w_900/$rest';
         }
       }
     }
@@ -375,151 +383,158 @@ class _AdoptRescueCard extends StatelessWidget {
     final urls =
         post.imageUrls.map(_safeUrl).where((u) => u.isNotEmpty).toList();
     final created = AppDateFmt.dMyHm(post.createdAt);
+    final location = _locationLine;
 
-    return PremiumCardSurface(
-      radius: BorderRadius.circular(28),
-      padding: EdgeInsets.zero,
-      shadowOpacity: 0.13,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // --- Header ---
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 10, 10),
-            child: Row(
-              children: [
-                UserAvatar(
-                  uid: post.authorId,
-                  radius: 20,
-                  fallbackName: 'Pettounsi user',
-                  fallbackPhotoUrl: null,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ProfilePage(uid: post.authorId),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      UserName(
-                        uid: post.authorId,
-                        fallback: 'Pettounsi user',
-                        style: const TextStyle(
-                          color: AppTheme.ink,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 13.8,
-                          height: 1.0,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        created.isEmpty ? 'Community post' : created,
-                        style: TextStyle(
-                          color: AppTheme.muted.withAlpha(210),
-                          fontWeight: FontWeight.w800,
-                          fontSize: 11.2,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Type badge
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _typeBg,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: _typeColor.withAlpha(60)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(_typeIcon, size: 13, color: _typeColor),
-                      const SizedBox(width: 5),
-                      Text(
-                        _typeLabel,
-                        style: TextStyle(
-                          color: _typeColor,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 11.4,
-                          height: 1,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // --- Photo ---
-          if (urls.isNotEmpty)
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      child: Ink(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppTheme.outline.withAlpha(210)),
+          boxShadow: AppTheme.softShadows(0.06),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: AspectRatio(
-                  aspectRatio: 4 / 3,
-                  child: CachedNetworkImage(
-                    imageUrl: urls.first,
-                    fit: BoxFit.cover,
-                    memCacheWidth: 800,
-                    memCacheHeight: 600,
-                    placeholder: (_, __) => Container(
-                      color: AppTheme.mist,
-                      child: const Center(
-                        child: Icon(Icons.pets_rounded,
-                            color: AppTheme.outline, size: 40),
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+              child: Row(
+                children: [
+                  UserAvatar(
+                    uid: post.authorId,
+                    radius: 20,
+                    fallbackName: post.authorName.trim().isEmpty
+                        ? 'PetTounsi user'
+                        : post.authorName,
+                    fallbackPhotoUrl: post.authorPhotoUrl,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ProfilePage(uid: post.authorId),
                       ),
                     ),
-                    errorWidget: (_, __, ___) => Container(
-                      color: AppTheme.mist,
-                      child: const Center(
-                        child: Icon(Icons.broken_image_outlined,
-                            color: AppTheme.muted),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        UserName(
+                          uid: post.authorId,
+                          fallback: post.authorName.trim().isEmpty
+                              ? 'PetTounsi user'
+                              : post.authorName,
+                          maxLines: 1,
+                          style: const TextStyle(
+                            color: AppTheme.ink,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 13.8,
+                            height: 1.0,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          [
+                            if (created.isNotEmpty) created,
+                            if (location.isNotEmpty) location,
+                          ].join(' • '),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: AppTheme.muted.withAlpha(215),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _typeBg,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: _typeColor.withAlpha(48)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(_typeIcon, size: 13, color: _typeColor),
+                        const SizedBox(width: 5),
+                        Text(
+                          _typeLabel,
+                          style: TextStyle(
+                            color: _typeColor,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 11.3,
+                            height: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (urls.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: AspectRatio(
+                    aspectRatio: 4 / 3,
+                    child: CachedNetworkImage(
+                      imageUrl: urls.first,
+                      fit: BoxFit.cover,
+                      memCacheWidth: 900,
+                      memCacheHeight: 680,
+                      placeholder: (_, __) => Container(
+                        color: AppTheme.mist,
+                        child: Icon(_typeIcon, color: _typeColor, size: 34),
+                      ),
+                      errorWidget: (_, __, ___) => Container(
+                        color: AppTheme.mist,
+                        child: const Center(
+                          child: Icon(
+                            Icons.broken_image_outlined,
+                            color: AppTheme.muted,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-
-          // --- Text ---
-          if (post.text.trim().isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-              child: Text(
-                post.text.trim(),
-                maxLines: 5,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppTheme.ink,
-                  fontWeight: FontWeight.w700,
-                  height: 1.35,
-                  fontSize: 14.2,
+            if (post.text.trim().isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                child: Text(
+                  post.text.trim(),
+                  maxLines: urls.isEmpty ? 4 : 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.ink,
+                    fontWeight: FontWeight.w700,
+                    height: 1.34,
+                    fontSize: 14,
+                  ),
                 ),
               ),
-            ),
-
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 14),
-            child: Divider(height: 1, color: AppTheme.outline),
-          ),
-
-          _CardActions(post: post, isMine: _isMine),
-        ],
+            Divider(height: 1, color: AppTheme.outline.withAlpha(190)),
+            _CardActions(post: post, isMine: _isMine),
+          ],
+        ),
       ),
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// Card actions — like + "I can help" DM
+// Card actions
 // ---------------------------------------------------------------------------
 class _CardActions extends StatelessWidget {
   const _CardActions({required this.post, required this.isMine});
@@ -538,7 +553,6 @@ class _CardActions extends StatelessWidget {
     }
 
     try {
-      // ensureDm checks follow status and creates/gets conversation
       await MessagesRepository.instance.ensureDm(
         otherUid: post.authorId,
         otherName: post.authorName,
@@ -547,7 +561,6 @@ class _CardActions extends StatelessWidget {
 
       if (!context.mounted) return;
 
-      // Navigate to ChatPage with the poster's info
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -610,7 +623,6 @@ class _CardActions extends StatelessWidget {
             },
           ),
           const Spacer(),
-          // "I can help" button — only shown to other users
           if (!isMine)
             GestureDetector(
               onTap: () => _contactPoster(context),
@@ -630,7 +642,7 @@ class _CardActions extends StatelessWidget {
                         size: 14, color: Color(0xFFD94F70)),
                     SizedBox(width: 6),
                     Text(
-                      'I can help',
+                      'Message',
                       style: TextStyle(
                         color: Color(0xFFD94F70),
                         fontWeight: FontWeight.w900,

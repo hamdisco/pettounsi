@@ -68,25 +68,46 @@ class _LoginPageState extends State<LoginPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  Future<void> _loginEmail() async {
-    setState(() => loading = true);
-    try {
-      await AuthService.instance.signInWithEmail(
-        email: emailC.text,
-        password: passC.text,
-      );
-      if (!mounted) return;
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        AuthGate.route,
-        (r) => false,
-      );
-    } catch (e) {
-      _toast(authErrorText(e));
-    } finally {
-      if (mounted) setState(() => loading = false);
-    }
+Future<void> _loginEmail() async {
+  final email = emailC.text.trim();
+  final password = passC.text;
+
+  if (email.isEmpty && password.trim().isEmpty) {
+    _toast('Please enter your email and password.');
+    emailF.requestFocus();
+    return;
   }
+
+  if (email.isEmpty) {
+    _toast('Please enter your email.');
+    emailF.requestFocus();
+    return;
+  }
+
+  if (password.trim().isEmpty) {
+    _toast('Please enter your password.');
+    passF.requestFocus();
+    return;
+  }
+
+  setState(() => loading = true);
+  try {
+    await AuthService.instance.signInWithEmail(
+      email: email,
+      password: password,
+    );
+    if (!mounted) return;
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AuthGate.route,
+      (r) => false,
+    );
+  } catch (e) {
+    _toast(authErrorText(e));
+  } finally {
+    if (mounted) setState(() => loading = false);
+  }
+}
 
   Future<void> _loginGoogle() async {
     setState(() => loading = true);

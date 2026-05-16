@@ -481,8 +481,8 @@ class _TrustProfileCard extends StatelessWidget {
             ? summary.average.toStringAsFixed(1)
             : 'New';
         final ratingSubtitle = summary.hasReviews
-            ? '${summary.count} completed stay review${summary.count == 1 ? '' : 's'}'
-            : 'Ask questions before booking';
+            ? '${summary.count} review${summary.count == 1 ? '' : 's'} from completed stays'
+            : 'New sitter profile';
 
         return Container(
           padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
@@ -505,7 +505,7 @@ class _TrustProfileCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(15),
                     ),
                     child: const Icon(
-                      Icons.verified_user_rounded,
+                      Icons.shield_outlined,
                       color: Color(0xFFB96B00),
                       size: 22,
                     ),
@@ -525,7 +525,7 @@ class _TrustProfileCard extends StatelessWidget {
                         ),
                         SizedBox(height: 4),
                         Text(
-                          'Use reviews, availability, and chat to book with confidence.',
+                          'Real reviews, availability, and chat help you decide with confidence.',
                           style: TextStyle(
                             color: AppTheme.muted,
                             fontWeight: FontWeight.w700,
@@ -558,8 +558,8 @@ class _TrustProfileCard extends StatelessWidget {
                           : Icons.person_outline_rounded,
                       title: hasPhoto ? 'Photo' : 'Basic',
                       subtitle: hasPhoto
-                          ? 'Profile visible'
-                          : 'Profile photo missing',
+                          ? 'Profile photo visible'
+                          : 'Ask for details in chat',
                       bg: AppTheme.sky,
                       fg: const Color(0xFF4C79C8),
                     ),
@@ -573,7 +573,7 @@ class _TrustProfileCard extends StatelessWidget {
                     child: _TrustScoreTile(
                       icon: Icons.event_available_rounded,
                       title: blockedDates == 0 ? 'Open' : '$blockedDates busy',
-                      subtitle: 'Calendar signal',
+                      subtitle: 'Availability signal',
                       bg: blockedDates >= 8 ? AppTheme.butter : AppTheme.mint,
                       fg: blockedDates >= 8
                           ? const Color(0xFF8A5A00)
@@ -596,7 +596,7 @@ class _TrustProfileCard extends StatelessWidget {
               const _TrustSignalRow(
                 icon: Icons.chat_bubble_outline_rounded,
                 text:
-                    'Chat first to confirm personality, routine, pickup/drop-off, and final price.',
+                    'Chat first to confirm routine, handoff, pet behavior, emergency contact, and final price.',
               ),
               SizedBox(height: 9),
               _TrustSignalRow(

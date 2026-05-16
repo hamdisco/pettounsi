@@ -57,8 +57,7 @@ class AppDrawer extends StatelessWidget {
                       Navigator.pop(context);
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                            builder: (_) => const SettingsPage()),
+                        MaterialPageRoute(builder: (_) => const SettingsPage()),
                       );
                     },
                   ),
@@ -72,10 +71,13 @@ class AppDrawer extends StatelessWidget {
                             width: c.maxWidth,
                             child: Padding(
                               padding: const EdgeInsets.fromLTRB(
-                                  12, 10, 12, 12),
+                                12,
+                                10,
+                                12,
+                                12,
+                              ),
                               child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const _SectionTitle(
                                     title: 'Quick services',
@@ -87,15 +89,15 @@ class AppDrawer extends StatelessWidget {
                                   const SizedBox(height: 8),
                                   _QuickServicesStack(
                                     onBabysitting: () => _push(
-                                        context,
-                                        const PetBabysittingPage()),
+                                      context,
+                                      const PetBabysittingPage(),
+                                    ),
                                     onVets: () =>
                                         _push(context, const VetsPage()),
-                                    onAccessories: () => _push(
-                                        context,
-                                        const AccessoriesPage()),
-                                    onEvents: () => _push(
-                                        context, const EventsPage()),
+                                    onAccessories: () =>
+                                        _push(context, const AccessoriesPage()),
+                                    onEvents: () =>
+                                        _push(context, const EventsPage()),
                                   ),
                                   const SizedBox(height: 10),
                                   Divider(
@@ -116,33 +118,32 @@ class AppDrawer extends StatelessWidget {
                                     icon: Icons.storefront_rounded,
                                     iconBg: AppTheme.butter,
                                     iconFg: const Color(0xFFC6921A),
-                                    onTap: () => _push(
-                                        context, const PetshopsPage()),
+                                    onTap: () =>
+                                        _push(context, const PetshopsPage()),
                                   ),
                                   _DrawerTile(
                                     title: 'Games',
                                     icon: Icons.sports_esports_rounded,
                                     iconBg: const Color(0xFFFFF1EA),
                                     iconFg: AppTheme.orangeDark,
-                                    onTap: () => _push(
-                                        context, const GamesPage()),
+                                    onTap: () =>
+                                        _push(context, const GamesPage()),
                                   ),
                                   _DrawerTile(
                                     title: 'Adopt & Rescue',
                                     icon: Icons.favorite_rounded,
                                     iconBg: const Color(0xFFFFE8EC),
                                     iconFg: const Color(0xFFD94F70),
-                                    onTap: () => _push(
-                                        context,
-                                        const AdoptRescuePage()),
+                                    onTap: () =>
+                                        _push(context, const AdoptRescuePage()),
                                   ),
                                   _DrawerTile(
                                     title: 'Podcasts',
                                     icon: Icons.podcasts_rounded,
                                     iconBg: AppTheme.blush,
                                     iconFg: const Color(0xFFD35A8E),
-                                    onTap: () => _push(
-                                        context, const PodcastsPage()),
+                                    onTap: () =>
+                                        _push(context, const PodcastsPage()),
                                   ),
                                   const SizedBox(height: 10),
                                   Divider(
@@ -157,8 +158,7 @@ class AppDrawer extends StatelessWidget {
                                     iconFg: const Color(0xFFE05555),
                                     danger: true,
                                     onTap: () async {
-                                      await AuthService.instance
-                                          .signOut();
+                                      await AuthService.instance.signOut();
                                       if (!context.mounted) return;
                                       Navigator.pushNamedAndRemoveUntil(
                                         context,
@@ -207,11 +207,7 @@ class _DrawerHeroHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [
-            Color(0xFFFFF1EA),
-            Color(0xFFF6EFFF),
-            Color(0xFFEEF7FF),
-          ],
+          colors: [Color(0xFFFFF1EA), Color(0xFFF6EFFF), Color(0xFFEEF7FF)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -252,8 +248,10 @@ class _DrawerHeroHeader extends StatelessWidget {
                         ? NetworkImage(photoUrl)
                         : null,
                     child: photoUrl.isEmpty
-                        ? const Icon(Icons.pets_rounded,
-                            color: AppTheme.orangeDark)
+                        ? const Icon(
+                            Icons.pets_rounded,
+                            color: AppTheme.orangeDark,
+                          )
                         : null,
                   ),
                 ),
@@ -279,16 +277,16 @@ class _DrawerHeroHeader extends StatelessWidget {
                       const SizedBox(height: 5),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withAlpha(220),
                           borderRadius: BorderRadius.circular(999),
                           border: Border.all(color: Colors.white),
                         ),
                         child: Text(
-                          onProfileTap == null
-                              ? 'Welcome'
-                              : 'View profile',
+                          onProfileTap == null ? 'Welcome' : 'View profile',
                           style: TextStyle(
                             color: AppTheme.ink.withAlpha(185),
                             fontWeight: FontWeight.w800,
@@ -311,8 +309,11 @@ class _DrawerHeroHeader extends StatelessWidget {
                   child: const SizedBox(
                     width: 42,
                     height: 42,
-                    child: Icon(Icons.settings_rounded,
-                        color: AppTheme.ink, size: 20),
+                    child: Icon(
+                      Icons.settings_rounded,
+                      color: AppTheme.ink,
+                      size: 20,
+                    ),
                   ),
                 ),
               ),
@@ -502,17 +503,16 @@ class _ServicePhotoCard extends StatelessWidget {
           child: Stack(
             children: [
               Positioned.fill(
-                child: _SoftServiceBackdrop(
-                  icon: icon,
-                  accent: accent,
-                ),
+                child: _SoftServiceBackdrop(icon: icon, accent: accent),
               ),
               Positioned(
                 right: 54,
                 top: 10,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 9, vertical: 5),
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withAlpha(220),
                     borderRadius: BorderRadius.circular(999),
@@ -530,8 +530,7 @@ class _ServicePhotoCard extends StatelessWidget {
                 ),
               ),
               Padding(
-                padding:
-                    const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                 child: Row(
                   children: [
                     Container(
@@ -548,8 +547,7 @@ class _ServicePhotoCard extends StatelessWidget {
                     Expanded(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             title,
@@ -604,10 +602,7 @@ class _ServicePhotoCard extends StatelessWidget {
 }
 
 class _SoftServiceBackdrop extends StatelessWidget {
-  const _SoftServiceBackdrop({
-    required this.icon,
-    required this.accent,
-  });
+  const _SoftServiceBackdrop({required this.icon, required this.accent});
 
   final IconData icon;
   final Color accent;
@@ -633,11 +628,7 @@ class _SoftServiceBackdrop extends StatelessWidget {
         Positioned(
           right: -22,
           bottom: -28,
-          child: Icon(
-            icon,
-            size: 112,
-            color: accent.withAlpha(24),
-          ),
+          child: Icon(icon, size: 112, color: accent.withAlpha(24)),
         ),
         Positioned(
           right: 16,
@@ -695,8 +686,7 @@ class _DrawerTile extends StatelessWidget {
             boxShadow: AppTheme.softShadows(0.10),
           ),
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
             child: Row(
               children: [
                 Container(
@@ -713,12 +703,9 @@ class _DrawerTile extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: TextStyle(
-                        fontWeight: FontWeight.w900, color: fg),
+                    style: TextStyle(fontWeight: FontWeight.w900, color: fg),
                   ),
                 ),
-                Icon(Icons.chevron_right_rounded,
-                    color: AppTheme.ink.withAlpha(120)),
               ],
             ),
           ),

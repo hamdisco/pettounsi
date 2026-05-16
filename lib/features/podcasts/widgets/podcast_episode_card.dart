@@ -108,7 +108,7 @@ class PodcastEpisodeCard extends StatelessWidget {
                           ),
                         ),
                         const Spacer(),
-                        Icon(Icons.chevron_right_rounded,
+                        Icon(Icons.arrow_forward_rounded,
                             color: AppTheme.ink.withAlpha(130)),
                       ],
                     ),

@@ -276,7 +276,9 @@ class _PointsHistoryEntry {
     final missionId = (data['missionId'] ?? '').toString();
     final source = (data['source'] ?? '').toString();
     final isArcade = missionId.startsWith('arcade_') || source.startsWith('arcade_game');
-    final dayMeta = dayKey.isEmpty ? (isArcade ? 'Arcade' : null) : '${isArcade ? 'Arcade · ' : ''}Day $dayKey';
+    final dayMeta = dayKey.isEmpty
+        ? (isArcade ? 'Arcade' : null)
+        : '${isArcade ? 'Arcade · ' : ''}Day $dayKey';
     final claimIcon = isArcade ? Icons.sports_esports_rounded : Icons.emoji_events_outlined;
 
     if (status == 'approved') {

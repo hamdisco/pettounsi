@@ -283,7 +283,7 @@ class PremiumSettingsNavTile extends StatelessWidget {
                 )
               else
                 Icon(
-                  Icons.chevron_right_rounded,
+                  Icons.arrow_forward_rounded,
                   color: AppTheme.ink.withAlpha(110),
                 ),
             ],

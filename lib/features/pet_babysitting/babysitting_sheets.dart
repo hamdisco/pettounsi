@@ -143,7 +143,7 @@ class _CreateRequestSheetState extends State<CreateRequestSheet> {
               _DialogLine(icon: Icons.payments_rounded, text: price),
               const SizedBox(height: 14),
               Text(
-                'The sitter will receive a clear request with dates, pet details, and care notes. Chat next to confirm price, handoff, and emergency contact.',
+                'The sitter will receive dates and care notes. Confirm price, handoff, and emergency contact in chat.',
                 style: TextStyle(
                   color: AppTheme.muted.withAlpha(230),
                   fontWeight: FontWeight.w700,
@@ -259,7 +259,7 @@ class _CreateRequestSheetState extends State<CreateRequestSheet> {
 
     return _BottomSheetFrame(
       title: 'Request this stay',
-      subtitle: 'Send dates, pet details, and care expectations to ${listing.authorName}',
+      subtitle: 'Send dates and pet details to ${listing.authorName}',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -316,7 +316,7 @@ class _CreateRequestSheetState extends State<CreateRequestSheet> {
               iconBg: const Color(0xFFFFF2DB),
               iconFg: const Color(0xFFDA8A1F),
               text:
-                  'Unavailable or already booked dates cannot be requested. Choose a clean date range before sending.',
+                  'Unavailable or booked dates cannot be requested.',
             ),
           ],
           if (blockedDates.isNotEmpty) ...[
@@ -326,7 +326,7 @@ class _CreateRequestSheetState extends State<CreateRequestSheet> {
               iconBg: const Color(0xFFFFEBEB),
               iconFg: const Color(0xFFE05555),
               text:
-                  'Your selected range includes unavailable dates: ${_blockedDatesLabel(blockedDates)}. Please change the dates.',
+                  'Unavailable dates selected: ${_blockedDatesLabel(blockedDates)}. Please change the range.',
             ),
           ],
           const SizedBox(height: 12),
@@ -392,7 +392,7 @@ class _CreateRequestSheetState extends State<CreateRequestSheet> {
               ),
               _CareQuickChip(
                 label: 'Updates',
-                onTap: () => _appendCareDetail('Preferred updates: photos/messages during the stay.'),
+                onTap: () => _appendCareDetail('Preferred updates: photos/messages.'),
               ),
             ],
           ),
@@ -405,7 +405,7 @@ class _CreateRequestSheetState extends State<CreateRequestSheet> {
             decoration: const InputDecoration(
               labelText: 'Care message',
               hintText:
-                  'Introduce your pet and mention feeding, medication, behavior, pickup/drop-off, and anything important.',
+                  'Pet routine, medication, behavior, handoff, and key notes.',
               prefixIcon: Icon(Icons.chat_bubble_outline_rounded),
               alignLabelWithHint: true,
               counterText: '',
@@ -431,7 +431,7 @@ class _CreateRequestSheetState extends State<CreateRequestSheet> {
             iconBg: AppTheme.mint,
             iconFg: const Color(0xFF2F9A6A),
             text:
-                'Chat before the stay starts to confirm final price, emergency contact, exact address, and handoff time.',
+                'Before the stay, confirm price, address, handoff, and emergency contact in chat.',
           ),
           const SizedBox(height: 14),
           SizedBox(
@@ -673,7 +673,7 @@ class _LeaveReviewSheetState extends State<LeaveReviewSheet> {
       ).showSnackBar(
         const SnackBar(
           behavior: SnackBarBehavior.floating,
-          content: Text('Review published. Thanks for helping other pet owners.'),
+          content: Text('Review published. Thanks for helping other owners.'),
         ),
       );
     } catch (e) {
@@ -775,7 +775,7 @@ class _LeaveReviewSheetState extends State<LeaveReviewSheet> {
             iconBg: AppTheme.sky,
             iconFg: const Color(0xFF4C79C8),
             text:
-                'The most useful reviews mention communication, punctuality, pet comfort, and whether expectations matched reality.',
+                'Useful reviews mention communication, timing, and pet comfort.',
           ),
           const SizedBox(height: 14),
           SizedBox(

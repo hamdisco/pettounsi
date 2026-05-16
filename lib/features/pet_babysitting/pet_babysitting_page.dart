@@ -1456,9 +1456,63 @@ class _CompactListingGuidance extends StatelessWidget {
 
   final BabysittingListing listing;
 
+  bool get _hasEnoughDetails {
+    return listing.description.trim().length >= 80 &&
+        listing.priceText.trim().isNotEmpty &&
+        listing.availabilityText.trim().isNotEmpty;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return const SizedBox.shrink();
+    final text = _hasEnoughDetails
+        ? 'Chat first to confirm routine, handoff, emergency contact, and final price.'
+        : 'Ask the sitter for missing details before sending a request.';
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        decoration: BoxDecoration(
+          color: AppTheme.bg,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppTheme.outline),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: _hasEnoughDetails ? AppTheme.mint : _petPrimarySoft,
+                borderRadius: BorderRadius.circular(11),
+              ),
+              alignment: Alignment.center,
+              child: Icon(
+                _hasEnoughDetails
+                    ? Icons.checklist_rounded
+                    : Icons.chat_bubble_outline_rounded,
+                color: _hasEnoughDetails ? _petTrust : _petPrimary,
+                size: 16,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                text,
+                style: TextStyle(
+                  color: AppTheme.muted.withAlpha(218),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11.3,
+                  height: 1.22,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -1467,9 +1521,159 @@ class _ListingTrustPreview extends StatelessWidget {
 
   final BabysittingListing listing;
 
+  String _availabilitySignal() {
+    final blocked = <String>{
+      ...listing.unavailableDateKeys,
+      ...listing.bookedDateKeys,
+    };
+    if (blocked.isEmpty) return 'Open calendar';
+
+    final now = DateTime.now();
+    var blockedCount = 0;
+    for (var i = 0; i < 14; i++) {
+      final key = babysittingDateKey(now.add(Duration(days: i)));
+      if (blocked.contains(key)) blockedCount++;
+    }
+
+    if (blockedCount <= 2) return 'Mostly open';
+    if (blockedCount <= 7) return 'Some busy days';
+    return 'Limited dates';
+  }
+
+  bool get _hasGoodListingDetail {
+    return listing.description.trim().length >= 80 &&
+        listing.priceText.trim().isNotEmpty &&
+        listing.availabilityText.trim().isNotEmpty;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return const SizedBox.shrink();
+    return StreamBuilder<BabysitterRatingSummary>(
+      stream: BabysittingRepository.instance.streamListingRatingSummary(
+        listing.id,
+        limit: 80,
+      ),
+      builder: (context, snap) {
+        final summary = snap.data ?? BabysitterRatingSummary.empty;
+        final reviewText = summary.hasReviews
+            ? '${summary.count} review${summary.count == 1 ? '' : 's'}'
+            : 'No reviews yet';
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(11, 10, 11, 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppTheme.outline),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      summary.hasReviews
+                          ? Icons.star_rounded
+                          : Icons.shield_outlined,
+                      color: summary.hasReviews
+                          ? const Color(0xFFB96B00)
+                          : _petPrimary,
+                      size: 17,
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        summary.hasReviews
+                            ? '${summary.average.toStringAsFixed(1)} rating from completed stays'
+                            : 'New sitter profile',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppTheme.ink,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 12.2,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 9),
+                Wrap(
+                  spacing: 7,
+                  runSpacing: 7,
+                  children: [
+                    _TrustMiniChip(
+                      icon: Icons.rate_review_outlined,
+                      text: reviewText,
+                      bg: summary.hasReviews ? AppTheme.butter : AppTheme.bg,
+                      fg: summary.hasReviews
+                          ? const Color(0xFF9A6200)
+                          : AppTheme.muted,
+                    ),
+                    _TrustMiniChip(
+                      icon: Icons.description_outlined,
+                      text: _hasGoodListingDetail ? 'Clear details' : 'Ask details',
+                      bg: _hasGoodListingDetail ? AppTheme.mint : AppTheme.bg,
+                      fg: _hasGoodListingDetail ? _petTrust : AppTheme.muted,
+                    ),
+                    _TrustMiniChip(
+                      icon: Icons.event_available_rounded,
+                      text: _availabilitySignal(),
+                      bg: AppTheme.sky,
+                      fg: _petInfo,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _TrustMiniChip extends StatelessWidget {
+  const _TrustMiniChip({
+    required this.icon,
+    required this.text,
+    required this.bg,
+    required this.fg,
+  });
+
+  final IconData icon;
+  final String text;
+  final Color bg;
+  final Color fg;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppTheme.outline),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: fg, size: 14),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: TextStyle(
+              color: fg,
+              fontWeight: FontWeight.w900,
+              fontSize: 10.8,
+              height: 1,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -1870,8 +2074,11 @@ class _ListingDetailsSheet extends StatelessWidget {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Text(
-                        listing.authorName,
+                      child: UserName(
+                        uid: listing.authorId,
+                        fallback: listing.authorName.trim().isEmpty
+                            ? 'Pet sitter'
+                            : listing.authorName.trim(),
                         style: const TextStyle(
                           color: AppTheme.ink,
                           fontWeight: FontWeight.w900,
@@ -2414,8 +2621,11 @@ class _ReviewTile extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  review.requesterName,
+                child: UserName(
+                  uid: review.requesterId,
+                  fallback: review.requesterName.trim().isEmpty
+                      ? 'Pet owner'
+                      : review.requesterName.trim(),
                   style: const TextStyle(
                     color: AppTheme.ink,
                     fontWeight: FontWeight.w900,

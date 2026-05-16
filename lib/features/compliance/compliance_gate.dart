@@ -450,7 +450,7 @@ class _OpenCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
-                  Icons.chevron_right_rounded,
+                  Icons.arrow_forward_rounded,
                   color: AppTheme.muted,
                   size: 22,
                 ),

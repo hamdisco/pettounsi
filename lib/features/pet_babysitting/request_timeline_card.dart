@@ -443,7 +443,7 @@ class RequestsTimelineCard extends StatelessWidget {
           bg: Color(0xFFEAF2FF),
           fg: Color(0xFF3357D6),
           accent: Color(0xFF3357D6),
-          icon: Icons.verified_rounded,
+          icon: Icons.task_alt_rounded,
           label: 'Completed',
         );
       case 'canceled':
@@ -470,14 +470,14 @@ class RequestsTimelineCard extends StatelessWidget {
       return _StatePanelData(
         title: 'Stay completed',
         subtitle: incoming
-            ? 'Everything is wrapped up and the stay has ended.'
-            : 'This booking is finished and ready for follow-up.',
+            ? 'The stay is closed. The pet owner can leave a review if they have not yet.'
+            : 'This stay is complete. Leave a review to help future pet owners.',
       );
     }
     if (req.isAccepted) {
       return const _StatePanelData(
         title: 'Booking confirmed',
-        subtitle: 'The dates are locked in and chat stays open.',
+        subtitle: 'Dates are reserved. Confirm details in chat.',
       );
     }
     if (req.isDeclined) {
@@ -491,14 +491,14 @@ class RequestsTimelineCard extends StatelessWidget {
     if (req.isCanceled) {
       return const _StatePanelData(
         title: 'Request canceled',
-        subtitle: 'The booking was canceled before confirmation.',
+        subtitle: 'Canceled before confirmation.',
       );
     }
     return _StatePanelData(
       title: incoming ? 'Awaiting your reply' : 'Waiting for a reply',
       subtitle: incoming
-          ? 'Review the stay details and reply when ready.'
-          : 'Your booking request has been sent successfully.',
+          ? 'Check dates, pet routine, price, and availability before accepting.'
+          : 'Your request was sent. Use chat to confirm details before the stay.',
     );
   }
 
@@ -1164,7 +1164,7 @@ class _Actions extends StatelessWidget {
       final ok = await confirmAction(
         title: 'Decline this request?',
         body:
-            'The pet owner will be notified. Decline only when the dates, price, or care routine cannot work for you.',
+            'The owner will be notified. Decline when the stay cannot work for you.',
         actionLabel: 'Decline request',
         actionColor: const Color(0xFFE05555),
       );
@@ -1185,7 +1185,7 @@ class _Actions extends StatelessWidget {
       final ok = await confirmAction(
         title: 'Accept this stay?',
         body:
-            'The selected dates will be reserved on your sitter calendar. Use chat next to confirm handoff, routine, emergency contact, and final price.',
+            'Selected dates will be reserved. Confirm handoff, routine, emergency contact, and price in chat.',
         actionLabel: 'Accept stay',
         actionColor: const Color(0xFF2F9A6A),
       );
@@ -1193,7 +1193,7 @@ class _Actions extends StatelessWidget {
 
       try {
         await BabysittingRepository.instance.acceptRequestAndBlockDates(req);
-        showTrustSnack('Stay accepted. Dates are reserved — confirm final details in chat.');
+        showTrustSnack('Stay accepted. Confirm final details in chat.');
       } catch (e) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(
@@ -1216,7 +1216,7 @@ class _Actions extends StatelessWidget {
       try {
         await BabysittingRepository.instance.cancelRequest(req);
         showTrustSnack(req.isAccepted
-            ? 'Confirmed stay canceled. The sitter was notified and dates were released.'
+            ? 'Stay canceled. The sitter was notified and dates were released.'
             : 'Request canceled. The sitter was notified.');
       } catch (e) {
         if (!context.mounted) return;
@@ -1230,7 +1230,7 @@ class _Actions extends StatelessWidget {
       final ok = await confirmAction(
         title: 'Mark stay completed?',
         body:
-            'Only do this after the stay is finished and the pet has been returned safely. The owner will be invited to leave a review.',
+            'Use this after the stay is finished and the pet is safely returned.',
         actionLabel: 'Mark completed',
         actionColor: const Color(0xFF3357D6),
       );

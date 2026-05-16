@@ -335,7 +335,7 @@ class PodcastFeaturedCard extends StatelessWidget {
                           const SizedBox(width: 8),
                         ],
                         Icon(
-                          Icons.chevron_right_rounded,
+                          Icons.arrow_forward_rounded,
                           color: AppTheme.ink.withAlpha(145),
                         ),
                       ],
@@ -456,7 +456,7 @@ class PodcastEpisodeCard extends StatelessWidget {
                   trailing:
                       trailing ??
                       Icon(
-                        Icons.chevron_right_rounded,
+                        Icons.arrow_forward_rounded,
                         color: AppTheme.ink.withAlpha(140),
                       ),
                 ),

@@ -11,7 +11,6 @@ import '../../ui/app_theme.dart';
 import '../../ui/premium_cards.dart';
 import '../../ui/premium_feedback.dart';
 import '../../ui/premium_pills.dart';
-import '../../ui/premium_sections.dart';
 import '../../ui/premium_sheet.dart';
 import 'pet_reports_repository.dart';
 
@@ -240,7 +239,7 @@ class _PetReportsPageState extends State<PetReportsPage> {
                   iconColor: Color(0xFF7C62D7),
                   iconBg: AppTheme.lilac,
                   title: 'Loading reports',
-                  subtitle: 'Fetching the latest lost & found activity.',
+                  subtitle: 'Fetching the latest reports.',
                 ),
                 SizedBox(height: 12),
                 PremiumSkeletonCard(height: 210, radius: 22),
@@ -374,8 +373,8 @@ class _PetReportsPageState extends State<PetReportsPage> {
                   icon: Icons.search_off_rounded,
                   iconColor: Color(0xFF4C79C8),
                   iconBg: AppTheme.sky,
-                  title: 'No matching reports',
-                  subtitle: 'Try another keyword or change the filters above.',
+                  title: 'No reports found',
+                  subtitle: 'Try a different filter or search term.',
                 )
               else
                 ...items.map(
@@ -427,21 +426,21 @@ class _PetReportsHero extends StatelessWidget {
     return PremiumCardSurface(
       radius: BorderRadius.circular(24),
       padding: const EdgeInsets.all(14),
-      shadowOpacity: 0.14,
+      shadowOpacity: 0.08,
       child: Row(
         children: [
           Container(
-            width: 52,
-            height: 52,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
               color: AppTheme.blush,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(17),
               border: Border.all(color: Colors.white),
             ),
             child: const Icon(
               Icons.pets_rounded,
               color: AppTheme.orangeDark,
-              size: 28,
+              size: 25,
             ),
           ),
           const SizedBox(width: 12),
@@ -450,7 +449,7 @@ class _PetReportsHero extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Lost & found reports',
+                  'Lost & found',
                   style: TextStyle(
                     color: AppTheme.ink,
                     fontWeight: FontWeight.w900,
@@ -459,7 +458,7 @@ class _PetReportsHero extends StatelessWidget {
                 ),
                 SizedBox(height: 5),
                 Text(
-                  'Follow the latest community reports, open directions, and manage your own cases.',
+                  'Recent community pet reports.',
                   style: TextStyle(
                     color: AppTheme.muted,
                     fontWeight: FontWeight.w700,
@@ -486,152 +485,187 @@ class _PetReportCard extends StatelessWidget {
 
   Color get bg => item.type == 'lost' ? const Color(0xFFFFEBEB) : AppTheme.mint;
 
+  IconData get typeIcon => item.type == 'lost'
+      ? Icons.search_rounded
+      : Icons.check_circle_outline_rounded;
+
+  String get typeLabel => item.type == 'lost' ? 'Lost' : 'Found';
+
   String get locationLine {
     final parts = <String>[
-      if (item.address.isNotEmpty) item.address,
       if (item.city.isNotEmpty) item.city,
       if (item.governorate.isNotEmpty) item.governorate,
     ];
-    return parts.join(' • ');
+    if (parts.isNotEmpty) return parts.join(' • ');
+    return item.address;
   }
 
   @override
   Widget build(BuildContext context) {
-    return PremiumCardSurface(
-      onTap: onTap,
-      radius: BorderRadius.circular(22),
-      padding: EdgeInsets.zero,
-      shadowOpacity: 0.10,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          PremiumSoftPanel(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-            radius: const BorderRadius.only(
-              topLeft: Radius.circular(22),
-              topRight: Radius.circular(22),
-            ),
-            gradient: const LinearGradient(
-              colors: [AppTheme.blush, AppTheme.lilac, AppTheme.sky],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderColor: Colors.transparent,
-            child: Row(
-              children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    color: bg,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white),
-                  ),
-                  child: Icon(
-                    item.type == 'lost' ? Icons.pets : Icons.pets_outlined,
-                    color: accent,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    item.title,
-                    style: const TextStyle(
-                      color: AppTheme.ink,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 15,
-                      height: 1.12,
-                    ),
-                  ),
-                ),
-                PremiumCardBadge(
-                  label: item.isResolved ? 'Resolved' : 'Open',
-                  bg: item.isResolved ? AppTheme.mint : bg,
-                  fg: item.isResolved ? const Color(0xFF2F9A6A) : accent,
-                  borderColor: AppTheme.outline,
-                  fontSize: 10.8,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 5,
-                  ),
-                ),
-              ],
-            ),
+    final date = AppDateFmt.dMy(item.createdAt);
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: onTap,
+        child: Ink(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: AppTheme.outline.withAlpha(210)),
+            boxShadow: AppTheme.softShadows(0.06),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    PremiumCardBadge(
-                      label: item.type == 'lost' ? 'Lost' : 'Found',
-                      icon: item.type == 'lost'
-                          ? Icons.search_rounded
-                          : Icons.check_circle_outline_rounded,
-                      bg: bg,
-                      fg: accent,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (item.photoUrl.isNotEmpty)
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
+                  ),
+                  child: AspectRatio(
+                    aspectRatio: 1.75,
+                    child: AdaptiveCachedImage(
+                      imageUrl: item.photoUrl,
+                      fit: BoxFit.cover,
+                      fallbackHeight: 180,
+                      maxCacheDimension: 900,
+                      errorWidget: Container(
+                        color: bg,
+                        alignment: Alignment.center,
+                        child: Icon(typeIcon, color: accent, size: 32),
+                      ),
                     ),
-                    if (item.animal.isNotEmpty)
-                      PremiumCardBadge(
-                        label: item.animal,
-                        icon: Icons.pets_rounded,
-                        bg: AppTheme.lilac,
-                        fg: const Color(0xFF7C62D7),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: bg,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Icon(typeIcon, color: accent, size: 20),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: AppTheme.ink,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 14.8,
+                                  height: 1.1,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                [
+                                  if (locationLine.isNotEmpty) locationLine,
+                                  if (date.isNotEmpty) date,
+                                ].join(' • '),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: AppTheme.muted.withAlpha(215),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 11.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: item.isResolved ? AppTheme.mint : bg,
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: AppTheme.outline),
+                          ),
+                          child: Text(
+                            item.isResolved ? 'Resolved' : typeLabel,
+                            style: TextStyle(
+                              color: item.isResolved
+                                  ? const Color(0xFF2F9A6A)
+                                  : accent,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 11,
+                              height: 1,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (item.description.isNotEmpty) ...[
+                      const SizedBox(height: 11),
+                      Text(
+                        item.description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: AppTheme.ink.withAlpha(180),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13.3,
+                          height: 1.28,
+                        ),
                       ),
-                    if (item.createdAt != null)
-                      PremiumCardBadge(
-                        label: AppDateFmt.dMy(item.createdAt),
-                        icon: Icons.schedule_rounded,
-                        bg: AppTheme.sky,
-                        fg: const Color(0xFF4C79C8),
-                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        if (item.animal.isNotEmpty) ...[
+                          Icon(Icons.pets_rounded, size: 15, color: accent),
+                          const SizedBox(width: 5),
+                          Expanded(
+                            child: Text(
+                              item.animal,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: AppTheme.muted.withAlpha(220),
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ] else
+                          const Spacer(),
+                        const SizedBox(width: 10),
+                        Text(
+                          item.isMine ? 'Manage' : 'Details',
+                          style: TextStyle(
+                            color: accent,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 12.4,
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
-                if (item.description.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    item.description,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: AppTheme.ink.withAlpha(180),
-                      fontWeight: FontWeight.w700,
-                      height: 1.24,
-                    ),
-                  ),
-                ],
-                if (locationLine.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  PremiumMetaRow(
-                    icon: Icons.place_rounded,
-                    text: locationLine,
-                    iconColor: accent,
-                    textColor: AppTheme.ink.withAlpha(175),
-                    fontSize: 11.9,
-                  ),
-                ],
-                const SizedBox(height: 10),
-                PremiumCardActionRow(
-                  icon: Icons.visibility_outlined,
-                  label: item.isMine
-                      ? 'Open and manage this report'
-                      : 'Open report details',
-                  iconColor: accent,
-                  textColor: accent,
-                  trailing: Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppTheme.ink.withAlpha(120),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

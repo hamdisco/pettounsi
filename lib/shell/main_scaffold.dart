@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 
 import '../features/home/home_page.dart';
 import '../features/map/map_page.dart';
-import '../features/messages/conversation_model.dart';
 import '../features/messages/messages_page.dart';
 import '../features/messages/messages_repository.dart';
 import '../features/messages/new_chat_sheet.dart';
@@ -34,11 +33,10 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
   _notificationsSoundSub;
-  StreamSubscription<List<ConversationModel>>? _messagesSoundSub;
   final Set<String> _seenNotificationIds = <String>{};
-  final Map<String, int> _lastMessageAtByConversation = <String, int>{};
   bool _notificationsSoundArmed = false;
-  bool _messagesSoundArmed = false;
+  _InAppAlert? _activeAlert;
+  Timer? _alertTimer;
 
   final Set<int> _visitedTabs = <int>{0};
 
@@ -67,13 +65,12 @@ class _MainScaffoldState extends State<MainScaffold> {
   @override
   void dispose() {
     _notificationsSoundSub?.cancel();
-    _messagesSoundSub?.cancel();
+    _alertTimer?.cancel();
     super.dispose();
   }
 
   void _wireInAppSounds() {
     _notificationsSoundSub?.cancel();
-    _messagesSoundSub?.cancel();
 
     _notificationsSoundSub = NotificationsRepository.instance
         .streamMyNotifications(limit: 60)
@@ -88,69 +85,60 @@ class _MainScaffoldState extends State<MainScaffold> {
             return;
           }
 
-          final hasNewNotification = ids.any(
-            (id) => !_seenNotificationIds.contains(id),
-          );
+          QueryDocumentSnapshot<Map<String, dynamic>>? newestDoc;
+          for (final doc in snap.docs) {
+            if (!_seenNotificationIds.contains(doc.id)) {
+              newestDoc = doc;
+              break;
+            }
+          }
+
           _seenNotificationIds
             ..clear()
             ..addAll(ids);
 
-          if (hasNewNotification) {
-            InAppSoundService.instance.playNotificationSound();
-          }
-        });
+          if (newestDoc != null) {
+            final data = newestDoc.data();
+            final type = ((data['type'] ?? '') as String).trim();
+            final isMessage = type == 'message';
 
-    _messagesSoundSub = MessagesRepository.instance
-        .streamMyConversations(limit: 60)
-        .listen((conversations) {
-          final me = FirebaseAuth.instance.currentUser;
-          if (me == null) return;
-
-          if (!_messagesSoundArmed) {
-            _lastMessageAtByConversation
-              ..clear()
-              ..addEntries(
-                conversations.map(
-                  (c) => MapEntry(
-                    c.id,
-                    c.lastMessageAt?.millisecondsSinceEpoch ?? 0,
-                  ),
-                ),
-              );
-            _messagesSoundArmed = true;
-            return;
-          }
-
-          var hasIncomingMessage = false;
-          final nextSeen = <String, int>{};
-
-          for (final convo in conversations) {
-            final lastAtMs = convo.lastMessageAt?.millisecondsSinceEpoch ?? 0;
-            nextSeen[convo.id] = lastAtMs;
-
-            final previousMs = _lastMessageAtByConversation[convo.id] ?? 0;
-            if (lastAtMs <= previousMs) continue;
-
-            final readTs = convo.lastReadAt[me.uid];
-            final readAtMs = readTs is Timestamp
-                ? readTs.toDate().millisecondsSinceEpoch
-                : 0;
-            final isUnreadForMe =
-                convo.lastMessage.isNotEmpty && lastAtMs > readAtMs;
-
-            if (isUnreadForMe) {
-              hasIncomingMessage = true;
+            if (isMessage) {
+              InAppSoundService.instance.playMessageSound();
+            } else {
+              InAppSoundService.instance.playNotificationSound();
             }
-          }
 
-          _lastMessageAtByConversation
-            ..clear()
-            ..addAll(nextSeen);
-
-          if (hasIncomingMessage) {
-            InAppSoundService.instance.playMessageSound();
+            _showInAppAlert(
+              _InAppAlert(
+                id: 'notification-${newestDoc.id}',
+                title: NotificationsRepository.instance.displayTitleFor(data),
+                subtitle: NotificationsRepository.instance.displayBodyFor(data),
+                icon: isMessage
+                    ? Icons.chat_bubble_rounded
+                    : Icons.notifications_active_rounded,
+                onTap: isMessage ? () => _onTabChanged(3) : _openNotifications,
+              ),
+            );
           }
         });
+  }
+
+  void _showInAppAlert(_InAppAlert alert) {
+    if (!mounted) return;
+
+    _alertTimer?.cancel();
+    setState(() => _activeAlert = alert);
+
+    _alertTimer = Timer(const Duration(seconds: 4), () {
+      if (!mounted || _activeAlert?.id != alert.id) return;
+      setState(() => _activeAlert = null);
+    });
+  }
+
+  void _dismissInAppAlert() {
+    _alertTimer?.cancel();
+    if (!mounted || _activeAlert == null) return;
+    setState(() => _activeAlert = null);
   }
 
   void _openSearch() {
@@ -371,17 +359,22 @@ class _MainScaffoldState extends State<MainScaffold> {
           ),
         ),
       ),
-      body: IndexedStack(
-        index: index,
-        children: List<Widget>.generate(_topLabels.length, (tabIndex) {
-          if (!_visitedTabs.contains(tabIndex)) {
-            return const SizedBox.shrink();
-          }
-          return KeyedSubtree(
-            key: PageStorageKey<String>('main-tab-$tabIndex'),
-            child: _buildTabPage(tabIndex),
-          );
-        }),
+      body: Stack(
+        children: [
+          IndexedStack(
+            index: index,
+            children: List<Widget>.generate(_topLabels.length, (tabIndex) {
+              if (!_visitedTabs.contains(tabIndex)) {
+                return const SizedBox.shrink();
+              }
+              return KeyedSubtree(
+                key: PageStorageKey<String>('main-tab-$tabIndex'),
+                child: _buildTabPage(tabIndex),
+              );
+            }),
+          ),
+          _InAppAlertHost(alert: _activeAlert, onDismiss: _dismissInAppAlert),
+        ],
       ),
       floatingActionButton: (index == 3)
           ? _GradientFab(onTap: _openNewChat)
@@ -403,55 +396,180 @@ class _MainScaffoldState extends State<MainScaffold> {
   }
 }
 
+class _InAppAlert {
+  const _InAppAlert({
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String id;
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final VoidCallback onTap;
+}
+
+class _InAppAlertHost extends StatelessWidget {
+  const _InAppAlertHost({required this.alert, required this.onDismiss});
+
+  final _InAppAlert? alert;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final current = alert;
+
+    return IgnorePointer(
+      ignoring: current == null,
+      child: AnimatedSlide(
+        offset: current == null ? const Offset(0, -1.2) : Offset.zero,
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOutCubic,
+        child: AnimatedOpacity(
+          opacity: current == null ? 0 : 1,
+          duration: const Duration(milliseconds: 180),
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+              child: current == null
+                  ? const SizedBox.shrink()
+                  : _InAppAlertCard(alert: current, onDismiss: onDismiss),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InAppAlertCard extends StatelessWidget {
+  const _InAppAlertCard({required this.alert, required this.onDismiss});
+
+  final _InAppAlert alert;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = alert.subtitle.trim();
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: () {
+          onDismiss();
+          alert.onTap();
+        },
+        child: Ink(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: AppTheme.outline),
+            boxShadow: AppTheme.softShadows(0.18),
+          ),
+          padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFFF1EB),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(alert.icon, color: AppTheme.orangeDark, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      alert.title.trim().isEmpty
+                          ? 'New activity'
+                          : alert.title.trim(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.ink,
+                        fontSize: 13.6,
+                        fontWeight: FontWeight.w900,
+                        height: 1.15,
+                      ),
+                    ),
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppTheme.muted,
+                          fontSize: 12.2,
+                          fontWeight: FontWeight.w600,
+                          height: 1.2,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Dismiss',
+                visualDensity: VisualDensity.compact,
+                onPressed: onDismiss,
+                icon: const Icon(
+                  Icons.close_rounded,
+                  color: AppTheme.muted,
+                  size: 18,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _HomeBrandTitle extends StatelessWidget {
   const _HomeBrandTitle();
 
   @override
   Widget build(BuildContext context) {
-    const titleStyle = TextStyle(
-      fontSize: 19.8,
-      fontWeight: FontWeight.w900,
-      color: AppTheme.ink,
-      height: 1.0,
-      letterSpacing: -0.25,
-    );
-
-    return Column(
+    return const Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('PetTouns', style: titleStyle),
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.only(top: 0),
-                  child: Text('i', style: titleStyle),
-                ),
-                Positioned(
-                  top: -3,
-                  right: -2,
-                  child: Icon(
-                    Icons.pets_rounded,
-                    size: 10,
-                    color: AppTheme.orangeDark,
-                  ),
-                ),
-              ],
-            ),
-          ],
+        Text(
+          'PetTounsi',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textScaler: TextScaler.noScaling,
+          style: TextStyle(
+            fontSize: 20.8,
+            fontWeight: FontWeight.w900,
+            color: AppTheme.ink,
+            height: 1.0,
+            letterSpacing: -0.25,
+          ),
         ),
-        const SizedBox(height: 4),
-        const Text(
+        SizedBox(height: 4),
+        Text(
           'Trusted pet care nearby',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textScaler: TextScaler.noScaling,
           style: TextStyle(
             fontSize: 12.6,
             fontWeight: FontWeight.w600,
             color: AppTheme.muted,
+            height: 1.15,
           ),
         ),
       ],

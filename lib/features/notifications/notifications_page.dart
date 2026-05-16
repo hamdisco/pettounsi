@@ -9,6 +9,8 @@ import '../../ui/premium_feedback.dart';
 import '../../ui/offline_feedback.dart';
 import '../directory/models/directory_item.dart';
 import '../events/events_page.dart';
+import '../messages/chat_page.dart';
+import '../messages/messages_page.dart';
 import '../pet_babysitting/pet_babysitting_page.dart';
 import '../profile/profile_page.dart';
 import 'post_detail_page.dart';
@@ -46,6 +48,8 @@ class NotificationsPage extends StatelessWidget {
         return '$name commented on your post';
       case 'follow':
         return '$name started following you';
+      case 'message':
+        return '$name sent you a message';
       case 'babysitting_request':
         return '$name sent a babysitting request';
       case 'babysitting_accepted':
@@ -76,6 +80,7 @@ class NotificationsPage extends StatelessWidget {
     final listingTitle = ((d['listingTitle'] ?? '') as String).trim();
     final dateRangeText = ((d['dateRangeText'] ?? '') as String).trim();
     final eventDateLabel = ((d['eventDateLabel'] ?? '') as String).trim();
+    final messagePreview = ((d['messagePreview'] ?? '') as String).trim();
     final rating = d['rating'];
 
     switch (type) {
@@ -83,6 +88,8 @@ class NotificationsPage extends StatelessWidget {
       case 'comment':
       case 'follow':
         return '';
+      case 'message':
+        return messagePreview;
       case 'babysitting_request':
       case 'babysitting_accepted':
       case 'babysitting_declined':
@@ -113,6 +120,8 @@ class NotificationsPage extends StatelessWidget {
         return Icons.mode_comment_rounded;
       case 'follow':
         return Icons.person_add_alt_1_rounded;
+      case 'message':
+        return Icons.chat_bubble_rounded;
       case 'babysitting_request':
         return Icons.pets_rounded;
       case 'babysitting_accepted':
@@ -141,6 +150,8 @@ class NotificationsPage extends StatelessWidget {
         return const Color(0xFF4C79C8);
       case 'follow':
         return const Color(0xFF7C62D7);
+      case 'message':
+        return const Color(0xFF4C79C8);
       case 'babysitting_request':
         return const Color(0xFFDA8A1F);
       case 'babysitting_accepted':
@@ -167,6 +178,7 @@ class NotificationsPage extends StatelessWidget {
       case 'babysitting_canceled':
         return const Color(0xFFFFEBEB);
       case 'comment':
+      case 'message':
       case 'event':
         return AppTheme.sky;
       case 'follow':
@@ -184,6 +196,7 @@ class NotificationsPage extends StatelessWidget {
 
   String _sectionLabel(String type) {
     if (type == 'event') return 'Event';
+    if (type == 'message') return 'Message';
     if (type.startsWith('babysitting_')) return 'Pet Sitting';
     return 'Activity';
   }
@@ -192,6 +205,32 @@ class NotificationsPage extends StatelessWidget {
     final type = (d['type'] ?? '') as String;
     final postId = (d['postId'] ?? '') as String;
     final actorUid = (d['actorUid'] ?? '') as String;
+
+    if (type == 'message') {
+      final actorName = ((d['actorName'] ?? 'PetTounsi user') as String)
+          .trim();
+      final actorPhotoUrl = ((d['actorPhotoUrl'] ?? '') as String).trim();
+
+      if (actorUid.trim().isNotEmpty) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChatPage(
+              otherUid: actorUid.trim(),
+              otherName: actorName.isEmpty ? 'PetTounsi user' : actorName,
+              otherPhoto: actorPhotoUrl.isEmpty ? null : actorPhotoUrl,
+            ),
+          ),
+        );
+        return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const MessagesPage()),
+      );
+      return;
+    }
 
     if ((type == 'like' || type == 'comment') && postId.trim().isNotEmpty) {
       Navigator.push(
@@ -334,7 +373,7 @@ class NotificationsPage extends StatelessWidget {
                             iconBg: AppTheme.sky,
                             title: 'No notifications yet',
                             subtitle:
-                                'Likes, comments, follows, babysitting activity, and event updates will appear here.',
+                                'Messages, likes, comments, follows, babysitting activity, and event updates will appear here.',
                           ),
                         ),
                       );
